@@ -47,6 +47,8 @@ PLAYED_KEEP = 50                            # played tracks kept in the queue be
 FAIL_LIMIT = 3                              # stop after this many streams in a row failed
 FAIL_TTL = 60                               # don't retry resolving a failed videoId in the background for this long
 RADIO_REFILL_AT = 3                         # refill when this few tracks remain
+UNDO_KEEP = 15                              # queue snapshots kept for undo (saved with the session)
+UNDO_TRACKS = 200                           # songs kept per snapshot (the current one and what's up next)
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
 HISTORY_MAX = 300
 VOL_RANGE_DB = 50                           # the volume slider spans -50 dB .. 0 dB (0 = mute)
@@ -82,7 +84,7 @@ EQ_PRESETS = {
 
 def load_settings() -> dict:
     s = {"volume": 70, "volume_scale": "db", "eq": {"preset": "flat", "custom": [0] * 10},
-         "normalize": False, "autoplay": True, "quality": "best",
+         "normalize": False, "autoplay": True, "quality": "best", "turns": True,
          "alarm": {"enabled": False, "time": "07:00", "days": [0, 1, 2, 3, 4], "list": None,
                    "level": 45, "ramp": 5, "tz": "Europe/Belgrade", "last": ""}}
     saved = read_json(SETTINGS_FILE, {})
@@ -413,7 +415,9 @@ class Player:
         self.restarting = False               # mpv is being restarted after a crash
         self.gen = 0                          # bumped by every play request; only the newest loads
         self.fails = 0                        # streams that failed in a row
-        self.radio_shuffle = False            # started from a search pick: radio batches are added in random order
+        self.seed = None                      # the last song someone added: the radio (auto songs) follows it
+        self.seed_gen = 0                     # bumped on every re-seed; a radio that arrives late is dropped
+        self.undo: list[dict] = []            # queue snapshots, oldest first
 
     async def apply_volume(self):
         await self.mpv.send("set_property", "volume", level_to_mpv(settings["volume"], self.fade_db))
@@ -430,7 +434,8 @@ class Player:
 
     def session_data(self) -> dict:
         return {"queue": self.queue, "index": self.index,
-                "position": self.mpv.props.get("time-pos") or self.resume_at or 0}
+                "position": self.mpv.props.get("time-pos") or self.resume_at or 0,
+                "seed": self.seed, "undo": self.undo}
 
     def save_session(self):
         try:
@@ -470,6 +475,7 @@ class Player:
         try:
             self.queue, self.index = list(data["queue"]), int(data["index"])
             self.resume_at = float(data.get("position") or 0)
+            self.seed, self.undo = data.get("seed"), list(data.get("undo") or [])
         except (AttributeError, KeyError, TypeError, ValueError):
             pass
 
@@ -648,36 +654,166 @@ class Player:
         await self.mpv.send("stop")
         self.queue, self.index = [], -1
 
+    # ---------- the two-part queue: now playing → songs people added (src "user") → radio (src "auto") ----------
+    def user_end(self) -> int:
+        """Index just past the songs people added, i.e. where the radio starts."""
+        i = self.index + 1
+        while i < len(self.queue) and self.queue[i].get("src") == "user":
+            i += 1
+        return i
+
+    def turn_slot(self, by: str) -> int:
+        """Where a song added by `by` goes. Taking turns: someone with k songs up next goes before the
+        first song that is some person's (k+1)th, so everyone's songs alternate. Otherwise: at the end."""
+        start, end = self.index + 1, self.user_end()
+        if not settings["turns"]:
+            return end
+        k = sum(1 for t in self.queue[start:end] if t.get("by") == by)
+        rounds: dict[str, int] = {}
+        for j in range(start, end):
+            b = self.queue[j].get("by", "")
+            rounds[b] = rounds.get(b, 0) + 1
+            if rounds[b] > k + 1:
+                return j
+        return end
+
+    def finished(self) -> bool:
+        """Nothing plays and nothing would: a song added now should start right away."""
+        if self.current is None:
+            return True
+        return (bool(self.mpv.props.get("idle-active")) and not self.loading and not self.resume_at
+                and self.index + 1 >= len(self.queue))
+
+    async def sync_armed(self):
+        """Drops the preloaded next track if the queue changed so that it isn't next any more."""
+        a = self.armed
+        if a and (a["index"] != self.index + 1 or a["index"] >= len(self.queue)
+                  or self.queue[a["index"]]["videoId"] != a["videoId"]):
+            await self.disarm()
+
+    async def add(self, tracks: list[dict], by: str, mode: str = "add", label: str = "") -> int:
+        """add: each song at its turn at the end of the added songs; next: in front of them, in order;
+        now: in front, and the first one plays at once. The radio then follows the last song added.
+        Returns the first song's place in the queue (1 = next, 0 = playing now)."""
+        items = [{**t, "by": by, "src": "user"} for t in tracks]
+        if not items:
+            return 0
+        self.snapshot(label or (f'Added "{items[0]["title"]}"' if len(items) == 1 else f"Added {len(items)} songs"), by)
+        start_now = mode == "now" or self.finished()
+        if self.current is None:
+            self.queue, self.index = [], -1
+        if mode in ("next", "now") or start_now:
+            at = self.index + 1
+            self.queue[at:at] = items
+            pos = 0 if start_now else 1
+        else:
+            pos = 0
+            for it in items:
+                j = self.turn_slot(by)
+                self.queue.insert(j, it)
+                pos = pos or j - self.index
+        await self.sync_armed()
+        if start_now:
+            self.fails = 0
+            asyncio.get_running_loop().create_task(self.play_index(self.index + 1))
+        self.reseed(items[-1])
+        for t in items[:2]:
+            self.resolver.prefetch(t["videoId"])
+        return pos
+
+    async def replace(self, tracks: list[dict], start: int = 0, by: str = "", label: str = ""):
+        """Plays a list now; it becomes the songs up next (the radio follows its last song). What played
+        before stays behind the current song, so Previous still goes back to it."""
+        items = [{**t, "by": by, "src": "user"} for t in tracks if t]
+        if not items:
+            return
+        self.snapshot(label or f'Played "{items[0]["title"]}"', by)
+        keep = self.queue[:self.index + 1] if self.current else []
+        await self.disarm()
+        self.queue, self.fails = keep + items, 0   # a fresh run of FAIL_LIMIT tries
+        self.reseed(items[-1])
+        await self.play_index(len(keep) + max(0, min(start, len(items) - 1)))
+
+    async def play_tracks(self, tracks: list[dict], start: int = 0, radio: bool = False):
+        """The alarm's way in: replace the queue with a list."""
+        await self.replace(tracks, start, label="Alarm")
+
+    def reseed(self, track: dict, fill: bool = True):
+        """The radio now follows `track`: its radio replaces the auto songs (in the background)."""
+        self.seed = {k: str(track.get(k) or "") for k in ("videoId", "title", "artist", "thumb")}
+        self.seed_gen += 1
+        if fill and settings["autoplay"]:
+            asyncio.get_running_loop().create_task(self._reseed(self.seed_gen))
+
+    async def radio_for(self, vid: str, limit: int = 30) -> list[dict]:
+        try:
+            radio = await asyncio.to_thread(yt.get_watch_playlist, vid, radio=True, limit=limit)
+        except Exception:
+            return []
+        return [t for t in map(track_from, radio.get("tracks", [])) if t and t["videoId"] != vid]
+
+    async def _reseed(self, gen: int, fresh: bool = False):
+        """Replaces the auto songs with the seed's radio. fresh: avoid the songs it replaces (Refresh)."""
+        items = await self.radio_for(self.seed["videoId"], 50 if fresh else 30)
+        if gen != self.seed_gen or not items:
+            return                            # another song was added meanwhile: its radio wins
+        end = self.user_end()
+        known = {t["videoId"] for t in self.queue[:end]}
+        if fresh:
+            known |= {t["videoId"] for t in self.queue[end:]}
+            random.shuffle(items)
+        new = []
+        for t in items:
+            if t["videoId"] not in known:
+                new.append({**t, "by": "", "src": "auto"})
+                known.add(t["videoId"])
+        if new:
+            self.queue[end:] = new[:30]
+            await self.sync_armed()
+
     async def refill(self, force: bool = False):
-        """Keeps the queue going with YouTube Music radio for the current track."""
+        """Keeps the music going: when little is left, more radio of the seed (the last song someone
+        added), or of the current song when the seed has nothing new."""
         if not (settings["autoplay"] or force) or not self.current or len(self.queue) - self.index > RADIO_REFILL_AT:
             return
-        seed = self.current["videoId"]
-        try:
-            radio = await asyncio.to_thread(yt.get_watch_playlist, seed, radio=True, limit=30)
-        except Exception:
-            return
-        if not self.current or self.current["videoId"] != seed:
-            return                            # skipped or stopped meanwhile: that radio is stale
-        known = {t["videoId"] for t in self.queue}
-        items = radio.get("tracks", [])
-        if self.radio_shuffle:
-            random.shuffle(items)
-        for item in items:
-            t = track_from(item)
-            if t and t["videoId"] not in known:
-                self.queue.append(t)
-                known.add(t["videoId"])
+        gen = self.seed_gen
+        for seed in (self.seed, self.current):
+            if not seed:
+                continue
+            items = await self.radio_for(seed["videoId"])
+            if gen != self.seed_gen or not self.current:
+                return                        # the queue changed meanwhile: that radio is stale
+            known = {t["videoId"] for t in self.queue}
+            new = [{**t, "by": "", "src": "auto"} for t in items if t["videoId"] not in known]
+            if new:
+                self.queue.extend(new)
+                return
 
-    async def play_tracks(self, tracks: list[dict], start: int = 0, radio: bool = False, similar: bool = False):
-        """similar: play just the chosen track, then random picks from its radio (even with autoplay off)."""
-        tracks = [t for t in tracks if t]
-        if similar and 0 <= start < len(tracks):
-            tracks, start = [tracks[start]], 0
-        self.queue, self.fails, self.radio_shuffle = tracks, 0, similar   # fresh run of FAIL_LIMIT tries
-        await self.play_index(start)
-        if radio or similar:
-            await self.refill(force=similar)
+    # ---------- undo: a snapshot before every queue change ----------
+    def snapshot(self, label: str, by: str = ""):
+        cur = max(self.index, 0)
+        self.undo.append({"id": secrets.token_hex(3), "label": label[:90], "by": by, "at": int(time.time()),
+                          "queue": [dict(t) for t in self.queue[cur:cur + UNDO_TRACKS]] if self.current else [],
+                          "position": round(self.mpv.props.get("time-pos") or self.resume_at or 0, 1),
+                          "seed": self.seed})
+        del self.undo[:-UNDO_KEEP]
+
+    async def restore(self, snap: dict):
+        """Puts a snapshot back. The same song still playing: only what's up next changes.
+        Otherwise the snapshot's song resumes where it was (what played since stays behind it)."""
+        q = [dict(t) for t in snap["queue"]]
+        self.seed, self.seed_gen = snap.get("seed"), self.seed_gen + 1
+        cur = self.current
+        if q and cur and cur["videoId"] == q[0]["videoId"]:
+            self.queue[self.index + 1:] = q[1:]
+            await self.sync_armed()
+        elif not q:
+            await self.stop()
+        else:
+            keep = self.queue[:self.index + 1] if cur else []
+            await self.disarm()
+            self.queue = keep + q
+            asyncio.get_running_loop().create_task(self.play_index(len(keep), start=snap.get("position") or 0))
 
     # ---------- sleep timer and alarm ----------
     async def set_sleep(self, minutes: float | None = None, track: bool = False):
@@ -783,7 +919,9 @@ class Player:
             "sleep": None if left is None else {"mode": self.sleep.get("mode", "timer"), "left": round(left),
                                                  "minutes": self.sleep.get("minutes")},
             "alarm": bool(settings["alarm"]["enabled"]), "ramping": bool(self.ramp), "listsRev": lists_rev,
-            "peopleRev": people_rev,
+            "peopleRev": people_rev, "userCount": self.user_end() - max(self.index, 0) - 1 if self.current else 0,
+            "seed": self.seed, "turns": settings["turns"],
+            "undo": {"n": len(self.undo), "label": self.undo[-1]["label"]} if self.undo else None,
             **({"paused": True, "position": self.resume_at} if p.get("idle-active") and not self.loading else {}),
         }
 
@@ -953,12 +1091,14 @@ async def artist(channel_id: str):
 class PlayBody(BaseModel):
     tracks: list[dict]
     start: int = 0
-    radio: bool = True
-    similar: bool = False                     # a search pick: that song, then its radio in random order
-    shuffle: bool = False                     # old name of `similar` (pages loaded before the rename)
+    mode: str = "replace"                     # add | next | now | replace (see Player.add / Player.replace)
+    label: str | None = None                  # what was added, for the undo list ("Album name")
+    radio: bool = True                        # older pages: ignored (the radio always follows)
+    similar: bool = False
+    shuffle: bool = False
 
 
-class QueueBody(BaseModel):
+class QueueBody(BaseModel):                   # older pages; new ones use /api/play with a mode
     track: dict
     next: bool = False
 
@@ -968,6 +1108,7 @@ class ControlBody(BaseModel):
     value: float | None = None
     videoId: str | None = None                # jump/remove/move: the track the client saw at `value`
     to: int | None = None                     # move: its new queue index
+    id: str | None = None                     # restore: the snapshot
 
 
 def queue_at(i: int, vid: str | None) -> int:
@@ -977,14 +1118,25 @@ def queue_at(i: int, vid: str | None) -> int:
     return i
 
 
+def nth(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
 @app.post("/api/play")
 async def play(body: PlayBody, request: Request):
     by = need_who(request)
-    tracks = [{**t, "by": by} for t in map(clean_track, body.tracks) if t]
+    tracks = [t for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
-    asyncio.get_running_loop().create_task(player.play_tracks(tracks, body.start, body.radio, body.similar or body.shuffle))
-    return {"ok": True}
+    label = (body.label or "").strip()[:60]
+    if body.mode in ("add", "next", "now"):
+        pos = await player.add(tracks, by, body.mode, f'Added "{label}"' if label else "")
+        msg = ("Playing now" if pos == 0 else "Plays next" if pos == 1 or body.mode == "next" else f"Added · {nth(pos)} in queue")
+        return {"ok": True, "position": pos, "message": msg}
+    if body.mode != "replace":
+        raise HTTPException(400, "unknown mode")
+    asyncio.get_running_loop().create_task(player.replace(tracks, body.start, by, f'Played "{label}"' if label else ""))
+    return {"ok": True, "message": f'Playing "{label}"' if label else "Playing"}
 
 
 @app.post("/api/queue")
@@ -993,73 +1145,118 @@ async def enqueue(body: QueueBody, request: Request):
     track = clean_track(body.track)
     if not track:
         raise HTTPException(400, "not a track")
-    track["by"] = by
-    if player.current is None:
-        await player.play_tracks([track], 0, radio=True)
-    elif body.next:
-        await player.disarm()
-        player.queue.insert(player.index + 1, track)
-    else:
-        player.queue.append(track)
-    player.resolver.prefetch(track["videoId"])
-    return {"ok": True}
+    pos = await player.add([track], by, "next" if body.next else "add")
+    return {"ok": True, "position": pos}
+
+
+@app.get("/api/queue/history")
+async def queue_history():
+    """Earlier queues (undo snapshots), newest first."""
+    return [{"id": s["id"], "label": s["label"], "by": s["by"], "at": s["at"], "count": len(s["queue"]),
+             "current": s["queue"][0]["title"] if s["queue"] else "", "thumb": s["queue"][0]["thumb"] if s["queue"] else ""}
+            for s in reversed(player.undo)]
 
 
 @app.post("/api/control")
-async def control(body: ControlBody):
-    a, v = body.action, body.value
+async def control(body: ControlBody, request: Request):
+    a, v, by = body.action, body.value, who(request)
+    p = player
+    msg = ""
     if a == "toggle":
-        if player.mpv.props.get("idle-active") and player.current:
-            asyncio.get_running_loop().create_task(player.play_index(player.index, player.resume_at))
+        if p.mpv.props.get("idle-active") and p.current:
+            asyncio.get_running_loop().create_task(p.play_index(p.index, p.resume_at))
         else:
-            await player.mpv.send("cycle", "pause")
+            await p.mpv.send("cycle", "pause")
     elif a == "next":
-        asyncio.get_running_loop().create_task(player.play_index(step=1))
+        asyncio.get_running_loop().create_task(p.play_index(step=1))
     elif a == "prev":
-        if (player.mpv.props.get("time-pos") or 0) > 5 or player.index == 0:
-            await player.mpv.send("seek", 0, "absolute")
+        if (p.mpv.props.get("time-pos") or 0) > 5 or p.index == 0:
+            await p.mpv.send("seek", 0, "absolute")
         else:
-            asyncio.get_running_loop().create_task(player.play_index(step=-1))
+            asyncio.get_running_loop().create_task(p.play_index(step=-1))
     elif a == "seek" and v is not None:
-        await player.mpv.send("seek", v, "absolute")
+        await p.mpv.send("seek", v, "absolute")
     elif a == "volume" and v is not None:
         settings["volume"] = round(max(0, min(100, v)))
-        if player.ramp:                       # touching the volume ends an alarm ramp
-            player.ramp, player.fade_db = None, 0.0
-        await player.apply_volume()
+        if p.ramp:                            # touching the volume ends an alarm ramp
+            p.ramp, p.fade_db = None, 0.0
+        await p.apply_volume()
         save_settings()
     elif a == "jump" and v is not None:
         i = queue_at(int(v), body.videoId)
-        asyncio.get_running_loop().create_task(player.play_index(i, vid=body.videoId))
+        asyncio.get_running_loop().create_task(p.play_index(i, vid=body.videoId))
     elif a == "remove" and v is not None:
         i = queue_at(int(v), body.videoId)
-        if player.armed and player.armed["index"] == i:
-            await player.disarm()
-        if player.index < i < len(player.queue):
-            player.queue.pop(i)
-    elif a == "move" and v is not None and body.to is not None:
+        if p.index < i < len(p.queue):
+            p.snapshot(f'Removed "{p.queue[i]["title"]}"', by)
+            p.queue.pop(i)
+            msg = "Removed"
+    elif a in ("move", "promote") and v is not None:
+        # move: to a new place (dropped among the added songs it counts as added, among the radio as radio);
+        # promote: a song to the front of the added songs ("play next", from the queue itself)
         i = queue_at(int(v), body.videoId)
-        to = min(int(body.to), len(player.queue) - 1)
-        if i <= player.index or to <= player.index:
+        if i <= p.index:
             raise HTTPException(400, "Only songs that are up next can be moved")
-        await player.disarm()
-        player.queue.insert(to, player.queue.pop(i))
-    elif a == "shuffle":                     # shuffle what's up next and jump to a new song right away
-        await player.disarm()
-        await player.refill()
-        rest = player.queue[player.index + 1:]
-        random.shuffle(rest)
-        player.queue[player.index + 1:] = rest
-        if rest:
-            asyncio.get_running_loop().create_task(player.play_index(step=1))
-    elif a == "clear":
-        await player.disarm()
-        del player.queue[player.index + 1:]
+        t = p.queue[i]
+        p.snapshot(f'Moved "{t["title"]}"', by)
+        p.queue.pop(i)
+        to = p.index + 1 if a == "promote" else max(p.index + 1, min(int(body.to if body.to is not None else i), len(p.queue)))
+        if to <= p.user_end():
+            if t.get("src") != "user":
+                t.update(src="user", by=by)
+        else:
+            t["src"] = "auto"
+        p.queue.insert(to, t)
+        msg = "Plays next" if a == "promote" else ""
+    elif a == "shuffle":                      # the songs people added; the radio stays after them
+        end = p.user_end()
+        rest = p.queue[p.index + 1:end]
+        if len(rest) > 1:
+            p.snapshot("Shuffled up next", by)
+            random.shuffle(rest)
+            p.queue[p.index + 1:end] = rest
+            msg = "Shuffled"
+    elif a == "clear":                        # the songs people added; the radio keeps going
+        end = p.user_end()
+        if end > p.index + 1:
+            p.snapshot("Cleared up next", by)
+            del p.queue[p.index + 1:end]
+            msg = "Cleared"
+    elif a == "clear_auto":
+        end = p.user_end()
+        if end < len(p.queue):
+            p.snapshot("Cleared the radio", by)
+            del p.queue[end:]
+            p.seed, p.seed_gen = None, p.seed_gen + 1
+            msg = "Radio cleared"
+    elif a == "refresh":
+        seed = p.seed or p.current
+        if seed:
+            p.snapshot("New radio songs", by)
+            p.seed, p.seed_gen = {k: seed.get(k, "") for k in ("videoId", "title", "artist", "thumb")}, p.seed_gen + 1
+            await p._reseed(p.seed_gen, fresh=True)
+            msg = "New radio songs"
     elif a == "stop":
-        await player.stop()
+        if p.current:
+            p.snapshot("Stopped", by)
+        await p.stop()
+    elif a == "undo":
+        if not p.undo:
+            raise HTTPException(400, "Nothing to undo")
+        snap = p.undo.pop()
+        await p.restore(snap)
+        msg = f"Undone: {snap['label']}"
+    elif a == "restore":
+        snap = next((s for s in p.undo if s["id"] == body.id), None)
+        if not snap:
+            raise HTTPException(404, "That queue is gone")
+        p.snapshot("Before restoring an earlier queue", by)
+        await p.restore(snap)
+        msg = "Restored"
     else:
         raise HTTPException(400, "unknown action")
-    return {"ok": True}
+    await p.sync_armed()
+    return {"ok": True, "message": msg}
 
 
 class EqBody(BaseModel):
@@ -1079,7 +1276,7 @@ def account_status() -> dict:
 async def get_settings():
     return {"volume": settings["volume"], "eq": settings["eq"], "bands": eq_bands(),
             "freqs": EQ_FREQS, "presets": EQ_PRESETS, "account": account_status(),
-            "normalize": settings["normalize"], "autoplay": settings["autoplay"],
+            "normalize": settings["normalize"], "autoplay": settings["autoplay"], "turns": settings["turns"],
             "quality": settings["quality"], "qualities": list(QUALITY), "alarm": settings["alarm"],
             "lists": [list_summary(p) for p in sorted_lists()]}
 
@@ -1087,6 +1284,7 @@ async def get_settings():
 class OptionsBody(BaseModel):
     normalize: bool | None = None
     autoplay: bool | None = None
+    turns: bool | None = None
     quality: str | None = None
 
 
@@ -1106,6 +1304,8 @@ async def set_options(body: OptionsBody):
                 ydl.params["format"] = QUALITY[body.quality]
         await asyncio.to_thread(switch)
         player.resolver.cache.clear()         # the next tracks resolve at the new quality
+    if body.turns is not None:
+        settings["turns"] = body.turns
     if body.normalize is not None:
         settings["normalize"] = body.normalize
         await player.mpv.apply_eq()

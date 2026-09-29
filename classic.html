@@ -188,6 +188,35 @@
   .toast { position: fixed; left: 50%; bottom: calc(var(--player-h) + 12px); transform: translateX(-50%); z-index: 40; background: var(--text); color: var(--bg);
     padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; display: none; max-width: calc(100% - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .toast.open { display: block; }
+  /* queue: now playing, songs people added, radio */
+  .qscroll { overflow-y: auto; flex: 1; padding: 0 8px 16px; }
+  .drawer .qscroll .list { overflow: visible; padding: 0; }
+  .qhead { display: flex; align-items: center; gap: 8px; padding: 14px 8px 6px; }
+  .qhead h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qhead span { color: var(--muted); font-size: 12px; white-space: nowrap; opacity: .8; }
+  .qtools { margin-left: auto; display: flex; gap: 6px; flex: none; }
+  .qtools button { padding: 5px 10px; border-radius: 999px; background: var(--panel-2); font-size: 12px; }
+  .qempty { padding: 6px 8px 10px; color: var(--muted); font-size: 13px; }
+  #queue .row.auto { opacity: .7; }
+  .grip { width: 30px; height: 34px; display: grid; place-items: center; color: var(--muted); cursor: grab; touch-action: none; font-size: 16px; }
+  #queue .row { touch-action: pan-y; }
+  #queue .row[data-swipe=left] { background: color-mix(in srgb, var(--accent) 18%, var(--panel)); }
+  #queue .row[data-swipe=remove] { background: color-mix(in srgb, var(--accent) 45%, var(--panel)); }
+  #queue .row[data-swipe=right] { background: color-mix(in srgb, #4caf50 20%, var(--panel)); }
+  #queue .row[data-swipe=next] { background: color-mix(in srgb, #4caf50 45%, var(--panel)); }
+  .erow { display: flex; align-items: center; gap: 12px; padding: 8px; }
+  .erow img, .erow .blank { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: var(--panel-2); flex: none; }
+  .erow .t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .erow .s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .erow button { margin-left: auto; padding: 6px 12px; border-radius: 999px; background: var(--panel-2); font-size: 12px; font-weight: 600; flex: none; }
+  .drawer .tools button.on { background: var(--text); color: var(--bg); }
+  .drawer .tools button:disabled { opacity: .4; }
+  .toast.undo { pointer-events: auto; }
+  .toast button { margin-left: 12px; color: var(--accent); font-weight: 700; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .pills .pill { margin-top: 0; }
+  .pill.ghost { background: var(--panel-2); color: var(--text); }
+  @media (max-width: 600px) { #queue .row { min-height: 64px; } }
   #queue .row { transition: transform .15s; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #queue .row + .row { cursor: grab; }
   #queue .row.dragging { position: relative; transition: none; z-index: 3; background: var(--panel-2); box-shadow: 0 8px 24px #0006; cursor: grabbing; }
@@ -244,8 +273,8 @@
   <header><strong style="font-size:18px">Up next</strong><span style="display:flex;gap:4px">
     <button class="icon-btn" onclick="toggleSettings(true)" title="Settings" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
     <button class="icon-btn" onclick="toggleQueue(false)" aria-label="Close">✕</button></span></header>
-  <div class="tools"><button onclick="ctl('shuffle')">Shuffle</button><button onclick="ctl('clear')">Clear upcoming</button><button onclick="ctl('stop')">Stop</button></div>
-  <div class="list" id="queue"></div>
+  <div class="tools"><button id="undoBtn" onclick="undo()">Undo</button><button id="earlierBtn" onclick="toggleEarlier()">Earlier queues</button><button onclick="ctl('stop')">Stop</button></div>
+  <div class="qscroll"><div class="list" id="queue"></div><div id="earlier" hidden></div></div>
 </aside>
 
 <aside class="drawer" id="settings" aria-label="Settings">
@@ -259,7 +288,8 @@
     <h3>Playback</h3>
     <div class="card2">
       <div class="opt"><div>Even out loudness<small>Similar level across tracks</small></div><button class="sw" id="cNorm" role="switch" aria-label="Even out loudness" onclick="cOpt('normalize', this)"></button></div>
-      <div class="opt"><div>Autoplay radio<small>Adds similar songs when the queue runs low</small></div><button class="sw" id="cAuto" role="switch" aria-label="Autoplay radio" onclick="cOpt('autoplay', this)"></button></div>
+      <div class="opt"><div>Autoplay radio<small>After the songs people add, plays songs like the last one added</small></div><button class="sw" id="cAuto" role="switch" aria-label="Autoplay radio" onclick="cOpt('autoplay', this)"></button></div>
+      <div class="opt"><div>Take turns<small>Songs from different people alternate</small></div><button class="sw" id="cTurns" role="switch" aria-label="Take turns" onclick="cOpt('turns', this)"></button></div>
       <div class="chips" id="cQual" style="margin-top:8px"></div>
     </div>
     <h3>Sleep timer</h3>
@@ -318,11 +348,19 @@ const api = async (path, body, retried) => {
   return r.json();
 };
 let toastT;
-function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("open"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("open"), 2200); }
+function toast(t, undoable = false) {
+  const el = $("#toast"); el.innerHTML = esc(t) + (undoable ? '<button onclick="undo()">Undo</button>' : "");
+  el.classList.toggle("undo", undoable); el.classList.add("open"); clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("open"), undoable ? 5000 : 2200);
+}
+function undo() { $("#toast").classList.remove("open"); ctl("undo"); }
 const ICON_PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>';
 const ICON_PAUSE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>';
 const ICON_NEXT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M4 12h8M4 18h8M18 11v8M14 15h8"/></svg>';
 const ICON_ADD = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
+const ICON_PLAYS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_GRIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+const ICON_X = '✕';
 const ICON_HEART = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg>';
 
 let kind = "songs", lastQuery = "", lists = {}, state = {}, onLiked = false;
@@ -353,12 +391,13 @@ async function showLiked() {
   const n = p.tracks.length;
   $("#view").innerHTML = `<button class="back" onclick="showHome()">← Back</button>
     <div class="hero"><div><h1>Liked songs</h1><div class="s">Shared by everyone · ${n} song${n === 1 ? "" : "s"}</div>
-    ${n ? `<button class="pill" onclick="playList('liked', 0, false)">▶ Play</button> <button class="pill" onclick="shuffleLiked()">Shuffle</button>` : ""}</div></div>
+    ${n ? `<div class="pills"><button class="pill" onclick="playAll('liked', 'Liked songs')">▶ Play</button><button class="pill ghost" onclick="playAll('liked', 'Liked songs', 'next')">Play next</button>
+      <button class="pill ghost" onclick="playAll('liked', 'Liked songs', 'add')">Add all</button><button class="pill ghost" onclick="shuffleLiked()">Shuffle</button></div>` : ""}</div></div>
     <div class="list">${n ? p.tracks.map((t, i) => songRow(t, "liked", i)).join("") : '<div class="empty">Nothing liked yet. Tap the heart on any song.</div>'}</div>`;
 }
 function shuffleLiked() {
   const t = [...lists.liked]; for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
-  api("api/play", { tracks: t, start: 0, radio: false }).then(poll);
+  queueSongs(t, "replace", "Liked songs (shuffled)");
 }
 
 /* people: who's listening on this device (cookie tb_who, read by the server) */
@@ -430,13 +469,13 @@ function songRow(t, listKey, i, extra = "", by = "") {
   const cur = state.current && state.current.videoId === t.videoId ? " playing" : "";
   return `<div class="row${cur}">
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
-    <div class="meta" onclick="playList('${listKey}', ${i})">
+    <div class="meta" onclick="addSong('${listKey}', ${i})">
       <div class="t">${esc(t.title)}</div><div class="s">${by ? byChip(by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
     <span class="d">${esc(t.duration)}</span>
     <div class="acts">
-      <button title="Play next" onclick="enqueue('${listKey}', ${i}, true)">${ICON_NEXT}</button>
-      <button title="Add to queue" onclick="enqueue('${listKey}', ${i}, false)">${ICON_ADD}</button>${listKey === "queue" ? "" :
+      <button title="Play next" aria-label="Play next" onclick="addSong('${listKey}', ${i}, 'next')">${ICON_NEXT}</button>
+      <button title="Play now" aria-label="Play now" onclick="addSong('${listKey}', ${i}, 'now')">${ICON_PLAYS}</button>${listKey === "queue" ? "" :
       `<button class="like" data-like="${esc(t.videoId)}" title="Like" onclick="toggleLike(lists['${listKey}'][${i}])">${ICON_HEART}</button>`}${extra}
     </div></div>`;
 }
@@ -477,55 +516,110 @@ async function openItem(type, id) {
     lists.detail = d.tracks;
     $("#view").innerHTML = `<button class="back" onclick="history.length ? doSearch() : showHome()">← Back</button>
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div><h1>${esc(d.title)}</h1><div class="s">${esc(d.subtitle)} · ${d.tracks.length} songs</div>
-      <button class="pill" onclick="playList('detail', 0, ${type === "artist"})">▶ Play</button></div></div>
+      <div class="pills"><button class="pill" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))})">▶ Play</button>
+        <button class="pill ghost" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))}, 'next')">Play next</button>
+        <button class="pill ghost" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))}, 'add')">Add all</button></div></div></div>
       <div class="list">${d.tracks.map((t, i) => songRow(t, "detail", i)).join("")}</div>
       ${d.albums && d.albums.length ? `<h2>Albums</h2><div class="shelf">${d.albums.map(card).join("")}</div>` : ""}`;
   } catch (e) { $("#view").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; }
 }
 
-async function playList(key, i, radio = true) { await api("api/play", { tracks: lists[key], start: i, radio, similar: key === "search" }); poll(); }
-async function playOne(json) { const t = JSON.parse(json); await api("api/play", { tracks: [t], start: 0, radio: true }); poll(); }
-async function enqueue(key, i, next) { await api("api/queue", { track: lists[key][i], next }); poll(); }
-async function ctl(action, value, videoId, to) {
-  try { await api("api/control", { action, value, videoId, to }); } catch {}   /* 409: the queue moved; the poll shows it */
+/* the queue: now playing → songs people added (a tap adds, taking turns) → radio of the last one added */
+async function queueSongs(tracks, mode, label) {
+  try { const r = await api("api/play", { tracks, mode, label }); toast(r.message, true); } catch (e) { toast(errT(e)); }
   poll();
+}
+function addSong(key, i, mode = "add") { queueSongs([lists[key][i]], mode); }
+function playAll(key, label, mode = "replace") { queueSongs(lists[key], mode, label); }
+function playOne(json) { queueSongs([JSON.parse(json)], "add"); }
+const UNDOABLE = new Set(["remove", "move", "promote", "shuffle", "clear", "clear_auto", "refresh", "stop", "restore"]);
+async function ctl(action, value, videoId, to, id) {
+  let r; try { r = await api("api/control", { action, value, videoId, to, id }); } catch (e) { toast(errT(e)); }
+  if (r && r.message) toast(r.message, UNDOABLE.has(action));
+  poll(); return r;
 }
 
 function toggleQueue(open) { $("#drawer").classList.toggle("open", open); $("#scrim").classList.toggle("open", open); renderQueue(); }
+const qhead = (title, aside = "", tools = "") => `<div class="qhead"><h3>${esc(title)}</h3>${aside ? `<span>${esc(aside)}</span>` : ""}<div class="qtools">${tools}</div></div>`;
+function qrow(t, i, nu) {
+  const abs = (state.offset || 0) + i, vid = esc(JSON.stringify(t.videoId)), auto = i > nu;
+  const cur = i === 0 ? " playing" : "", by = i === 0 ? (t.src === "user" ? t.by : "radio") : auto ? "radio" : t.by;
+  return `<div class="row${cur}${auto ? " auto" : ""}">
+    <img loading="lazy" src="${esc(t.thumb)}" alt="">
+    <div class="meta" onclick="ctl('jump', ${abs}, ${vid})"><div class="t">${esc(t.title)}</div><div class="s">${byChip(by)}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div></div>
+    <span class="d">${esc(t.duration)}</span>
+    <div class="acts">${i === 0 ? "" : `<button title="Play next" aria-label="Play next" onclick="ctl('promote', ${abs}, ${vid})">${ICON_NEXT}</button>
+      <button title="Remove" aria-label="Remove" onclick="ctl('remove', ${abs}, ${vid})">✕</button><span class="grip" title="Drag to move">${ICON_GRIP}</span>`}</div></div>`;
+}
 function renderQueue() {
   if (!$("#drawer").classList.contains("open") || drag) return;
-  const q = state.queue || [], off = state.offset || 0;
+  const q = state.queue || [], nu = state.userCount || 0;
   lists.queue = q;
-  $("#queue").innerHTML = q.length ? q.map((t, i) => {
-    const abs = off + i, vid = esc(JSON.stringify(t.videoId));
-    const extra = i === 0 ? "" : `<button title="Remove" onclick="ctl('remove', ${abs}, ${vid})">✕</button>`;
-    return songRow(t, "queue", i, extra, t.by).replace(`playList('queue', ${i})`, () => `ctl('jump', ${abs}, ${vid})`);
-  }).join("") : '<div class="empty">Queue is empty</div>';
+  if (!q.length) { $("#queue").innerHTML = '<div class="empty">Queue is empty. Tap any song to start.</div>'; return; }
+  let html = qhead("Now playing") + qrow(q[0], 0, nu);
+  html += qhead("Next in queue", nu ? `${nu} song${nu === 1 ? "" : "s"}` : "", nu ? `<button onclick="ctl('shuffle')">Shuffle</button><button onclick="ctl('clear')">Clear</button>` : "");
+  html += nu ? q.slice(1, nu + 1).map((t, k) => qrow(t, k + 1, nu)).join("") : '<div class="qempty">Tap any song to add it here. Songs from different people take turns.</div>';
+  const auto = q.slice(nu + 1);
+  if (auto.length || state.seed)
+    html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
+      `<button onclick="ctl('refresh')">Refresh</button>${auto.length ? `<button onclick="ctl('clear_auto')">Clear</button>` : ""}`)
+      + auto.map((t, k) => qrow(t, k + nu + 1, nu)).join("");
+  $("#queue").innerHTML = html;
 }
+function ago(ts) {
+  const s = Date.now() / 1000 - ts;
+  if (s < 60) return "just now"; if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+let earlierOpen = false;
+async function toggleEarlier(open = !earlierOpen) {
+  earlierOpen = open; $("#earlierBtn").classList.toggle("on", open); $("#earlier").hidden = !open;
+  if (!open) return;
+  $("#earlier").innerHTML = '<div class="spinner">Loading…</div>';
+  const hs = await api("api/queue/history").catch(() => []);
+  $("#earlier").innerHTML = qhead("Earlier queues", hs.length ? `${hs.length} kept` : "") + (hs.length ? hs.map(h => `<div class="erow">
+    ${h.thumb ? `<img loading="lazy" src="${esc(h.thumb)}" alt="">` : '<div class="blank"></div>'}
+    <div style="min-width:0"><div class="t">Before: ${esc(h.label)}</div><div class="s">${byChip(h.by)}${esc(ago(h.at))} · ${h.count} song${h.count === 1 ? "" : "s"}${h.current ? " · " + esc(h.current) : ""}</div></div>
+    <button onclick="restoreQueue('${h.id}')">Restore</button></div>`).join("") : '<div class="qempty">Nothing yet. Every change to the queue lands here.</div>');
+  $("#earlier").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+async function restoreQueue(id) { await ctl("restore", null, null, null, id); toggleEarlier(true); }
 
-/* ---------- drag to reorder up next (mouse: drag; touch: press and hold, then drag) ---------- */
+/* ---------- queue gestures: drag to reorder (mouse: drag; touch: the grip, or press and hold);
+   on touch, swipe left to remove and swipe right to play next ---------- */
+const SWIPE = 90;
 let drag = null, dragEnd = 0;
 $("#queue").addEventListener("pointerdown", e => {
   const row = e.target.closest(".row");
   if (!row || e.target.closest("button") || e.button > 0) return;
   const rows = [...document.querySelectorAll("#queue .row")], i = rows.indexOf(row);
   if (i < 1) return;                          /* the playing song stays on top */
-  drag = { row, rows, i, to: i, y0: e.clientY, id: e.pointerId, on: false, touch: e.pointerType !== "mouse" };
-  if (drag.touch) drag.hold = setTimeout(startDrag, 300);
+  drag = { row, rows, i, to: i, x0: e.clientX, y0: e.clientY, dx: 0, id: e.pointerId, on: false, swipe: false, touch: e.pointerType !== "mouse" };
+  if (e.target.closest(".grip")) { e.preventDefault(); startDrag(); }
+  else if (drag.touch) drag.hold = setTimeout(startDrag, 300);
 });
 function startDrag() {
-  if (!drag) return;
+  if (!drag || drag.swipe) return;
   drag.on = true;
   drag.mids = drag.rows.map(r => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; });
-  drag.pitch = drag.mids.length > 1 ? drag.mids[1] - drag.mids[0] : drag.row.offsetHeight;
+  drag.pitch = drag.row.offsetHeight;
   drag.row.classList.add("dragging");
   if (navigator.vibrate && drag.touch) navigator.vibrate(15);
 }
 addEventListener("pointermove", e => {
   if (!drag || e.pointerId !== drag.id) return;
-  const dy = e.clientY - drag.y0;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
   if (!drag.on) {
-    if (drag.touch) { if (Math.abs(dy) > 8) { clearTimeout(drag.hold); drag = null; } return; }   /* a scroll, not a hold */
+    if (drag.touch) {
+      if (!drag.swipe && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) { drag.swipe = true; clearTimeout(drag.hold); }
+      if (drag.swipe) {
+        drag.dx = dx; drag.row.style.transform = `translateX(${dx}px)`;
+        drag.row.dataset.swipe = dx < 0 ? (dx < -SWIPE ? "remove" : "left") : (dx > SWIPE ? "next" : "right");
+        return;
+      }
+      if (Math.abs(dy) > 8) { clearTimeout(drag.hold); drag = null; }   /* a scroll, not a hold */
+      return;
+    }
     if (Math.abs(dy) < 6) return;
     startDrag();
   }
@@ -537,19 +631,29 @@ addEventListener("pointermove", e => {
   drag.rows.forEach((r, k) => r.style.transform = k === drag.i ? `translateY(${dy}px)`
     : k > drag.i && k <= to ? `translateY(${-drag.pitch}px)` : k < drag.i && k >= to ? `translateY(${drag.pitch}px)` : "");
 });
-$("#queue").addEventListener("touchmove", e => { if (drag && drag.on) e.preventDefault(); }, { passive: false });
+$("#queue").addEventListener("touchmove", e => { if (drag && (drag.on || drag.swipe)) e.preventDefault(); }, { passive: false });
 $("#queue").addEventListener("contextmenu", e => { if (drag) e.preventDefault(); });
 function endDrag(e, cancel) {
   if (!drag || e.pointerId !== drag.id) return;
   clearTimeout(drag.hold);
   const d = drag; drag = null;
+  const off = state.offset || 0, vid = lists.queue[d.i].videoId;
+  if (d.swipe) {
+    dragEnd = Date.now();
+    d.row.style.transform = ""; delete d.row.dataset.swipe;
+    if (cancel || Math.abs(d.dx) < SWIPE) return;
+    if (navigator.vibrate) navigator.vibrate(10);
+    return ctl(d.dx < 0 ? "remove" : "promote", off + d.i, vid);
+  }
   if (!d.on) return;
   dragEnd = Date.now();
   d.row.classList.remove("dragging");
   d.rows.forEach(r => r.style.transform = "");
   if (cancel || d.to === d.i) return renderQueue();
-  const off = state.offset || 0, vid = lists.queue[d.i].videoId;
-  state.queue.splice(d.to, 0, state.queue.splice(d.i, 1)[0]);   /* show it right away, the poll confirms */
+  const nu = state.userCount || 0, wasUser = d.i <= nu, isUser = d.to <= (wasUser ? nu : nu + 1);
+  const t = state.queue.splice(d.i, 1)[0];   /* show it right away (same rule as the server), the poll confirms */
+  t.src = isUser ? "user" : "auto"; state.queue.splice(d.to, 0, t);
+  state.userCount = nu - wasUser + isUser;
   renderQueue();
   ctl("move", off + d.i, vid, off + d.to);
 }
@@ -573,6 +677,7 @@ async function poll() {
   renderQueue();
   if (state.listsRev !== likedRev) loadLikes(state.listsRev); else paintLikes();
   if (state.peopleRev !== peopleRev) loadPeople(state.peopleRev);
+  $("#undoBtn").disabled = !state.undo; $("#undoBtn").title = state.undo ? `Undo: ${state.undo.label}` : "Nothing to undo";
 }
 
 $("#seek").addEventListener("input", () => { seeking = true; $("#tPos").textContent = fmt($("#seek").value); });
@@ -607,7 +712,7 @@ function renderCfg() {
   $("#cPresets").innerHTML = [...Object.keys(cfg.presets), "custom"].map(k => `<button data-p="${k}" class="${cfg.eq.preset === k ? "on" : ""}">${PN[k] || k}</button>`).join("");
   $("#cEq").innerHTML = cfg.freqs.map((f, i) => `<label><b id="cg${i}">${cfg.bands[i] > 0 ? "+" : ""}${cfg.bands[i]}</b>
     <input type="range" min="-12" max="12" step="1" value="${cfg.bands[i]}" data-i="${i}" aria-label="${f} Hz">${f >= 1000 ? f / 1000 + "k" : f}</label>`).join("");
-  $("#cNorm").setAttribute("aria-checked", cfg.normalize); $("#cAuto").setAttribute("aria-checked", cfg.autoplay);
+  $("#cNorm").setAttribute("aria-checked", cfg.normalize); $("#cAuto").setAttribute("aria-checked", cfg.autoplay); $("#cTurns").setAttribute("aria-checked", cfg.turns);
   $("#cQual").innerHTML = cfg.qualities.map(q => `<button data-q="${q}" class="${cfg.quality === q ? "on" : ""}">${QN[q]}</button>`).join("");
   const a = cfg.alarm;
   $("#cAlOn").setAttribute("aria-checked", a.enabled); $("#cAlTime").value = a.time; $("#cAlRamp").value = String(a.ramp);
