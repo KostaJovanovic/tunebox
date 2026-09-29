@@ -662,6 +662,10 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const secs = d => String(d || "").split(":").reduce((a, x) => a * 60 + (+x || 0), 0);   /* "3:45" -> 225 */
+/* a cover that fails to load (YouTube sometimes refuses one) shows an empty tile, not the broken-image icon */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   /* 1x1 transparent */
+addEventListener("error", e => { const im = e.target; if (im.tagName === "IMG" && im.src !== BLANK) im.src = BLANK; }, true);
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const pad = n => String(n).padStart(2, "0");
 const api = async (path, body, method, retried) => {
@@ -815,7 +819,9 @@ function mosaic(thumbs, cls = "mosaic") {
 }
 
 /* ---------- views ---------- */
-function setNav(v) { view = v; $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); if (v !== "search") $("#tabs").hidden = true; }
+/* every page change bumps navSeq, so a page that finishes loading after you moved on doesn't take over */
+let navSeq = 0;
+function setNav(v) { view = v; navSeq++; $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); if (v !== "search") $("#tabs").hidden = true; }
 let backFn = "showHome()";                   /* where Back on an album / playlist / artist page goes */
 const songCard = (t, key, i) => `<button class="card" onclick="addSong('${key}', ${i})"><img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="t">${esc(t.title)}</div><div class="s"><i class="kind song"></i>${esc(t.artist)}</div></button>`;
@@ -857,17 +863,19 @@ async function showMood(params, title) {
 }
 
 /* a pasted YouTube / YouTube Music link opens what it points to */
-const LINK = /^(https?:\/\/)?([\w-]+\.)*(youtube\.com|youtu\.be)\//i;
+/* any web address counts, so a non-YouTube link gets the server's "only YouTube links" message instead of a search */
+const LINK = /^(https?:\/\/|www\.)\S+$|^([\w-]+\.)*(youtube\.com|youtu\.be)(\/\S*)?$/i;
 async function openLink(url) {
   lastQuery = url; setNav("search"); $("#tabs").hidden = true; backFn = "showHome()";
+  const my = navSeq;
   $("#view").innerHTML = loading("Opening the link");
   try {
     const r = await api(`api/resolve?url=${encodeURIComponent(url)}`);
-    if (lastQuery !== url) return;
+    if (my !== navSeq) return;
     if (r.type !== "song") return openItem(r.type, r.id);
     lists.link = [r.track];
     $("#view").innerHTML = section(1, "From your link") + `<div class="list">${songRow(r.track, "link", 0)}</div>`;
-  } catch (e) { if (lastQuery === url) $("#view").innerHTML = `<div class="note">${esc(errText(e))}</div>`; }
+  } catch (e) { if (my === navSeq) $("#view").innerHTML = `<div class="note">${esc(errText(e))}</div>`; }
 }
 
 async function doSearch() {
@@ -885,10 +893,11 @@ async function doSearch() {
 }
 
 async function openItem(type, id) {
-  const back = backFn;
+  const back = backFn, my = ++navSeq;
   $("#view").innerHTML = loading("Loading");
   try {
     const d = await api(`api/${type}/${encodeURIComponent(id)}`);
+    if (my !== navSeq) return;
     lists.detail = d.tracks;
     $("#view").innerHTML = `<button class="back" onclick="${esc(back)}">${BACK}Back</button>
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div>
@@ -901,7 +910,7 @@ async function openItem(type, id) {
       </div></div>
       <div class="list">${d.tracks.map((t, i) => songRow(t, "detail", i)).join("")}</div>
       ${d.albums && d.albums.length ? section(2, "Albums") + `<div class="shelf">${d.albums.map(card).join("")}</div>` : ""}`;
-  } catch (e) { $("#view").innerHTML = `<div class="note">Could not load: ${esc(e.message)}</div>`; }
+  } catch (e) { if (my === navSeq) $("#view").innerHTML = `<div class="note">Could not load: ${esc(errText(e))}</div>`; }
 }
 
 /* history */
@@ -1270,15 +1279,19 @@ function toggleLyrics(open = !$("#lyrics").classList.contains("open")) { openDra
 function toggleKeys(open) { openDrawer("keys", open); }
 
 const qhead = (title, aside = "", tools = "") => `<div class="qhead"><h3>${esc(title)}</h3>${aside ? `<span>${esc(aside)}</span>` : ""}<div class="qtools">${tools}</div></div>`;
+/* the poll redraws the queue every second: only touch the DOM when it changed, and never while a finger or
+   mouse is down on it, or the button being pressed is swapped out and the tap gets lost */
+let queueHtml = "", queuePress = false;
 function renderQueue() {
-  if (!$("#drawer").classList.contains("open") || drag) return;
+  if (!$("#drawer").classList.contains("open") || drag || queuePress) return;
   const q = state.queue || [], off = state.offset || 0, nu = state.userCount || 0;
   lists.queue = q;
-  if (!q.length) { $("#queue").innerHTML = '<div class="note">Queue is empty. Tap any song to start.</div>'; return; }
+  const put = html => { if (html !== queueHtml) { queueHtml = html; $("#queue").innerHTML = html; } };
+  if (!q.length) return put('<div class="note">Queue is empty. Tap any song to start.</div>');
   const pick = i => `<button title="Add to playlist" aria-label="Add to playlist" onclick="togglePicker(true, 'queue', ${i})">${ICON_LIST}</button>`;
   const row = (t, i) => {
     const abs = off + i, vid = esc(JSON.stringify(t.videoId)), auto = i > nu;
-    if (i === 0) return songRow(t, "queue", 0, { num: 0, click: `ctl('jump', ${abs}, ${vid})`, by: t.src === "user" ? t.by : "radio", acts: pick(0) });
+    if (i === 0) return songRow(t, "queue", 0, { num: 0, click: "toggleLyrics(true)", by: t.src === "user" ? t.by : "radio", acts: pick(0) });
     return songRow(t, "queue", i, { num: i, click: `ctl('jump', ${abs}, ${vid})`, by: auto ? "radio" : t.by, cls: auto ? "auto" : "",
       acts: `<button title="Play next" aria-label="Play next" onclick="ctl('promote', ${abs}, ${vid})">${ICON_NEXT}</button>${pick(i)}`,
       extra: `<button title="Remove" aria-label="Remove" onclick="ctl('remove', ${abs}, ${vid})">${ICON_X}</button><span class="grip" title="Drag to move">${ICON_GRIP}</span>` });
@@ -1288,12 +1301,14 @@ function renderQueue() {
     nu ? `<button onclick="ctl('shuffle')">Shuffle</button><button onclick="ctl('clear')">Clear</button>` : "");
   html += nu ? q.slice(1, nu + 1).map((t, k) => row(t, k + 1)).join("") : '<div class="qempty">Tap any song to add it here. Songs from different people take turns.</div>';
   const auto = q.slice(nu + 1);
-  if (auto.length || state.seed)
-    html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
-      `<button onclick="ctl('refresh')">Refresh</button>${auto.length ? `<button onclick="ctl('clear_auto')">Clear</button>` : ""}`)
-      + auto.map((t, k) => row(t, k + nu + 1)).join("");
-  $("#queue").innerHTML = html;
+  html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
+      `<button onclick="ctl('refresh')">${auto.length ? "Refresh" : "Start radio"}</button>${auto.length ? `<button onclick="ctl('clear_auto')">Clear</button>` : ""}`)
+    + auto.map((t, k) => row(t, k + nu + 1)).join("");
+  put(html);
 }
+$("#queue").addEventListener("pointerdown", () => queuePress = true, true);
+addEventListener("pointerup", () => { if (queuePress) { queuePress = false; setTimeout(renderQueue, 400); } }, true);
+addEventListener("pointercancel", () => queuePress = false, true);
 
 /* earlier queues: every queue change keeps a snapshot, any of which can be put back */
 let earlierOpen = false;
@@ -1438,10 +1453,11 @@ async function poll() {
   $("#pBtn").innerHTML = state.paused || !c ? ICON_PLAY : ICON_PAUSE;
   $("#pStatus").textContent = state.loading ? "Loading" : (state.error || (state.ramping ? "Waking up" : ""));
   $("#prog").classList.toggle("loading", !!state.loading);
-  $("#tPos").textContent = fmt(state.position); $("#tDur").textContent = fmt(state.duration);
+  const dur = state.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
+  $("#tPos").textContent = fmt(state.position); $("#tDur").textContent = fmt(dur);
   if (!seeking) {
-    $("#seek").max = Math.max(1, state.duration); $("#seek").value = state.position;
-    $("#fill").style.width = state.duration ? `${(state.position / state.duration) * 100}%` : "0";
+    $("#seek").max = Math.max(1, dur); $("#seek").value = state.position;
+    $("#fill").style.width = dur ? `${Math.min(100, (state.position / dur) * 100)}%` : "0";
   }
   if (Date.now() - volTouch > 2000) { $("#vol").value = $("#vol2").value = state.volume; $("#volN").innerHTML = volLabel(Math.round(state.volume)); }
   const upcoming = Math.max(0, (state.queue || []).length - 1);

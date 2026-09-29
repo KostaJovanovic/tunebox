@@ -26,9 +26,16 @@ from zoneinfo import ZoneInfo
 
 import yt_dlp
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel as PydanticModel, ConfigDict
 from ytmusicapi import YTMusic, setup as yt_setup
+from ytmusicapi.exceptions import YTMusicUserError
+
+
+class BaseModel(PydanticModel):
+    """Request bodies: Python's JSON reader takes NaN and Infinity, which min/max can't clamp."""
+    model_config = ConfigDict(allow_inf_nan=False)
 
 HERE = Path(__file__).parent
 RUN_DIR = Path(os.environ.get("TUNEBOX_RUN", "/run/tunebox"))
@@ -857,7 +864,8 @@ class Player:
         if track:
             await self.disarm()               # no gapless hand-over: playback stops after this track
             self.sleep = {"mode": "track"}
-        elif minutes:
+        elif minutes and minutes > 0:
+            minutes = min(minutes, 24 * 60)
             self.sleep = {"until": time.time() + minutes * 60, "minutes": minutes}
         else:
             await self.end_sleep()
@@ -1016,6 +1024,14 @@ async def same_site_only(request: Request, call_next):
     return await call_next(request)
 
 
+@app.exception_handler(RequestValidationError)
+async def bad_body(_request, exc: RequestValidationError):
+    # FastAPI's own 422 echoes the input back, and a NaN in it can't be written as JSON (a 500 instead)
+    first = (exc.errors() or [{}])[0]
+    where = ".".join(str(x) for x in first.get("loc", ())[1:]) or "request"
+    return JSONResponse({"detail": f"{where}: {first.get('msg', 'invalid')}"}, 422)
+
+
 @app.exception_handler(PlayerDown)
 async def player_down(_request, _exc):
     return JSONResponse({"detail": "Player is restarting"}, 503)
@@ -1049,10 +1065,24 @@ async def state():
     return player.state()
 
 
+async def yt_get(what: str, fn, *args, **kw):
+    """A YouTube Music lookup; a bad or gone ID (or YouTube failing) becomes a readable 404/502, not a 500."""
+    try:
+        return await asyncio.to_thread(fn, *args, **kw)
+    except (YTMusicUserError, KeyError, IndexError, TypeError, ValueError, AttributeError):
+        raise HTTPException(404, f"Couldn't find that {what} on YouTube Music")
+    except Exception as e:
+        if "404" in str(e) or "400" in str(e):
+            raise HTTPException(404, f"Couldn't find that {what} on YouTube Music")
+        raise HTTPException(502, f"YouTube Music didn't answer: {str(e)[:120]}")
+
+
 @app.get("/api/search")
 async def search(q: str, kind: str = "songs"):
+    if not q.strip():
+        return []
     filt = kind if kind in ("songs", "albums", "artists", "playlists") else "songs"
-    res = await asyncio.to_thread(yt.search, q, filter=filt, limit=30)
+    res = await yt_get("search", yt.search, q, filter=filt, limit=30)
     out = []
     for r in res:
         thumbs = r.get("thumbnails") or []
@@ -1098,7 +1128,7 @@ async def home():
 
 @app.get("/api/album/{browse_id}")
 async def album(browse_id: str):
-    a = await asyncio.to_thread(yt.get_album, browse_id)
+    a = await yt_get("album", yt.get_album, browse_id)
     thumbs = a.get("thumbnails") or []
     tracks = [t for t in (track_from({**x, "album": a.get("title"), "thumbnails": x.get("thumbnails") or thumbs})
                           for x in a.get("tracks", [])) if t]
@@ -1110,10 +1140,10 @@ async def album(browse_id: str):
 async def playlist(playlist_id: str):
     pid = playlist_id[2:] if playlist_id.startswith("VL") else playlist_id
     if pid.startswith("RD") and not pid.startswith("RDCLAK"):      # a radio mix; RDCLAK are curated playlists
-        w = await asyncio.to_thread(yt.get_watch_playlist, playlistId=pid, limit=50)
+        w = await yt_get("mix", yt.get_watch_playlist, playlistId=pid, limit=50)
         tracks = [t for t in map(track_from, w.get("tracks", [])) if t]
         return {"title": "Mix", "subtitle": "YouTube Music mix", "thumb": tracks[0]["thumb"] if tracks else "", "tracks": tracks}
-    p = await asyncio.to_thread(yt.get_playlist, pid, limit=100)
+    p = await yt_get("playlist", yt.get_playlist, pid, limit=100)
     thumbs = p.get("thumbnails") or []
     tracks = [t for t in map(track_from, p.get("tracks", [])) if t]
     return {"title": p.get("title"), "subtitle": (p.get("author") or {}).get("name", "") if isinstance(p.get("author"), dict) else "",
@@ -1122,7 +1152,7 @@ async def playlist(playlist_id: str):
 
 @app.get("/api/artist/{channel_id}")
 async def artist(channel_id: str):
-    a = await asyncio.to_thread(yt.get_artist, channel_id)
+    a = await yt_get("artist", yt.get_artist, channel_id)
     thumbs = a.get("thumbnails") or []
     songs = [t for t in map(track_from, (a.get("songs") or {}).get("results", [])) if t]
     albums = [{"type": "album", "id": x.get("browseId"), "title": x.get("title"), "subtitle": x.get("year") or "",
@@ -1283,7 +1313,7 @@ class ControlBody(BaseModel):
 
 def queue_at(i: int, vid: str | None) -> int:
     """The queue index a client meant; 409 when the queue moved under it."""
-    if vid is not None and not (0 <= i < len(player.queue) and player.queue[i]["videoId"] == vid):
+    if not 0 <= i < len(player.queue) or (vid is not None and player.queue[i]["videoId"] != vid):
         raise HTTPException(409, "The queue changed, try again")
     return i
 
@@ -1825,7 +1855,10 @@ def person_fields(p: dict, body: PersonBody) -> None:
             raise HTTPException(400, "bad colour")
         p["color"] = body.color.upper()
     if body.emoji is not None:
-        p["emoji"] = body.emoji.strip()[:8]
+        e = body.emoji.strip()[:8]
+        if any(ch.isascii() and ch not in "#*0123456789" for ch in e):   # emoji only (keycaps start with #, * or a digit)
+            raise HTTPException(400, "Pick an emoji")
+        p["emoji"] = e
 
 
 @app.get("/api/people")

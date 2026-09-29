@@ -343,6 +343,10 @@
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const secs = d => String(d || "").split(":").reduce((a, x) => a * 60 + (+x || 0), 0);   /* "3:45" -> 225 */
+/* a cover that fails to load (YouTube sometimes refuses one) shows an empty tile, not the broken-image icon */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   /* 1x1 transparent */
+addEventListener("error", e => { const im = e.target; if (im.tagName === "IMG" && im.src !== BLANK) im.src = BLANK; }, true);
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const api = async (path, body, retried) => {
   const r = await fetch(path, body ? { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) } : {});
@@ -531,17 +535,19 @@ async function showMood(params, title) {
 }
 
 /* a pasted YouTube / YouTube Music link opens what it points to */
-const LINK = /^(https?:\/\/)?([\w-]+\.)*(youtube\.com|youtu\.be)\//i;
+/* any web address counts, so a non-YouTube link gets the server's "only YouTube links" message instead of a search */
+const LINK = /^(https?:\/\/|www\.)\S+$|^([\w-]+\.)*(youtube\.com|youtu\.be)(\/\S*)?$/i;
+let navSeq = 0;                              /* bumped by each album/playlist/artist page, so a late one doesn't take over */
 async function openLink(url) {
   lastQuery = url; onLiked = false; $("#tabs").hidden = true; backFn = "showHome()"; page = "link";
   $("#view").innerHTML = '<div class="spinner">Opening the link…</div>';
   try {
     const r = await api(`api/resolve?url=${encodeURIComponent(url)}`);
-    if (lastQuery !== url) return;
+    if (lastQuery !== url || page !== "link") return;
     if (r.type !== "song") return openItem(r.type, r.id);
     lists.link = [r.track];
     $("#view").innerHTML = `<h2>From your link</h2><div class="list">${songRow(r.track, "link", 0)}</div>`;
-  } catch (e) { if (lastQuery === url) $("#view").innerHTML = `<div class="empty">${esc(errT(e))}</div>`; }
+  } catch (e) { if (lastQuery === url && page === "link") $("#view").innerHTML = `<div class="empty">${esc(errT(e))}</div>`; }
 }
 
 async function doSearch() {
@@ -551,18 +557,19 @@ async function doSearch() {
   $("#view").innerHTML = '<div class="spinner">Searching…</div>';
   try {
     const res = await api(`api/search?q=${encodeURIComponent(q)}&kind=${kind}`);
-    if (q !== lastQuery) return;
+    if (q !== lastQuery || page !== "search") return;
     if (!res.length) { $("#view").innerHTML = '<div class="empty">No results</div>'; return; }
     if (kind === "songs") { lists.search = res; $("#view").innerHTML = `<div class="list">${res.map((t, i) => songRow(t, "search", i)).join("")}</div>`; }
     else $("#view").innerHTML = `<div class="grid">${res.map(card).join("")}</div>`;
-  } catch (e) { $("#view").innerHTML = `<div class="empty">Search failed: ${esc(e.message)}</div>`; }
+  } catch (e) { if (q === lastQuery && page === "search") $("#view").innerHTML = `<div class="empty">Search failed: ${esc(errT(e))}</div>`; }
 }
 
 async function openItem(type, id) {
-  onLiked = false; page = "item"; const back = backFn;
+  onLiked = false; page = "item"; const back = backFn, my = ++navSeq;
   $("#view").innerHTML = '<div class="spinner">Loading…</div>';
   try {
     const d = await api(`api/${type}/${encodeURIComponent(id)}`);
+    if (my !== navSeq || page !== "item") return;
     lists.detail = d.tracks;
     $("#view").innerHTML = `<button class="back" onclick="${esc(back)}">← Back</button>
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div><h1>${esc(d.title)}</h1><div class="s">${esc(d.subtitle)} · ${d.tracks.length} songs</div>
@@ -571,7 +578,7 @@ async function openItem(type, id) {
         <button class="pill ghost" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))}, 'add')">Add all</button></div></div></div>
       <div class="list">${d.tracks.map((t, i) => songRow(t, "detail", i)).join("")}</div>
       ${d.albums && d.albums.length ? `<h2>Albums</h2><div class="shelf">${d.albums.map(card).join("")}</div>` : ""}`;
-  } catch (e) { $("#view").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; }
+  } catch (e) { if (my === navSeq && page === "item") $("#view").innerHTML = `<div class="empty">Could not load: ${esc(errT(e))}</div>`; }
 }
 
 /* the queue: now playing → songs people added (a tap adds, taking turns) → radio of the last one added */
@@ -596,26 +603,32 @@ function qrow(t, i, nu) {
   const cur = i === 0 ? " playing" : "", by = i === 0 ? (t.src === "user" ? t.by : "radio") : auto ? "radio" : t.by;
   return `<div class="row${cur}${auto ? " auto" : ""}">
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
-    <div class="meta" onclick="ctl('jump', ${abs}, ${vid})"><div class="t">${esc(t.title)}</div><div class="s">${byChip(by)}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div></div>
+    <div class="meta"${i === 0 ? "" : ` onclick="ctl('jump', ${abs}, ${vid})"`}><div class="t">${esc(t.title)}</div><div class="s">${byChip(by)}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div></div>
     <span class="d">${esc(t.duration)}</span>
     <div class="acts">${i === 0 ? "" : `<button title="Play next" aria-label="Play next" onclick="ctl('promote', ${abs}, ${vid})">${ICON_NEXT}</button>
       <button title="Remove" aria-label="Remove" onclick="ctl('remove', ${abs}, ${vid})">✕</button><span class="grip" title="Drag to move">${ICON_GRIP}</span>`}</div></div>`;
 }
+/* the poll redraws the queue every second: only touch the DOM when it changed, and never while a finger or
+   mouse is down on it, or the button being pressed is swapped out and the tap gets lost */
+let queueHtml = "", queuePress = false;
 function renderQueue() {
-  if (!$("#drawer").classList.contains("open") || drag) return;
+  if (!$("#drawer").classList.contains("open") || drag || queuePress) return;
   const q = state.queue || [], nu = state.userCount || 0;
   lists.queue = q;
-  if (!q.length) { $("#queue").innerHTML = '<div class="empty">Queue is empty. Tap any song to start.</div>'; return; }
+  const put = html => { if (html !== queueHtml) { queueHtml = html; $("#queue").innerHTML = html; } };
+  if (!q.length) return put('<div class="empty">Queue is empty. Tap any song to start.</div>');
   let html = qhead("Now playing") + qrow(q[0], 0, nu);
   html += qhead("Next in queue", nu ? `${nu} song${nu === 1 ? "" : "s"}` : "", nu ? `<button onclick="ctl('shuffle')">Shuffle</button><button onclick="ctl('clear')">Clear</button>` : "");
   html += nu ? q.slice(1, nu + 1).map((t, k) => qrow(t, k + 1, nu)).join("") : '<div class="qempty">Tap any song to add it here. Songs from different people take turns.</div>';
   const auto = q.slice(nu + 1);
-  if (auto.length || state.seed)
-    html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
-      `<button onclick="ctl('refresh')">Refresh</button>${auto.length ? `<button onclick="ctl('clear_auto')">Clear</button>` : ""}`)
-      + auto.map((t, k) => qrow(t, k + nu + 1, nu)).join("");
-  $("#queue").innerHTML = html;
+  html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
+      `<button onclick="ctl('refresh')">${auto.length ? "Refresh" : "Start radio"}</button>${auto.length ? `<button onclick="ctl('clear_auto')">Clear</button>` : ""}`)
+    + auto.map((t, k) => qrow(t, k + nu + 1, nu)).join("");
+  put(html);
 }
+$("#queue").addEventListener("pointerdown", () => queuePress = true, true);
+addEventListener("pointerup", () => { if (queuePress) { queuePress = false; setTimeout(renderQueue, 400); } }, true);
+addEventListener("pointercancel", () => queuePress = false, true);
 function ago(ts) {
   const s = Date.now() / 1000 - ts;
   if (s < 60) return "just now"; if (s < 3600) return `${Math.floor(s / 60)} min ago`;
@@ -720,8 +733,9 @@ async function poll() {
   if (c && $("#pImg").dataset.src !== c.thumb) { $("#pImg").src = c.thumb; $("#pImg").dataset.src = c.thumb; }
   $("#pBtn").innerHTML = state.paused || !c ? ICON_PLAY : ICON_PAUSE;
   $("#pStatus").textContent = state.loading ? "Loading track…" : (state.error || "");
-  $("#tPos").textContent = fmt(state.position); $("#tDur").textContent = fmt(state.duration);
-  if (!seeking) { $("#seek").max = Math.max(1, state.duration); $("#seek").value = state.position; }
+  const dur = state.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
+  $("#tPos").textContent = fmt(state.position); $("#tDur").textContent = fmt(dur);
+  if (!seeking) { $("#seek").max = Math.max(1, dur); $("#seek").value = state.position; }
   if (Date.now() - volTouch > 2000) $("#vol").value = state.volume;
   document.title = c ? `${state.paused ? "❚❚" : "▶"} ${c.title} · Tunebox` : "Tunebox";
   renderQueue();
@@ -737,7 +751,8 @@ let timer; $("#q").addEventListener("input", () => { clearTimeout(timer); timer 
 $("#q").addEventListener("keydown", e => { if (e.key === "Enter") { clearTimeout(timer); doSearch(); } });
 $("#tabs").addEventListener("click", e => { const k = e.target.dataset.k; if (!k) return;
   kind = k; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b === e.target)); doSearch(); });
-document.addEventListener("keydown", e => { if (e.code === "Space" && e.target.tagName !== "INPUT") { e.preventDefault(); ctl("toggle"); } });
+document.addEventListener("keydown", e => {   /* Space plays/pauses, except while typing or on a focused control */
+  if (e.code === "Space" && !e.target.closest("input, textarea, select, button, [contenteditable]")) { e.preventDefault(); ctl("toggle"); } });
 
 /* ---------- settings (same API as the Bauhaus UI) ---------- */
 const $$ = s => [...document.querySelectorAll(s)];
