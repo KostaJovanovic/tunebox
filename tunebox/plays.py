@@ -15,6 +15,7 @@ from . import data
 from .config import PLAYS_DIR
 
 _open: dict | None = None                      # the play going on now
+_parsed: dict[str, tuple[float, list[dict]]] = {}   # month file -> (mtime, its plays): read each file once
 _done: list[dict] = []                         # finished, not written yet
 
 
@@ -84,15 +85,24 @@ def read(since: float = 0, until: float | None = None) -> list[dict]:
         first, last = month_file(since).name if since else "", month_file(until).name
         for f in sorted(PLAYS_DIR.glob("*.jsonl")):
             if first <= f.name <= last:
-                for line in f.read_text(encoding="utf-8").splitlines():
-                    try:
-                        p = json.loads(line)
-                    except ValueError:
-                        continue                  # a line cut short by a power cut
-                    if since <= p.get("t", 0) < until:
-                        out.append(p)
+                out += [p for p in _month(f) if since <= p.get("t", 0) < until]
     out += [p for p in _done + ([{**_open, "s": round(_open["s"])}] if _open else []) if since <= p["t"] < until]
     return out
+
+
+def _month(f: Path) -> list[dict]:
+    mtime = f.stat().st_mtime
+    hit = _parsed.get(f.name)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    ps = []
+    for line in f.read_text(encoding="utf-8").splitlines():
+        try:
+            ps.append(json.loads(line))
+        except ValueError:
+            continue                              # a line cut short by a power cut
+    _parsed[f.name] = (mtime, ps)
+    return ps
 
 
 def seed():

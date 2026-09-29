@@ -1,0 +1,36 @@
+/* ---------- Stats: filters, number tiles, leaderboards and bar charts ---------- */
+.statbar { padding: 0 16px 6px; display: grid; gap: 8px; }
+.statbar .likers { margin: 0; }
+.statbar small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.daterange { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.daterange .field { width: auto; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; background: var(--line);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 10px 0 6px; }
+.tile { background: var(--bg); padding: 16px; display: grid; gap: 4px; align-content: end; }
+.tile b { font: 700 30px/1 var(--display); letter-spacing: -.01em; }
+.tile span { color: var(--muted); font-size: 12px; }
+.tile.big { grid-column: span 2; background: var(--red); color: var(--on-red); }
+.tile.big b { font-size: 56px; }
+.tile.big span { color: inherit; opacity: .85; }
+.board { padding: 4px 16px 10px; display: grid; gap: 8px; }
+.brow { display: grid; grid-template-columns: minmax(90px, 180px) minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.brow .who { display: flex; align-items: center; min-width: 0; font-weight: 600; }
+.brow .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow .track { height: 14px; }
+.brow .track i { display: block; height: 100%; min-width: 2px; }
+.brow b { font: 600 12px var(--ui); color: var(--muted); min-width: 70px; text-align: right; }
+.when { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; padding: 0 16px; }
+.when h3 { margin: 4px 0 8px; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.bars { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2px; height: 150px; padding: 0 16px 0 0; }
+.when .bars { padding: 0; }
+.bar { display: grid; grid-template-rows: minmax(0, 1fr) 18px; align-items: end; height: 100%; }
+.bar i { display: block; background: var(--red); min-height: 1px; }
+.bar:hover i { background: var(--text); }
+.bar span { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: visible; }
+section + .bars, .sec + .bars { margin: 0 16px; }
+.statnote { padding: 18px 16px 30px; }
+@media (max-width: 760px) {
+  .when { grid-template-columns: 1fr; }
+  .tile.big b { font-size: 42px; }
+  .brow { grid-template-columns: minmax(70px, 110px) minmax(0, 1fr) auto; }
+}

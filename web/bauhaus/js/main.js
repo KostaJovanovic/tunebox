@@ -10,6 +10,7 @@ import { on } from "../../shared/actions.js";
 import { toast, hideToast, closeAll, anyOpen, isOpen, openDrawer } from "./ui.js";
 import { showHome, showExplore, showHistory, goTo } from "./library.js";
 import { showLists, likesChanged } from "./playlists.js";
+import { showStats } from "./stats.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleLyrics, paintLyrics } from "./lyrics.js";
 import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from "./settings.js";
@@ -37,7 +38,7 @@ onState(async s => {
 });
 
 /* ---------- pages ---------- */
-const PAGES = { home: showHome, lists: showLists, history: showHistory, explore: showExplore };
+const PAGES = { home: showHome, lists: showLists, history: showHistory, explore: showExplore, stats: showStats };
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) PAGES[b.dataset.v](); });
 
 /* ---------- buttons that belong to no one part ---------- */
@@ -84,7 +85,7 @@ document.addEventListener("keydown", e => {
     l: () => toggleLyrics(),
     s: () => toggleSettings(!isOpen("settings")),
     n: () => toggleCanvas(),
-    h: showHistory, p: showLists, e: showExplore,
+    h: showHistory, p: showLists, e: showExplore, t: showStats,
     f: likeCurrent,
     z: () => { hideToast(); undo(); },
     "?": () => openDrawer("keys", !isOpen("keys")),
