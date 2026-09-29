@@ -24,7 +24,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Pass phrases (optional): a name can have one, asked once per device before it can be used; an admin pass phrase guards removing people and clearing the history, and resets a forgotten one
 - On touch screens, swipe a queued song left to remove it or right to play it next; the grip drags it
 - A wall screen at `/wall` for a tablet or TV: cover, synced lyrics and big controls; a dimmed clock when nothing plays. It keeps the screen on only over HTTPS (or localhost), since browsers allow wake locks only there
-- Gapless hand-over: the next track is preloaded 20 s before the current one ends
+- Crossfade (3 s by default, up to 12 s, or off): the next song starts on a second mpv while the current one fades out. Songs of one album in a row stay gapless, as does everything with crossfade off: the next track is preloaded 20 s before the current one ends
 - 10-band equaliser with presets and optional loudness normalisation; EQ changes are heard at once, without gaps (the normaliser sits before the EQ, since it looks seconds ahead)
 - Volume slider linear in dB; audio quality setting (best / balanced / low)
 - Sleep timer (minutes or end of track) with fade-out; wake-up alarm with volume ramp
@@ -102,10 +102,11 @@ For a quick manual run instead: `TUNEBOX_RUN=/tmp/tunebox ../venv/bin/uvicorn ap
 
 ### Audio output
 
-mpv uses ALSA's default device. If the right card isn't picked, set it in `/etc/asound.conf`, e.g.:
+mpv uses ALSA's default device. Crossfade runs two mpv players at once for a few seconds, so the default device must mix (ALSA's `dmix`; PipeWire or PulseAudio do it too). A raw `hw` device takes one player only: crossfade then gives up after three tries and songs follow gaplessly, and Settings says so. To pick the card and let it mix, in `/etc/asound.conf`:
 
 ```
-pcm.!default { type hw card 0 device 0 }
+pcm.!default { type plug slave.pcm "mix" }
+pcm.mix { type dmix ipc_key 1024 ipc_perm 0660 slave { pcm "hw:0,0" rate 48000 } }
 ctl.!default { type hw card 0 }
 ```
 

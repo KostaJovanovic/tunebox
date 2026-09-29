@@ -3,7 +3,7 @@ import asyncio
 import json
 
 from .audio import eq_bands, eq_filter, level_to_mpv, pre_cut
-from .config import MPV_SOCK, RUN_DIR
+from .config import RUN_DIR
 from .settings import settings
 
 
@@ -14,7 +14,8 @@ class PlayerDown(ConnectionError):
 class Mpv:
     """Minimal async client for mpv's JSON IPC."""
 
-    def __init__(self):
+    def __init__(self, name: str = "mpv"):
+        self.sock = RUN_DIR / f"{name}.sock"   # two players (crossfade): one socket each
         self.proc = None
         self.writer = None
         self.req = 0
@@ -35,17 +36,17 @@ class Mpv:
         self.props = {"pause": False, "time-pos": 0, "duration": 0, "volume": 70, "idle-active": True}
         self.eq_chain = self.eq_live = self.started = None
         RUN_DIR.mkdir(parents=True, exist_ok=True)
-        MPV_SOCK.unlink(missing_ok=True)
+        self.sock.unlink(missing_ok=True)
         self.proc = await asyncio.create_subprocess_exec(
             "mpv", "--idle=yes", "--no-video", "--no-terminal", "--no-config",
-            f"--input-ipc-server={MPV_SOCK}", "--ao=alsa", f"--volume={level_to_mpv(settings['volume'])}",
+            f"--input-ipc-server={self.sock}", "--ao=alsa", f"--volume={level_to_mpv(settings['volume'])}",
             "--cache=yes", "--demuxer-max-bytes=16MiB", "--audio-buffer=0.5",
             "--prefetch-playlist=yes", "--gapless-audio=weak")
         for _ in range(50):
-            if MPV_SOCK.exists():
+            if self.sock.exists():
                 break
             await asyncio.sleep(0.1)
-        reader, self.writer = await asyncio.open_unix_connection(str(MPV_SOCK), limit=1 << 20)
+        reader, self.writer = await asyncio.open_unix_connection(str(self.sock), limit=1 << 20)
         asyncio.get_running_loop().create_task(self._read(reader))
         for i, prop in enumerate(self.props, 1):
             await self.send("observe_property", i, prop)

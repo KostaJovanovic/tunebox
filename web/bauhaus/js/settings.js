@@ -37,6 +37,9 @@ function renderSettings() {
   $("#optNorm").setAttribute("aria-checked", cfg.normalize);
   $("#optAuto").setAttribute("aria-checked", cfg.autoplay);
   $("#optTurns").setAttribute("aria-checked", cfg.turns);
+  $("#xfade").innerHTML = [0, 2, 3, 5, 8, 12].map(s => `<button data-s="${s}" class="${cfg.crossfade === s ? "on" : ""}">${s ? s + " s" : "Off"}</button>`).join("");
+  $("#xfHint").textContent = cfg.crossfadeOk || !cfg.crossfade ? "Songs blend into each other. Songs of one album in a row stay gapless."
+    : "Crossfade isn't working here: the sound card can't play two songs at once (see the README), so songs follow gaplessly.";
   $("#quality").innerHTML = cfg.qualities.map(q => `<button data-q="${q}" class="${cfg.quality === q ? "on" : ""}">${QUALITY_NAMES[q][0]}<small>${QUALITY_NAMES[q][1]}</small></button>`).join("");
   renderAlarm();
   $("#acctDot").classList.toggle("ok", cfg.account.signedIn);
@@ -168,6 +171,12 @@ async function setOpt(key, btn) {
   btn.setAttribute("aria-checked", on);
   cfg = await api("api/options", { [key]: on }); renderSettings();
 }
+$("#xfade").addEventListener("click", async e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  cfg = await api("api/options", { crossfade: +b.dataset.s }); renderSettings();
+  toast(+b.dataset.s ? `Crossfade: ${b.dataset.s} seconds` : "Crossfade off");
+});
 $("#quality").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b) return;

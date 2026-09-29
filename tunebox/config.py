@@ -6,7 +6,6 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent.parent   # music/ here, /opt/homeapps/tunebox on ele
 WEB_DIR = APP_DIR / "web"                            # the pages, their CSS and JS
 RUN_DIR = Path(os.environ.get("TUNEBOX_RUN", "/run/tunebox"))
-MPV_SOCK = RUN_DIR / "mpv.sock"
 DATA = Path(os.environ.get("TUNEBOX_DATA") or APP_DIR)   # where the files below live (the dev emulator moves them)
 NODE = APP_DIR.parent / "node" / "bin" / "node"     # official Node 22 build (Debian's Node 20 is too old for yt-dlp)
 
@@ -31,6 +30,8 @@ RADIO_REFILL_AT = 3                         # refill when this few tracks remain
 UNDO_KEEP = 15                              # queue snapshots kept for undo (saved with the session)
 UNDO_TRACKS = 200                           # songs kept per snapshot (the current one and what's up next)
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
+CROSSFADE_MAX = 12                          # the crossfade setting goes up to this many seconds
+XF_GIVE_UP = 3                              # after this many crossfades that couldn't start, stop trying until a restart
 HISTORY_MAX = 300
 STATS_DAYS = 30
 

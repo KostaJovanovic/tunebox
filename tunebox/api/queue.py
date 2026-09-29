@@ -97,10 +97,12 @@ async def control(body: ControlBody, request: Request):
         asyncio.get_running_loop().create_task(p.play_index(step=1))
     elif a == "prev":
         if (p.mpv.props.get("time-pos") or 0) > 5 or p.index == 0:
+            await p.cancel_xf()
             await p.mpv.send("seek", 0, "absolute")
         else:
             asyncio.get_running_loop().create_task(p.play_index(step=-1))
     elif a == "seek" and v is not None:
+        await p.cancel_xf()                   # seeking in a crossfade: the next song starts again later
         await p.mpv.send("seek", v, "absolute")
     elif a == "volume" and v is not None:
         settings["volume"] = round(max(0, min(100, v)))

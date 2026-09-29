@@ -14,6 +14,7 @@
 input[type=range].big { width: 100%; }
 .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .presets.c3 { grid-template-columns: repeat(3, 1fr); }
+.presets.c6 { grid-template-columns: repeat(6, 1fr); }
 .presets.c7 { grid-template-columns: repeat(7, 1fr); }
 .presets button { min-height: 44px; background: var(--bg); font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 2px; transition: background .12s, color .12s; }
