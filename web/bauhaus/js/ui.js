@@ -83,9 +83,10 @@ export function card(it) {
     <div class="t">${esc(it.title)}</div><div class="s"><i class="kind ${esc(it.type)}"></i>${esc(it.subtitle || it.artist || it.type)}</div></button>`;
 }
 
-/* A card for song i of a list (the house's own shelves on Home) */
+/* A card for song i of a list (the house's own shelves on Home); liked songs show who liked them */
+const likers = t => (t.likedBy || []).filter(id => people[id]).map(id => avatar(people[id], "sm")).join("");
 export const songCard = (t, key, i) => `<button class="card" data-act="song" ${at(key, i)}><img loading="lazy" src="${esc(t.thumb)}" alt="">
-    <div class="t">${esc(t.title)}</div><div class="s"><i class="kind song"></i>${esc(t.artist)}</div></button>`;
+    <div class="t">${esc(t.title)}</div><div class="s">${likers(t) || '<i class="kind song"></i>'}${esc(t.artist)}</div></button>`;
 
 /* A playlist cover: four covers in a square, one if there are fewer, a note icon if none */
 export function mosaic(thumbs, cls = "mosaic") {

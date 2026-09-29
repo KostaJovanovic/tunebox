@@ -207,7 +207,8 @@ async def for_me():
             counts.append((len(recent), max(recent), s["track"]))
     counts.sort(key=lambda c: (-c[0], -c[1]))
     most = [c[2] for c in counts[:24]]
-    likes = [{k: t.get(k, "") for k in data.TRACK_KEYS} for t in data.playlists[LIKED_ID]["tracks"]]
+    likes = [{**{k: t.get(k, "") for k in data.TRACK_KEYS}, "likedBy": t.get("likedBy") or []}
+             for t in data.playlists[LIKED_ID]["tracks"]]
     random.shuffle(likes)
     shelves = []
     if most:
