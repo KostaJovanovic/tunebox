@@ -39,6 +39,7 @@ SETTINGS_FILE = DATA / "settings.json"     # volume + equaliser, survives restar
 SESSION_FILE = DATA / "session.json"       # queue + position, restored paused after a restart
 HISTORY_FILE = DATA / "history.json"       # recently played, newest first (shared by everyone)
 LISTS_FILE = DATA / "playlists.json"       # Tunebox playlists (shared, editable by anyone)
+PEOPLE_FILE = DATA / "people.json"         # who's listening: names picked per device (cookie tb_who)
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted
 URL_TTL = 4 * 3600                          # stream URLs expire after ~6 h; re-resolve well before that
 SESSION_EVERY = 60                          # save queue + position at most this often (seconds), spares the SD card
@@ -172,6 +173,8 @@ playlists: dict[str, dict] = read_json(LISTS_FILE, {})
 if LIKED_ID not in playlists:
     playlists[LIKED_ID] = {"id": LIKED_ID, "name": "Liked songs", "tracks": [], "created": int(time.time()), "updated": int(time.time())}
 lists_rev = time.time_ns() // 1_000_000        # bumped on every playlist change, so clients refresh their liked hearts
+people: dict[str, dict] = read_json(PEOPLE_FILE, {})
+people_rev = time.time_ns() // 1_000_000       # bumped when names change, so clients refresh their chips
 ydl = yt_dlp.YoutubeDL({
     "format": QUALITY.get(settings["quality"], QUALITY["best"]),
     "quiet": True, "no_warnings": True, "noplaylist": True,
@@ -780,6 +783,7 @@ class Player:
             "sleep": None if left is None else {"mode": self.sleep.get("mode", "timer"), "left": round(left),
                                                  "minutes": self.sleep.get("minutes")},
             "alarm": bool(settings["alarm"]["enabled"]), "ramping": bool(self.ramp), "listsRev": lists_rev,
+            "peopleRev": people_rev,
             **({"paused": True, "position": self.resume_at} if p.get("idle-active") and not self.loading else {}),
         }
 
@@ -974,8 +978,9 @@ def queue_at(i: int, vid: str | None) -> int:
 
 
 @app.post("/api/play")
-async def play(body: PlayBody):
-    tracks = [t for t in map(clean_track, body.tracks) if t]
+async def play(body: PlayBody, request: Request):
+    by = need_who(request)
+    tracks = [{**t, "by": by} for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
     asyncio.get_running_loop().create_task(player.play_tracks(tracks, body.start, body.radio, body.similar or body.shuffle))
@@ -983,10 +988,12 @@ async def play(body: PlayBody):
 
 
 @app.post("/api/queue")
-async def enqueue(body: QueueBody):
+async def enqueue(body: QueueBody, request: Request):
+    by = need_who(request)
     track = clean_track(body.track)
     if not track:
         raise HTTPException(400, "not a track")
+    track["by"] = by
     if player.current is None:
         await player.play_tracks([track], 0, radio=True)
     elif body.next:
@@ -1367,21 +1374,26 @@ async def add_to_list(list_id: str, body: ListTrackBody):
 
 
 @app.post("/api/like")
-async def like(body: LikeBody):
-    """Adds the song to the top of Liked songs, or takes it out."""
+async def like(body: LikeBody, request: Request):
+    """Adds the song to the top of Liked songs, or takes it out. The list is shared; likedBy
+    remembers who liked each song (liking an already liked song adds your name)."""
     t = clean_track(body.track)
     if not t:
         raise HTTPException(400, "not a track")
+    by = who(request)
     async with lists_lock:
         p = playlists[LIKED_ID]
-        had = any(x["videoId"] == t["videoId"] for x in p["tracks"])
-        if body.liked != had:
-            if body.liked:
-                p["tracks"].insert(0, t)
-            else:
-                p["tracks"] = [x for x in p["tracks"] if x["videoId"] != t["videoId"]]
-            p["updated"] = int(time.time())
-            save_lists()
+        have = next((x for x in p["tracks"] if x["videoId"] == t["videoId"]), None)
+        if body.liked and have is None:
+            p["tracks"].insert(0, {**t, "likedBy": [by] if by else []})
+        elif body.liked and by and by not in have.setdefault("likedBy", []):
+            have["likedBy"].append(by)
+        elif not body.liked and have is not None:
+            p["tracks"] = [x for x in p["tracks"] if x["videoId"] != t["videoId"]]
+        else:
+            return {"liked": body.liked, "count": len(p["tracks"])}
+        p["updated"] = int(time.time())
+        save_lists()
     return {"liked": body.liked, "count": len(p["tracks"])}
 
 
@@ -1396,6 +1408,87 @@ async def delete_list(list_id: str):
         if settings["alarm"].get("list") == list_id:
             settings["alarm"]["list"] = None
             save_settings()
+    return {"ok": True}
+
+
+# ---------- people: who's listening, picked per device, so the queue can show who added what ----------
+people_lock = asyncio.Lock()
+COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
+
+
+def who(request: Request) -> str:
+    """The person this device picked (cookie tb_who), or "" for nobody or a removed name."""
+    pid = request.cookies.get("tb_who") or ""
+    return pid if pid in people else ""
+
+
+def need_who(request: Request) -> str:
+    """Adding songs needs a name; the UI answers this 401 by showing its picker."""
+    pid = who(request)
+    if not pid:
+        raise HTTPException(401, "pick")
+    return pid
+
+
+def save_people():
+    global people_rev
+    people_rev += 1
+    write_json(PEOPLE_FILE, people)
+
+
+class PersonBody(BaseModel):
+    name: str | None = None
+    color: str | None = None
+    emoji: str | None = None
+
+
+def person_fields(p: dict, body: PersonBody) -> None:
+    if body.name is not None:
+        name = " ".join(body.name.split())[:24]
+        if not name:
+            raise HTTPException(400, "Type a name")
+        if any(q["name"].lower() == name.lower() and q["id"] != p.get("id") for q in people.values()):
+            raise HTTPException(409, "That name is taken")
+        p["name"] = name
+    if body.color is not None:
+        if not COLOR_RE.fullmatch(body.color):
+            raise HTTPException(400, "bad colour")
+        p["color"] = body.color.upper()
+    if body.emoji is not None:
+        p["emoji"] = body.emoji.strip()[:8]
+
+
+@app.get("/api/people")
+async def all_people():
+    return sorted(people.values(), key=lambda p: p["name"].lower())
+
+
+@app.post("/api/people")
+async def add_person(body: PersonBody):
+    async with people_lock:
+        p = {"id": secrets.token_hex(4), "name": "", "color": "#1F5FBF", "emoji": ""}
+        person_fields(p, PersonBody(name=body.name or "", color=body.color, emoji=body.emoji))
+        people[p["id"]] = p
+        save_people()
+    return p
+
+
+@app.patch("/api/people/{pid}")
+async def edit_person(pid: str, body: PersonBody):
+    async with people_lock:
+        if pid not in people:
+            raise HTTPException(404, "No such person")
+        person_fields(people[pid], body)
+        save_people()
+    return people[pid]
+
+
+@app.delete("/api/people/{pid}")
+async def remove_person(pid: str):
+    """Their songs stay where they are; they just show no name any more."""
+    async with people_lock:
+        people.pop(pid, None)
+        save_people()
     return {"ok": True}
 
 

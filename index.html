@@ -375,6 +375,26 @@
     .eqfoot b { font-size: 11px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+  /* ---------- people ---------- */
+  .av { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--faint); color: #fff;
+    font: 700 14px/1 var(--display); flex: none; text-transform: uppercase; }
+  .av.sm { width: 16px; height: 16px; font-size: 9px; margin-right: 6px; vertical-align: -3px; }
+  .av.dark { color: #111; }
+  .top .me { width: 56px; display: grid; place-items: center; border-left: 1px solid var(--line); transition: background .15s var(--ease); }
+  .top .me:hover { background: var(--s1); }
+  .top .me .av { width: 28px; height: 28px; font-size: 13px; }
+  .top .me .av.none { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
+  .pick .av { width: 44px; height: 44px; font-size: 18px; }
+  .pick.on .ok::before { content: "This device"; }
+  .whoform { border-top: 1px solid var(--line); border-bottom: 0; }
+  .swatches, .emojis { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+  .swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
+  .swatches button.on { border-color: var(--text); }
+  .emojis button { width: 36px; height: 36px; font-size: 18px; display: grid; place-items: center; border: 1px solid var(--line-2); }
+  .emojis button.on { background: var(--s2); border-color: var(--text); }
+  .prow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .prow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prow .acts button { width: auto; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
   #queue .row { transition: transform .15s var(--ease), background .12s var(--ease); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #queue .row + .row { cursor: grab; }
   #queue .row.dragging { transition: none; z-index: 3; background: var(--s2); box-shadow: 0 8px 24px #0006; cursor: grabbing; }
@@ -388,6 +408,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
       <input id="q" type="search" placeholder="Search songs, albums, artists" autocomplete="off" enterkeyhint="search">
     </label>
+    <button class="me" id="meBtn" title="Who's listening" aria-label="Who's listening" onclick="toggleWho(true)"><i class="av none">?</i></button>
     <button class="home kb" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onclick="toggleKeys(true)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="2" y="6" width="20" height="12"/><path d="M6 10h1M10 10h1M14 10h1M18 10h0M7 14h10"/></svg></button>
     <button class="home" title="Settings" aria-label="Settings" onclick="toggleSettings(true)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><rect x="13" y="4" width="4" height="4"/><rect x="7" y="10" width="4" height="4"/><rect x="15" y="16" width="4" height="4"/></svg></button>
   </div>
@@ -526,7 +547,14 @@
       <div class="msg" id="acctMsg"></div>
     </div>
 
-    <div class="sec"><b>07</b><h2>This device</h2></div>
+    <div class="sec"><b>07</b><h2>People</h2></div>
+    <div class="body">
+      <p>Everyone picks their name once per device, so the queue shows who added what.</p>
+      <div id="peopleList"></div>
+      <div class="eqtools"><button class="btn" onclick="toggleWho(true)">Switch or add a name</button></div>
+    </div>
+
+    <div class="sec"><b>08</b><h2>This device</h2></div>
     <div class="body">
       <p>Remembered in this browser only; other devices keep their own.</p>
       <span class="lbl">Interface</span>
@@ -545,6 +573,18 @@
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
   <form class="newform" onsubmit="event.preventDefault(); pickNew()"><input class="field" id="pickName" placeholder="New playlist name" maxlength="80"><button class="btn red">Create</button></form>
   <div class="mbody" id="pickList"></div>
+</div>
+
+<div class="modal" id="who" role="dialog" aria-label="Who's listening">
+  <div class="dhead"><h2><i style="background:var(--red);border-radius:50%"></i><span id="whoTitle">Who's listening?</span></h2><button onclick="toggleWho(false)" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="mbody" id="whoList"></div>
+  <form class="newform whoform" onsubmit="event.preventDefault(); savePerson()">
+    <input class="field" id="whoName" placeholder="Add a name" maxlength="24" autocomplete="off"><button class="btn red" id="whoSave">Add</button>
+    <div class="swatches" id="whoColors"></div>
+    <div class="emojis" id="whoEmoji"></div>
+    <div class="msg" id="whoMsg" style="width:100%;margin:0"></div>
+  </form>
 </div>
 
 <div class="modal" id="keys" role="dialog" aria-label="Keyboard shortcuts">
@@ -575,9 +615,13 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const pad = n => String(n).padStart(2, "0");
-const api = async (path, body, method) => {
+const api = async (path, body, method, retried) => {
   const opts = body !== undefined ? { method: method || "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) } : { method: method || "GET" };
   const r = await fetch(path, opts);
+  if (r.status === 401 && !retried) {         /* adding songs needs a name: ask, then try once more */
+    if (await askWho()) return api(path, body, method, true);
+    throw new Error(JSON.stringify({ detail: "Pick your name first" }));
+  }
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 };
@@ -624,6 +668,68 @@ async function toggleLike(t) {
 }
 function likeCurrent() { toggleLike(state.current); }
 
+/* ---------- people: who's listening on this device (cookie tb_who, read by the server) ---------- */
+const COLORS = ["#E63B2E", "#EE6A1F", "#F2C230", "#1E8F5A", "#1F5FBF", "#6A4BC4", "#C8327A", "#5C5953"];
+const DARK_ON = new Set(["#EE6A1F", "#F2C230"]);
+const EMOJIS = ["", "🎸", "🎧", "🎹", "🥁", "🐱", "🐶", "🦊", "🐻", "🌻", "🚀", "⭐", "🍕", "⚽"];
+let people = {}, peopleRev = null, whoWait = null, editing = null, pickColor = COLORS[4], pickEmoji = "";
+const cookie = k => (document.cookie.match(new RegExp(`(?:^|; )${k}=([^;]*)`)) || [])[1] || "";
+const me = () => people[cookie("tb_who")] || null;
+function avatar(p, cls = "") {
+  if (!p) return `<i class="av none ${cls}">?</i>`;
+  return `<i class="av ${cls}${DARK_ON.has(p.color) ? " dark" : ""}" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.emoji || p.name.slice(0, 1))}</i>`;
+}
+const byChip = id => id === "radio" ? `<i class="av sm" style="background:var(--line-2)" title="Radio">•</i>` : people[id] ? avatar(people[id], "sm") : "";
+async function loadPeople(rev) {
+  try { people = Object.fromEntries((await api("api/people")).map(p => [p.id, p])); peopleRev = rev; } catch { return; }
+  paintMe(); renderPeople(); if ($("#who").classList.contains("open")) renderWho(); renderQueue(true);
+}
+function paintMe() { const p = me(); $("#meBtn").innerHTML = avatar(p); $("#meBtn").title = p ? `Listening as ${p.name}` : "Who's listening?"; }
+function setMe(id) {
+  document.cookie = `tb_who=${id}; path=/; max-age=31536000; SameSite=Lax`;
+  paintMe(); renderPeople(); toggleWho(false, true); toast(`Listening as ${people[id].name}`);
+}
+function askWho() { toggleWho(true); return new Promise(r => whoWait = r); }
+function toggleWho(open, chosen = false) {
+  if (open) { editing = null; resetWhoForm(); renderWho(); $("#who").classList.add("open"); $("#scrim").classList.add("open"); }
+  else { $("#who").classList.remove("open"); syncScrim(); if (whoWait) { whoWait(chosen); whoWait = null; } }
+}
+function renderWho() {
+  const cur = cookie("tb_who"), ps = Object.values(people).sort((a, b) => a.name.localeCompare(b.name));
+  $("#whoList").innerHTML = ps.length ? ps.map(p => `<button class="pick${p.id === cur ? " on" : ""}" onclick="setMe('${p.id}')">${avatar(p)}
+    <div style="min-width:0"><div class="t">${esc(p.name)}</div></div><span class="ok"></span></button>`).join("")
+    : '<div class="note" style="padding:24px 16px">No names yet. Add yours below.</div>';
+}
+function resetWhoForm(p = null) {
+  editing = p ? p.id : null; pickColor = p ? p.color : COLORS[Object.keys(people).length % COLORS.length]; pickEmoji = p ? p.emoji : "";
+  $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
+  $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Who's listening?";
+  $("#whoList").hidden = !!p; paintWhoForm();
+}
+function paintWhoForm() {
+  $("#whoColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pickColor ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" onclick="pickColor='${c}';paintWhoForm()"></button>`).join("");
+  $("#whoEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pickEmoji ? "on" : ""}" aria-label="${e || "Initial"}" onclick="pickEmoji='${e}';paintWhoForm()">${e || "Aa"}</button>`).join("");
+}
+async function savePerson() {
+  const name = $("#whoName").value.trim(); if (!name) return $("#whoName").focus();
+  try {
+    const p = await api(editing ? `api/people/${editing}` : "api/people", { name, color: pickColor, emoji: pickEmoji }, editing ? "PATCH" : "POST");
+    people[p.id] = p;
+    if (editing) { toggleWho(false); renderPeople(); paintMe(); toast("Saved"); } else setMe(p.id);
+  } catch (e) { $("#whoMsg").textContent = errText(e); $("#whoMsg").className = "msg err"; }
+}
+function editPerson(id) { toggleWho(true); resetWhoForm(people[id]); }
+async function removePerson(id) {
+  if (!confirm(`Remove ${people[id].name}? Their songs stay in the queue.`)) return;
+  await api(`api/people/${id}`, undefined, "DELETE"); delete people[id]; renderPeople(); paintMe();
+}
+function renderPeople() {
+  const ps = Object.values(people).sort((a, b) => a.name.localeCompare(b.name)), cur = cookie("tb_who");
+  $("#peopleList").innerHTML = ps.map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)}${p.id === cur ? ' <span style="color:var(--muted);font-weight:500">· this device</span>' : ""}</div>
+    <div class="acts"><button onclick="editPerson('${p.id}')">Edit</button><button onclick="removePerson('${p.id}')">Remove</button></div></div>`).join("")
+    || '<p class="hint" style="margin:0 0 8px">No names yet.</p>';
+}
+
 /* ---------- rows and cards ---------- */
 function songRow(t, listKey, i, o = {}) {
   const cur = (o.playing ?? true) && state.current && state.current.videoId === t.videoId ? " playing" : "";
@@ -636,7 +742,7 @@ function songRow(t, listKey, i, o = {}) {
     <span class="n">${pad(o.num ?? i + 1)}</span>
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="meta" onclick="${click}">
-      <div class="t">${esc(t.title)}</div><div class="s">${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
+      <div class="t">${esc(t.title)}</div><div class="s">${o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
     <span class="d">${esc(o.d ?? t.duration)}</span>
     <div class="acts">${acts}${o.extra || ""}</div></div>`;
@@ -723,7 +829,7 @@ async function showHistory() {
   html += '<div class="list">' + h.map((t, i) => {
     const dn = dayName(t.playedAt), head = dn !== day ? `<div class="daygroup">${esc(dn)}</div>` : "";
     day = dn;
-    return head + songRow(t, "history", i, { d: ago(t.playedAt), playing: i === 0 });
+    return head + songRow(t, "history", i, { d: ago(t.playedAt), playing: i === 0, by: t.by });
   }).join("") + "</div>";
   $("#view").innerHTML = html;
 }
@@ -1040,7 +1146,7 @@ function toggleMute() { const v = +$("#vol2").value; if (v > 0) { preMute = v; s
 /* ---------- drawers and modals ---------- */
 function anyOpen() { return $$(".drawer.open, .modal.open").length > 0; }
 function syncScrim() { $("#scrim").classList.toggle("open", anyOpen()); }
-function closeAll() { $$(".drawer.open, .modal.open").forEach(d => d.classList.remove("open")); syncScrim(); clearHash(); }
+function closeAll() { $$(".drawer.open, .modal.open").forEach(d => d.classList.remove("open")); syncScrim(); clearHash(); if (whoWait) { whoWait(false); whoWait = null; } }
 function clearHash() { if (location.hash === "#settings") history.replaceState(null, "", location.pathname); }
 function openDrawer(id, open) {
   if (open) $$(".drawer.open, .modal.open").forEach(d => d.id !== id && d.classList.remove("open"));
@@ -1058,7 +1164,7 @@ function renderQueue() {
   $("#queue").innerHTML = q.length ? q.map((t, i) => {
     const abs = off + i, vid = esc(JSON.stringify(t.videoId));
     const extra = i === 0 ? "" : `<button title="Remove" aria-label="Remove" onclick="ctl('remove', ${abs}, ${vid})">${ICON_X}</button>`;
-    return songRow(t, "queue", i, { num: i, click: `ctl('jump', ${abs}, ${vid})`, extra,
+    return songRow(t, "queue", i, { num: i, click: `ctl('jump', ${abs}, ${vid})`, extra, by: t.by,
       acts: `<button title="Add to playlist" aria-label="Add to playlist" onclick="togglePicker(true, 'queue', ${i})">${ICON_LIST}</button>` });
   }).join("") : '<div class="note">Queue is empty</div>';
 }
@@ -1181,6 +1287,7 @@ async function poll() {
   renderSleep();
   renderQueue();
   if (state.listsRev !== likedRev) loadLikes(state.listsRev); else paintLikes();
+  if (state.peopleRev !== peopleRev) loadPeople(state.peopleRev);
   if ($("#lyrics").classList.contains("open") && (c?.videoId || null) !== lyr.vid) loadLyrics();
 }
 
