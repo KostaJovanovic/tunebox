@@ -54,9 +54,9 @@
   .ctrls .like.on path { fill: currentColor; }
   .vol { font: 700 13px var(--display); color: var(--muted); min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 
-  .lyr { height: 84vh; overflow: hidden; position: relative; mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent);
+  .lyr { height: 84vh; overflow: hidden; position: relative; padding-right: 5%; mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent);
     -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent); }
-  .lyr .in { position: absolute; left: 0; right: 0; top: 0; transition: transform .6s cubic-bezier(.2, 0, 0, 1); }
+  .lyr .in { position: absolute; left: 0; right: 5%; top: 0; transition: transform .6s cubic-bezier(.2, 0, 0, 1); }
   .lyr p { margin: 0; padding: .5vh 0; font: 700 clamp(22px, 3.1vw, 44px)/1.25 var(--display); color: #ffffff4d; transition: color .3s, transform .3s; transform-origin: left center; }
   .lyr p.past { color: #ffffff2e; }
   .lyr p.on { color: var(--text); transform: scale(1.04); }
@@ -118,6 +118,7 @@
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const secs = d => (d || "").split(":").reduce((a, x) => a * 60 + (+x || 0), 0);
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const api = async (path, body) => {
   const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
@@ -201,8 +202,9 @@ async function poll() {
     if (lyr.vid !== c.videoId) loadLyrics(c);
   }
   $("#playBtn").innerHTML = state.paused || !c ? ICON_PLAY : ICON_PAUSE;
-  $("#fill").style.width = state.duration ? `${Math.min(100, state.position / state.duration * 100)}%` : "0";
-  $("#pos").textContent = fmt(state.position); $("#dur").textContent = fmt(state.duration);
+  const dur = state.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
+  $("#fill").style.width = dur ? `${Math.min(100, state.position / dur * 100)}%` : "0";
+  $("#pos").textContent = fmt(state.position); $("#dur").textContent = fmt(dur);
   if (Date.now() - volTouch > 2000) $("#vol").textContent = Math.round(state.volume ?? 0);
   if (state.listsRev !== likedRev) loadLikes(state.listsRev); else paintLike();
   render();
