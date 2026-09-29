@@ -14,7 +14,7 @@ const PN = { flat: "Flat", bass: "Bass", treble: "Treble", vocal: "Vocal", rock:
 const QN = { best: "Best", balanced: "Balanced", low: "Data saver" };
 const SL = [["Off", 0], ["15 min", 15], ["30 min", 30], ["45 min", 45], ["60 min", 60], ["90 min", 90], ["2 h", 120], ["End of track", "track"]];
 const DN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-let cfg = null, eqT;
+let cfg = null;
 
 export function toggleSettings(open) {
   if (open) { toggleQueue(false); loadCfg(); }
@@ -55,8 +55,8 @@ $("#vol").addEventListener("input", () => setVol(+$("#vol").value));
 $("#svol").addEventListener("input", () => setVol(+$("#svol").value));
 
 /* ---------- equaliser ---------- */
-async function setEq(preset, custom) {
-  try { cfg = await api("api/eq", custom ? { preset, custom } : { preset }); $("#cEqMsg").textContent = ""; renderCfg(); }
+async function setEq(preset, custom, live = false) {
+  try { cfg = await api("api/eq", custom ? { preset, custom } : { preset }); $("#cEqMsg").textContent = ""; if (!live) renderCfg(); }
   catch (e) { $("#cEqMsg").textContent = errText(e); $("#cEqMsg").className = "note2 err"; }
 }
 $("#cPresets").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setEq(b.dataset.p); });
@@ -65,8 +65,16 @@ $("#cEq").addEventListener("input", e => {
   if (i === undefined) return;
   $(`#cg${i}`).textContent = (+e.target.value > 0 ? "+" : "") + e.target.value;
   $$("#cPresets button").forEach(b => b.classList.toggle("on", b.dataset.p === "custom"));
-  clearTimeout(eqT); eqT = setTimeout(() => setEq("custom", $$("#cEq input").map(x => +x.value)), 300);
+  sendBands();
 });
+/* sent while dragging, one request at a time (the latest wins); the sliders aren't redrawn meanwhile */
+let eqSending = false, eqAgain = false;
+async function sendBands() {
+  if (eqSending) { eqAgain = true; return; }
+  eqSending = true;
+  try { await setEq("custom", $$("#cEq input").map(x => +x.value), true); }
+  finally { eqSending = false; if (eqAgain) { eqAgain = false; sendBands(); } }
+}
 
 /* ---------- playback options ---------- */
 async function setOpt(key, btn) {

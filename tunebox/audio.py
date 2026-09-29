@@ -23,12 +23,13 @@ def pre_cut(bands) -> str:
 
 
 def eq_filter(bands=None) -> str:
-    """mpv audio filter string: a fixed chain of named filters (pre-cut, one equalizer per band,
-    optional loudness normaliser). Its gains can then be changed live with af-command, without
-    rebuilding the chain, which would briefly interrupt playback."""
+    """mpv audio filter string: a fixed chain of named filters (optional loudness normaliser,
+    pre-cut, one equalizer per band). Its gains can then be changed live with af-command, without
+    rebuilding the chain, which would briefly interrupt playback.
+    The normaliser comes first: it looks seconds ahead, so anything before it is only heard that
+    much later. After it, an EQ change is heard at once."""
     bands = list(bands if bands is not None else eq_bands())
-    parts = [f"volume@pre=volume={pre_cut(bands)}"]
+    parts = [NORMALIZE_FILTER] if settings.get("normalize") else []
+    parts.append(f"volume@pre=volume={pre_cut(bands)}")
     parts += [f"equalizer@b{i}=f={f}:t=o:w=1:g={g}" for i, (f, g) in enumerate(zip(EQ_FREQS, bands))]
-    if settings.get("normalize"):
-        parts.append(NORMALIZE_FILTER)
     return "@tbeq:lavfi=[" + ",".join(parts) + "]"

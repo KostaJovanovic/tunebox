@@ -66,7 +66,7 @@ $("#vol").addEventListener("input", () => setVol(+$("#vol").value));
 $("#vol2").addEventListener("input", () => setVol(+$("#vol2").value));
 
 /* ---------- equaliser: columns with draggable square knobs, and a smooth response curve ---------- */
-let bands = [], eqTimer;
+let bands = [];
 const Y = g => 100 - g * (88 / 12);            /* svg y for a gain (viewBox 0..200, ±12 dB at 12/188) */
 
 /* the preset buttons' little curve */
@@ -110,13 +110,19 @@ function drawEq() {
   $("#eqArea").setAttribute("d", `${line} L1000,100 L0,100 Z`);
 }
 
-/* a knob moved: it's the custom curve now, saved once the dragging settles */
+/* a knob moved: it's the custom curve now, sent while dragging (one request at a time, the latest wins) */
 function bandChanged() {
   drawEq();
   $$("#presets button").forEach(b => b.classList.toggle("on", b.dataset.p === "custom"));
   $("#eqName").textContent = "Custom";
-  clearTimeout(eqTimer);
-  eqTimer = setTimeout(() => setEq("custom", [...bands]), 300);
+  sendBands();
+}
+let eqSending = false, eqAgain = false;
+async function sendBands() {
+  if (eqSending) { eqAgain = true; return; }
+  eqSending = true;
+  try { await setEq("custom", [...bands], true); }
+  finally { eqSending = false; if (eqAgain) { eqAgain = false; sendBands(); } }
 }
 
 function gainAt(col, clientY) {
@@ -145,10 +151,12 @@ $("#eqcols").addEventListener("keydown", e => {
   bands[i] = Math.max(-12, Math.min(12, g)); bandChanged();
 });
 
-async function setEq(preset, custom) {
+/* live: sent mid-drag, so the knobs aren't redrawn under the finger */
+async function setEq(preset, custom, live = false) {
   try {
     cfg = await api("api/eq", custom ? { preset, custom } : { preset });
-    $("#eqMsg").textContent = ""; $("#eqMsg").className = "msg"; renderSettings();
+    $("#eqMsg").textContent = ""; $("#eqMsg").className = "msg";
+    if (!live) renderSettings();
   } catch (e) { $("#eqMsg").textContent = errText(e); $("#eqMsg").className = "msg err"; }
 }
 $("#presets").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setEq(b.dataset.p); });
