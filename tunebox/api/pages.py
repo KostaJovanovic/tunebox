@@ -6,11 +6,11 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from ..config import APP_DIR, WEB_DIR
+from ..config import WEB_DIR
 
 router = APIRouter()
 NO_CACHE = {"Cache-Control": "no-cache"}
-PAGES = {"bauhaus": WEB_DIR / "bauhaus" / "index.html", "classic": APP_DIR / "classic.html", "wall": APP_DIR / "wall.html"}
+PAGES = {name: WEB_DIR / name / "index.html" for name in ("bauhaus", "classic", "wall")}
 
 
 def page(name: str, **headers) -> FileResponse:

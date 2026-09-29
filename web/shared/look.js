@@ -16,14 +16,13 @@
     magenta: { name: "Magenta", c: "#C8327A", on: "#FFFFFF" },
   };
   const ui = document.currentScript?.dataset.ui || "";
-  const accentVars = ui === "classic" ? ["--accent", "--on-accent"] : ["--red", "--on-red"];
-  const lightBg = ui === "classic" ? "#F4F4F6" : "#EFEBE1", darkBg = ui === "classic" ? "#0E0F13" : "#111111";
+  const lightBg = ui === "classic" ? "#f4f5f8" : "#EFEBE1", darkBg = ui === "classic" ? "#0e0f13" : "#111111";
 
   function apply() {
     const theme = store.get("tb_theme", "auto"), acc = ACCENTS[store.get("tb_accent", "red")] || ACCENTS.red;
     const root = document.documentElement;
     if (theme === "auto") root.removeAttribute("data-theme"); else root.dataset.theme = theme;
-    if (ui !== "classic") { root.style.setProperty(accentVars[0], acc.c); root.style.setProperty(accentVars[1], acc.on); }
+    if (ui !== "classic") { root.style.setProperty("--red", acc.c); root.style.setProperty("--on-red", acc.on); }   /* Classic keeps its pink */
     const light = theme === "light" || (theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
     const m = document.getElementById("themeColor");
     if (m) m.content = light ? lightBg : darkBg;

@@ -1,0 +1,24 @@
+/* Colours, type and resets. Dark by default; light follows the device or the theme setting. */
+:root {
+  --bg: #0e0f13; --panel: #16181f; --panel-2: #1d2029; --line: #262a35;
+  --text: #eef0f5; --muted: #8b91a1; --accent: #ff4d6d; --accent-2: #ff8fa3;
+  --radius: 14px; --player-bg: rgba(22,24,31,.92); color-scheme: dark; --player-h: 128px;
+}
+:root[data-theme="light"] {
+  --bg: #f4f5f8; --panel: #ffffff; --panel-2: #e9ebf0; --line: #dcdfe6; --text: #15171c; --muted: #5d6372; --player-bg: rgba(255,255,255,.94); color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f8; --panel: #ffffff; --panel-2: #e9ebf0; --line: #dcdfe6; --text: #15171c; --muted: #5d6372; --player-bg: rgba(255,255,255,.94); color-scheme: light;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+img { display: block; }
+.app { max-width: 1100px; margin: 0 auto; padding: 16px 16px calc(var(--player-h) + 24px); }
+[hidden] { display: none !important; }
+.min0 { min-width: 0; }
+.mt8 { margin-top: 8px; }
+.mt10 { margin-top: 10px; }

@@ -1,0 +1,16 @@
+/* Phones and narrow windows. Loaded last, so these win. */
+@media (max-width: 720px) {
+  :root { --player-h: 150px; }
+  .player .in { grid-template-columns: 1fr auto; }
+  .right .vol, .right .vlabel { display: none; }
+  .ctrls { order: 3; grid-column: 1 / -1; }
+  .hero img { width: 120px; height: 120px; }
+  .hero h1 { font-size: 22px; }
+  .logo span { display: none; }
+}
+@media (max-width: 720px) { .right .vol { display: block !important; width: 72px; } }
+@media (max-width: 560px) {                 /* search gets its own row; logo left, buttons right */
+  .app > header { flex-wrap: wrap; row-gap: 10px; }
+  .app > header .logo { margin-right: auto; }
+  .app > header .search { order: 9; flex-basis: 100%; }
+}

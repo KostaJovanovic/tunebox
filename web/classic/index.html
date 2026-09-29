@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" id="themeColor" content="#0e0f13">
+<title>Tunebox (classic)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='11' fill='%23ff4d6d'/><path d='M10 7v7.5a2.5 2.5 0 1 1-1.5-2.3V7h5v2h-3.5z' fill='white'/></svg>">
+<script src="web/shared/look.js" data-ui="classic"></script>
+<link rel="stylesheet" href="web/classic/css/base.css">
+<link rel="stylesheet" href="web/classic/css/library.css">
+<link rel="stylesheet" href="web/classic/css/player.css">
+<link rel="stylesheet" href="web/classic/css/drawers.css">
+<link rel="stylesheet" href="web/classic/css/queue.css">
+<link rel="stylesheet" href="web/classic/css/people.css">
+<link rel="stylesheet" href="web/classic/css/phone.css">
+<script type="module" src="web/classic/js/main.js"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="logo" href="/" title="ele.local"><i>♪</i><span>Tunebox</span></a>
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search, or paste a YouTube link" autocomplete="off">
+    </label>
+    <button class="icon-btn" id="meBtn" data-act="who-open" title="Who's listening" aria-label="Who's listening"><i class="av none">?</i></button>
+    <button class="icon-btn" data-act="settings-open" title="Volume, EQ, account and interface">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+    <button class="icon-btn" data-act="liked" title="Liked songs" aria-label="Liked songs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+    <button class="icon-btn" data-act="explore" title="Explore: new releases, moods and genres" aria-label="Explore"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></button>
+    <button class="icon-btn" data-act="home" title="Home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+    </button>
+  </header>
+  <nav class="tabs" id="tabs" hidden>
+    <button data-k="songs" class="on">Songs</button><button data-k="albums">Albums</button>
+    <button data-k="artists">Artists</button><button data-k="playlists">Playlists</button>
+  </nav>
+  <main id="view"><div class="spinner">Loading…</div></main>
+</div>
+
+<div class="player">
+  <div class="in">
+    <div class="now" data-act="queue-open">
+      <img id="pImg" alt="">
+      <div class="min0"><div class="t" id="pTitle">Nothing playing</div><div class="s" id="pSub">Search for something to play</div></div>
+    </div>
+    <div class="ctrls">
+      <button class="icon-btn" data-act="prev" title="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="play" id="pBtn" data-act="toggle" title="Play/Pause"></button>
+      <button class="icon-btn" data-act="next" title="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+    <div class="right">
+      <button class="icon-btn like like-now" id="pLike" data-act="like-now" title="Like" aria-label="Like" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+      <span class="vlabel"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></span>
+      <input class="vol" id="vol" type="range" min="0" max="100">
+      <button class="icon-btn" data-act="queue-open" title="Queue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h10M18 14v6l4-3z"/></svg></button>
+    </div>
+  </div>
+  <div class="bar"><span id="tPos">0:00</span><input id="seek" type="range" min="0" max="100" value="0"><span id="tDur">0:00</span></div>
+  <div class="bar tight"><span class="status" id="pStatus"></span></div>
+</div>
+
+<div class="scrim" id="scrim" data-act="close-all"></div>
+<aside class="drawer" id="drawer">
+  <header><strong>Up next</strong><span class="hbtns">
+    <button class="icon-btn" data-act="settings-open" title="Settings" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+    <button class="icon-btn" data-act="queue-close" aria-label="Close">✕</button></span></header>
+  <div class="tools"><button id="undoBtn" data-act="undo">Undo</button><button id="earlierBtn" data-act="earlier">Earlier queues</button><button data-act="stop">Stop</button></div>
+  <div class="qscroll"><div class="list" id="queue"></div><div id="earlier" hidden></div></div>
+</aside>
+
+<aside class="drawer" id="settings" aria-label="Settings">
+  <header><strong>Settings</strong><button class="icon-btn" data-act="settings-close" aria-label="Close">✕</button></header>
+  <div class="set">
+    <h3>Volume</h3>
+    <div class="card2"><div class="vrow"><input id="svol" type="range" min="0" max="100" aria-label="Volume"><b id="svolN"></b></div>
+      <p class="note2">Even steps to the ear: every 10 is 5 dB.</p></div>
+    <h3>Equaliser</h3>
+    <div class="card2"><div class="chips" id="cPresets"></div><div class="eqc" id="cEq"></div><div class="note2" id="cEqMsg"></div></div>
+    <h3>Playback</h3>
+    <div class="card2">
+      <div class="opt"><div>Even out loudness<small>Similar level across tracks</small></div><button class="sw" id="cNorm" data-act="option" data-key="normalize" role="switch" aria-label="Even out loudness"></button></div>
+      <div class="opt"><div>Autoplay radio<small>After the songs people add, plays songs like the last one added</small></div><button class="sw" id="cAuto" data-act="option" data-key="autoplay" role="switch" aria-label="Autoplay radio"></button></div>
+      <div class="opt"><div>Take turns<small>Songs from different people alternate</small></div><button class="sw" id="cTurns" data-act="option" data-key="turns" role="switch" aria-label="Take turns"></button></div>
+      <div class="chips mt8" id="cQual"></div>
+    </div>
+    <h3>Sleep timer</h3>
+    <div class="card2"><div class="chips" id="cSleep"></div><p class="note2" id="cSleepTxt">Off</p></div>
+    <h3>Wake-up alarm</h3>
+    <div class="card2">
+      <div class="opt"><div>Alarm<small id="cAlNext">Off</small></div><button class="sw" id="cAlOn" data-act="alarm-toggle" role="switch" aria-label="Alarm"></button></div>
+      <div class="two"><input class="fld" id="cAlTime" type="time">
+        <select class="fld" id="cAlRamp"><option value="0">Instant</option><option value="1">Ramp 1 min</option><option value="5">Ramp 5 min</option><option value="10">Ramp 10 min</option><option value="15">Ramp 15 min</option></select></div>
+      <div class="chips mt10" id="cAlDays"></div>
+      <select class="fld mt10" id="cAlList"></select>
+      <div class="vrow mt10"><input id="cAlLevel" type="range" min="5" max="100" aria-label="Wake volume"><b id="cAlLevelN"></b></div>
+      <button class="btn2" data-act="alarm-test">Test now</button><p class="note2" id="cAlMsg"></p>
+    </div>
+    <h3>YouTube account</h3>
+    <div class="card2"><p class="note2 top" id="cAcct">Checking…</p>
+      <textarea class="fld" id="cHdrs" placeholder="Paste request headers or the Cookie from music.youtube.com" spellcheck="false"></textarea>
+      <button class="btn2 pri" data-act="account-save">Save</button> <button class="btn2" id="cOut" data-act="account-out">Sign out</button><p class="note2" id="cAcctMsg"></p></div>
+    <h3>People</h3>
+    <div class="card2"><div id="peopleList"></div>
+      <button class="btn2" data-act="who-open">Switch or add a name</button>
+      <p class="note2">Everyone picks their name once per device, so the queue shows who added what.</p></div>
+    <h3>This device</h3>
+    <div class="card2">
+      <div class="chips"><button class="on">Classic</button><button data-act="use-ui" data-ui="bauhaus">Bauhaus</button></div>
+      <div class="chips mt10" id="cTheme"><button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
+      <a class="btn2" href="wall" target="_blank">Open wall screen</a>
+      <button class="btn2" data-act="clear-local">Clear data on this device</button>
+      <p class="note2">Interface and theme are remembered in this browser only.</p>
+    </div>
+  </div>
+</aside>
+
+<div class="modal" id="who" role="dialog" aria-label="Who's listening">
+  <header><strong id="whoTitle">Who's listening?</strong><button class="icon-btn" data-act="who-close" aria-label="Close">✕</button></header>
+  <div class="mbody" id="whoList"></div>
+  <form class="whoform" id="whoForm">
+    <input class="fld" id="whoName" placeholder="Add a name" maxlength="24" autocomplete="off"><button class="btn2 pri" id="whoSave">Add</button>
+    <div class="swatches" id="whoColors"></div>
+    <div class="emojis" id="whoEmoji"></div>
+    <p class="note2" id="whoMsg"></p>
+  </form>
+</div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
