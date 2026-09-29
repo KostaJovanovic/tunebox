@@ -223,6 +223,62 @@
   .qbtn em { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 16px; padding: 0 4px; background: var(--yellow); color: var(--on-yellow);
     font: 700 10px/16px var(--display); font-style: normal; text-align: center; }
 
+  /* ---------- now playing canvas: big cover over a blurred copy of itself. Desktop: fills the page above the
+     bar (the bar keeps its controls), with optional lyrics on the right. Phone: full screen with all controls ---------- */
+  .canvas { position: fixed; left: 0; right: 0; top: 0; bottom: 104px; z-index: 9; color: #EDEAE3; background: #111; overflow: hidden;
+    display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(24px);
+    transition: opacity .22s var(--ease), transform .22s var(--ease), visibility .22s; }
+  .canvas.open { opacity: 1; visibility: visible; transform: none; }
+  .canvas.dragging { transition: none; }
+  .canvas { touch-action: none; }             /* swipes are ours (swipe down closes); the lyrics pane still scrolls */
+  .clyr { touch-action: pan-y; }
+  .cbg { position: absolute; inset: -80px; background: center / cover no-repeat #111; filter: blur(70px) brightness(.42) saturate(1.3); transition: background-image .6s; }
+  .chead { position: relative; display: flex; align-items: center; height: 56px; padding: 0 8px; flex: none; margin-top: env(safe-area-inset-top); }
+  .chead .k { flex: 1; text-align: center; font: 600 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: #EDEAE3a8; }
+  .canvas .qbtn { color: #EDEAE3; }
+  .canvas .qbtn:hover { background: #ffffff14; }
+  .canvas .qbtn.on { color: var(--yellow); }
+  .cbody { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center;
+    gap: 5vw; padding: 0 5vw 4vh; }
+  .canvas.lyr-on .cbody { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cmain { display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%; max-width: min(62vh, 560px); min-height: 0; }
+  #cImg { width: 100%; aspect-ratio: 1; object-fit: cover; background: #ffffff12; box-shadow: 0 24px 70px #0009; }
+  .cinfo { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .cinfo > div { flex: 1; min-width: 0; }
+  .cinfo .t { font: 700 clamp(20px, 2.4vw, 30px)/1.15 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cinfo .s { color: #EDEAE3a0; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmain > .cph { display: none; }            /* phone-only controls; on desktop they stay in the bar */
+  .clyr { display: none; align-self: stretch; overflow-y: auto; padding: 30vh 0; scrollbar-width: none; width: 100%;
+    -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+  .clyr::-webkit-scrollbar { display: none; }
+  .canvas.lyr-on .clyr { display: block; }
+  .clyr p { font: 700 clamp(18px, 2vw, 28px)/1.3 var(--display); color: #EDEAE366; margin: 0 0 .7em; cursor: pointer; transition: color .25s; }
+  .clyr p.past { color: #EDEAE340; }
+  .clyr p.on { color: #fff; }
+  .clyr p.gap { height: .4em; margin: 0; }
+  .clyr .note { color: #EDEAE3a0; font-weight: 600; cursor: default; }
+  .clyr.plain p { cursor: default; color: #EDEAE3cc; }
+  .cseek { width: 100%; }
+  .cseek input { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: none; margin: 0; display: block; }
+  .cseek input::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(var(--yellow), var(--yellow)) 0 / var(--p, 0%) 100% no-repeat, #ffffff33; }
+  .cseek input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #fff; }
+  .cseek input::-moz-range-track { height: 4px; background: #ffffff33; }
+  .cseek input::-moz-range-progress { height: 4px; background: var(--yellow); }
+  .cseek input::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; }
+  .ctimes { display: flex; justify-content: space-between; font: 600 12px var(--display); color: #EDEAE3a0; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+  .cctrls { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 8px; }
+  .cctrls .sq { width: 60px; height: 60px; display: grid; place-items: center; color: #EDEAE3; }
+  .cctrls .sq svg { width: 30px; height: 30px; }
+  .cctrls .play { width: 76px; height: 76px; margin: 0; }
+  .cctrls .play svg { width: 32px; height: 32px; }
+  .cfoot { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .cfoot input { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 44px; background: none; margin: 0; }
+  .cfoot input::-webkit-slider-runnable-track { height: 3px; background: #ffffff33; }
+  .cfoot input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: #fff; }
+  .cfoot input::-moz-range-track { height: 3px; background: #ffffff33; }
+  .cfoot input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
+  body.canvas-open { overflow: hidden; }
+
   /* ---------- drawers ---------- */
   .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--bg); z-index: 20; border-left: 1px solid var(--line);
     transform: translateX(100%); transition: transform .22s var(--ease); display: flex; flex-direction: column; visibility: hidden; }
@@ -362,21 +418,38 @@
 
   @media (max-width: 760px) {
     .volbtn { display: grid !important; }
-    :root { --player-h: 172px; }
+    :root { --player-h: 72px; }
     .brand span { display: none; }
     .brand { padding: 0 12px; }
     .top .home.kb { display: none; }
     .nav button { padding: 0 14px; }
     .nav button b { display: none; }
-    .player .in { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
-    .now { grid-column: 1; grid-row: 1; }
+    /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
+    .player .in { grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; padding: 6px 8px 6px 6px; touch-action: none; }
+    .now { grid-column: 1; grid-row: 1; gap: 10px; transition: transform .2s var(--ease); }
+    .now.swiping { transition: none; }
+    .now img { width: 48px; height: 48px; }
+    .now .time > span:not(.st) { display: none; }
+    .now .time { font-size: 0; }
+    .now .time .st { margin-left: 0; font-size: 11px; }
     .right { grid-column: 2; grid-row: 1; gap: 0; }
-    .ctrls { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; }
-    .ctrls .sq { width: 64px; height: 56px; }
-    .ctrls .sq.like { display: grid; }
-    .right .like { display: none; }
-    .play { width: 64px; height: 64px; }
+    .right #lyrBtn, .right .qopen { display: none; }
+    .ctrls { grid-column: 3; grid-row: 1; }
+    .ctrls .sq { display: none; }
+    .ctrls .play { width: 48px; height: 48px; margin: 0 0 0 4px; }
+    .prog { height: 2px; margin-top: 0; pointer-events: none; }
+    .prog .rail { top: 0; }
+    .prog .fill { top: 0; height: 2px; }
+    .prog input { display: none; }
     .vol { display: none; }
+    .canvas { bottom: 0 !important; z-index: 12; }
+    .chead #cLyrToggle { display: none; }
+    .cbody { display: flex; flex-direction: column; justify-content: center; padding: 0 24px calc(12px + env(safe-area-inset-bottom)); gap: 0; }
+    .cmain { max-width: 480px; gap: 14px; }
+    #cImg { width: min(100%, 44vh); }
+    .cmain > .cph { display: block; width: 100%; }
+    .cmain > .cctrls.cph, .cmain > .cfoot.cph { display: flex; }
+    .clyr, .canvas.lyr-on .clyr { display: none; }
     .row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; }
     .row .n, .row .d { display: none; }
     .acts button { width: 38px; }
@@ -467,7 +540,7 @@
 <div class="player">
   <div class="prog" id="prog"><div class="rail"></div><div class="fill" id="fill"></div><input id="seek" type="range" min="0" max="100" value="0" step="1" aria-label="Seek"></div>
   <div class="in">
-    <button class="now" onclick="toggleQueue(true)">
+    <button class="now" title="Now playing">
       <img id="pImg" alt="">
       <div style="min-width:0">
         <div class="t" id="pTitle">Nothing playing</div>
@@ -489,11 +562,42 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
       <button class="qbtn volbtn" onclick="toggleSettings(true)" title="Volume and EQ" aria-label="Volume and EQ">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l6 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button>
-      <button class="qbtn" onclick="toggleQueue(true)" title="Up next (Q)" aria-label="Up next">
+      <button class="qbtn qopen" onclick="toggleQueue(true)" title="Up next (Q)" aria-label="Up next">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h14M3 12h10M3 18h10"/><path d="M17 14v6l5-3z" fill="currentColor" stroke="none"/></svg>
         <em id="qCount" hidden>0</em>
       </button>
     </div>
+  </div>
+</div>
+
+<div class="canvas" id="canvas" aria-hidden="true">
+  <div class="cbg" id="cBg"></div>
+  <div class="chead">
+    <button class="qbtn" onclick="toggleCanvas(false)" title="Close (Esc)" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M5 9l7 7 7-7"/></svg></button>
+    <div class="k">Now playing</div>
+    <button class="qbtn" id="cLyrToggle" onclick="toggleCanvasLyrics()" title="Lyrics beside the cover" aria-label="Lyrics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
+  </div>
+  <div class="cbody">
+    <div class="cmain">
+      <img id="cImg" alt="">
+      <div class="cinfo">
+        <div><div class="t" id="cTitle"></div><div class="s" id="cSub"></div></div>
+        <button class="qbtn like" onclick="likeCurrent()" title="Like (F)" aria-label="Like" aria-pressed="false"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+      </div>
+      <div class="cseek cph"><input id="cSeek" type="range" min="0" max="100" value="0" step="1" aria-label="Seek">
+        <div class="ctimes"><span id="cPos">0:00</span><span id="cDur">0:00</span></div></div>
+      <div class="cctrls cph">
+        <button class="sq" onclick="ctl('prev')" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h3v16H5zM20 4v16L9 12z"/></svg></button>
+        <button class="play" id="cBtn" onclick="ctl('toggle')" aria-label="Play or pause"></button>
+        <button class="sq" onclick="ctl('next')" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 4h3v16h-3zM4 4v16l11-8z"/></svg></button>
+      </div>
+      <div class="cfoot cph">
+        <button class="qbtn" onclick="toggleLyrics(true)" title="Lyrics" aria-label="Lyrics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
+        <input id="cVol" type="range" min="0" max="100" aria-label="Volume">
+        <button class="qbtn" onclick="toggleQueue(true)" title="Up next" aria-label="Up next"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h14M3 12h10M3 18h10"/><path d="M17 14v6l5-3z" fill="currentColor" stroke="none"/></svg><em id="cCount" hidden>0</em></button>
+      </div>
+    </div>
+    <div class="clyr" id="cLyr"></div>
   </div>
 </div>
 
@@ -646,6 +750,7 @@
     <kbd>F</kbd><span>Like / unlike</span>
     <kbd>Z</kbd><span>Undo the last queue change</span>
     <kbd>/</kbd><span>Search</span>
+    <kbd>N</kbd><span>Now playing (big cover)</span>
     <kbd>Q</kbd><span>Up next</span>
     <kbd>L</kbd><span>Lyrics</span>
     <kbd>S</kbd><span>Settings</span>
@@ -710,7 +815,7 @@ const likeBtn = (listKey, i, vid) => `<button class="like${liked.has(vid) ? " on
       aria-pressed="${liked.has(vid)}" onclick="toggleLike(lists['${listKey}'][${i}])">${ICON_HEART}</button>`;
 function paintLikes() {
   const cur = state.current?.videoId;
-  $$(".player .like").forEach(b => b.dataset.like = cur || "");
+  $$(".player .like, .canvas .like").forEach(b => b.dataset.like = cur || "");
   $$("[data-like]").forEach(b => { const on = !!b.dataset.like && liked.has(b.dataset.like);
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); b.title = on ? "Unlike" : "Like"; });
 }
@@ -1065,7 +1170,11 @@ function addSong(key, i, mode = "add") { queueSongs([lists[key][i]], mode); }
 function playAll(key, label, mode = "replace") { queueSongs(lists[key], mode, label); }
 function playOne(json) { queueSongs([JSON.parse(json)], "add"); }
 const UNDOABLE = new Set(["remove", "move", "promote", "shuffle", "clear", "clear_auto", "refresh", "stop", "restore"]);
+/* play/pause fades for half a second on the server: flip the button now, and keep it flipped until the fade is done */
+let ppHold = { until: 0 };
+function paintPlay() { $("#pBtn").innerHTML = $("#cBtn").innerHTML = state.paused || !state.current ? ICON_PLAY : ICON_PAUSE; }
 async function ctl(action, value, videoId, to, id) {
+  if (action === "toggle" && state.current) { state.paused = !state.paused; ppHold = { paused: state.paused, until: Date.now() + 1500 }; paintPlay(); }
   let r; try { r = await api("api/control", { action, value, videoId, to, id }); } catch (e) { toast(errText(e)); }
   if (r && r.message) toast(r.message, UNDOABLE.has(action));
   poll(); return r;
@@ -1257,7 +1366,7 @@ function clearLocal() {
 /* ---------- volume ---------- */
 function setVol(v) {
   v = Math.max(0, Math.min(100, Math.round(v))); volTouch = Date.now();
-  $("#vol").value = $("#vol2").value = v; $("#volN").innerHTML = volLabel(v);
+  $("#vol").value = $("#vol2").value = $("#cVol").value = v; $("#volN").innerHTML = volLabel(v);
   api("api/control", { action: "volume", value: v });
 }
 function nudgeVol(d) { setVol(+$("#vol2").value + d); }
@@ -1402,6 +1511,13 @@ addEventListener("pointercancel", e => endDrag(e, true));
 $("#queue").addEventListener("click", e => { if (Date.now() - dragEnd < 300) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ---------- lyrics ---------- */
+/* one lookup per song, shared by the lyrics drawer and the canvas */
+let lyrCache = {};
+function fetchLyrics(c) {
+  if (Object.keys(lyrCache).length > 40) lyrCache = {};
+  const q = new URLSearchParams({ videoId: c.videoId, title: c.title, artist: c.artist || "", album: c.album || "", duration: c.duration || "" });
+  return lyrCache[c.videoId] ??= api(`api/lyrics?${q}`).catch(() => { delete lyrCache[c.videoId]; return { none: true }; });
+}
 let lyr = { vid: null, lines: null }, lyrScroll = 0, lyrBase = { pos: 0, at: 0 };
 async function loadLyrics() {
   const c = state.current;
@@ -1410,8 +1526,7 @@ async function loadLyrics() {
   lyr = { vid: c.videoId, lines: null };
   const who = `<div class="who">Now playing<b>${esc(c.title)}</b>${esc(c.artist)}</div>`;
   $("#lyr").className = "lyr"; $("#lyr").innerHTML = who + loading("Finding lyrics");
-  const q = new URLSearchParams({ videoId: c.videoId, title: c.title, artist: c.artist || "", album: c.album || "", duration: c.duration || "" });
-  let d; try { d = await api(`api/lyrics?${q}`); } catch { d = { none: true }; }
+  const d = await fetchLyrics(c);
   if (lyr.vid !== c.videoId) return;
   const src = s => `<div class="src">Lyrics: ${esc(s)}${s === "LRCLIB" ? " (lrclib.net, open community lyrics)" : ""}</div>`;
   if (d.instrumental) { $("#lyr").innerHTML = who + '<div class="note">Instrumental</div>' + src(d.source); return; }
@@ -1445,6 +1560,7 @@ setInterval(lyrTick, 200);
 let seeking = false, volTouch = 0;
 async function poll() {
   try { state = await api("api/state"); } catch { return; }
+  if (Date.now() < ppHold.until) state.paused = ppHold.paused;
   lyrBase = { pos: state.position, at: performance.now() };
   const c = state.current;
   $("#pTitle").textContent = c ? c.title : "Nothing playing";
@@ -1469,6 +1585,7 @@ async function poll() {
   if (state.peopleRev !== peopleRev) loadPeople(state.peopleRev);
   $("#undoBtn").disabled = !state.undo; $("#undoBtn").title = state.undo ? `Undo: ${state.undo.label} (Z)` : "Nothing to undo";
   if ($("#lyrics").classList.contains("open") && (c?.videoId || null) !== lyr.vid) loadLyrics();
+  paintCanvas();
 }
 
 $("#seek").addEventListener("input", () => { seeking = true; $("#tPos").textContent = fmt($("#seek").value);
@@ -1483,10 +1600,127 @@ $("#tabs").addEventListener("click", e => { const k = e.target.dataset.k; if (!k
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
   ({ home: showHome, lists: showLists, history: showHistory, explore: showExplore })[b.dataset.v](); });
 
+/* ---------- now playing canvas ---------- */
+const canvasOpen = () => $("#canvas").classList.contains("open");
+function placeCanvas() { $("#canvas").style.bottom = innerWidth > 760 ? $(".player").offsetHeight + "px" : ""; }
+addEventListener("resize", placeCanvas);
+function toggleCanvas(open = !canvasOpen()) {
+  if (open === canvasOpen()) return;
+  $("#canvas").classList.toggle("open", open); $("#canvas").setAttribute("aria-hidden", !open);
+  document.body.classList.toggle("canvas-open", open);
+  if (open) { placeCanvas(); paintCanvas(true); history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
+  else if (history.state?.canvas) history.back();
+}
+addEventListener("popstate", () => { if (canvasOpen()) { $("#canvas").classList.remove("open"); document.body.classList.remove("canvas-open"); } });
+let cLyrOn = store.get("tb_clyr", "0") === "1";
+function toggleCanvasLyrics() { cLyrOn = !cLyrOn; store.set("tb_clyr", cLyrOn ? "1" : "0"); paintCanvas(true); }
+let cSeeking = false, cLyrVid = null, cLyrLines = null, cLyrActive = -1, cLyrScroll = 0;
+function paintCanvas(force) {
+  if (!canvasOpen()) return;
+  const c = state.current, cv = $("#canvas");
+  if ((c?.thumb || "") !== $("#cImg").dataset.src) {
+    $("#cImg").dataset.src = c?.thumb || ""; if (c?.thumb) $("#cImg").src = c.thumb; else $("#cImg").removeAttribute("src");
+    $("#cBg").style.backgroundImage = c?.thumb ? `url("${c.thumb.replace(/["\\\n]/g, encodeURIComponent)}")` : "";
+  }
+  $("#cTitle").textContent = c ? c.title : "Nothing playing";
+  $("#cSub").textContent = c ? [c.artist, c.album].filter(Boolean).join(" · ") : "Search for something to play";
+  const dur = state.duration || secs(c?.duration);
+  $("#cPos").textContent = fmt(state.position); $("#cDur").textContent = fmt(dur);
+  if (!cSeeking) { $("#cSeek").max = Math.max(1, dur); $("#cSeek").value = state.position || 0;
+    $("#cSeek").style.setProperty("--p", dur ? `${Math.min(100, (state.position || 0) / dur * 100)}%` : "0%"); }
+  $("#cBtn").innerHTML = state.paused || !c ? ICON_PLAY : ICON_PAUSE;
+  if (Date.now() - volTouch > 2000) $("#cVol").value = state.volume ?? 0;
+  const upcoming = Math.max(0, (state.queue || []).length - 1);
+  $("#cCount").hidden = !upcoming; $("#cCount").textContent = upcoming > 99 ? "99+" : upcoming;
+  cv.classList.toggle("lyr-on", cLyrOn); $("#cLyrToggle").classList.toggle("on", cLyrOn);
+  if (cLyrOn && innerWidth > 760 && (c?.videoId || null) !== cLyrVid) loadCanvasLyrics();
+  if (force) cLyrTick(true);
+}
+async function loadCanvasLyrics() {
+  const c = state.current; cLyrVid = c?.videoId || null; cLyrLines = null; cLyrActive = -1;
+  const box = $("#cLyr"); box.className = "clyr";
+  if (!c) { box.innerHTML = '<p class="note">Nothing playing</p>'; return; }
+  box.innerHTML = '<p class="note">Finding lyrics…</p>';
+  const d = await fetchLyrics(c);
+  if (cLyrVid !== c.videoId) return;
+  if (d.instrumental) box.innerHTML = '<p class="note">Instrumental</p>';
+  else if (d.none) box.innerHTML = '<p class="note">No lyrics found for this song.</p>';
+  else if (d.synced) { cLyrLines = d.synced;
+    box.innerHTML = d.synced.map(([t, l], i) => l ? `<p data-t="${t}" data-i="${i}">${esc(l)}</p>` : `<p class="gap" data-t="${t}" data-i="${i}"></p>`).join(""); cLyrTick(true); }
+  else { box.className = "clyr plain"; box.innerHTML = d.plain.split("\n").map(l => l.trim() ? `<p>${esc(l)}</p>` : '<p class="gap"></p>').join(""); }
+}
+function cLyrTick(force) {
+  if (!cLyrLines || !canvasOpen() || !cLyrOn) return;
+  const pos = state.paused ? lyrBase.pos : lyrBase.pos + (performance.now() - lyrBase.at) / 1000;
+  let a = -1; for (let i = 0; i < cLyrLines.length; i++) { if (cLyrLines[i][0] <= pos + 0.25) a = i; else break; }
+  if (a === cLyrActive && !force) return;
+  cLyrActive = a;
+  $$("#cLyr p[data-i]").forEach(p => { const i = +p.dataset.i; p.classList.toggle("on", i === a); p.classList.toggle("past", i < a); });
+  const el = $(`#cLyr p[data-i="${a}"]`), box = $("#cLyr");
+  if (el && Date.now() - cLyrScroll > 4000) box.scrollTo({ top: el.offsetTop - box.clientHeight * 0.4, behavior: "smooth" });
+}
+setInterval(cLyrTick, 200);
+$("#cLyr").addEventListener("click", e => { const p = e.target.closest("p[data-t]"); if (p) ctl("seek", +p.dataset.t); });
+$("#cLyr").addEventListener("wheel", () => cLyrScroll = Date.now(), { passive: true });
+$("#cSeek").addEventListener("input", () => { cSeeking = true; $("#cPos").textContent = fmt($("#cSeek").value);
+  $("#cSeek").style.setProperty("--p", `${$("#cSeek").value / $("#cSeek").max * 100}%`); });
+$("#cSeek").addEventListener("change", async () => { await ctl("seek", +$("#cSeek").value); cSeeking = false; });
+$("#cVol").addEventListener("input", () => setVol(+$("#cVol").value));
+
+/* the bar: the song opens the canvas; on a phone the whole bar does, a sideways swipe skips and a swipe up opens it */
+const phone = () => innerWidth <= 760;
+let barSwipe = null, barSwiped = 0;
+$(".player .in").addEventListener("click", e => {
+  if (Date.now() - barSwiped < 400) return;
+  if (e.target.closest(".now") || (phone() && !e.target.closest("button, input"))) toggleCanvas(phone() ? true : undefined);
+});
+$(".player .in").addEventListener("pointerdown", e => {
+  if (!phone() || e.button > 0 || (e.target.closest("button, input") && !e.target.closest(".now"))) return;
+  barSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, dy: 0 };
+});
+addEventListener("pointermove", e => {
+  if (!barSwipe || e.pointerId !== barSwipe.id) return;
+  barSwipe.dx = e.clientX - barSwipe.x; barSwipe.dy = e.clientY - barSwipe.y;
+  if (Math.abs(barSwipe.dx) > 8 && Math.abs(barSwipe.dx) > Math.abs(barSwipe.dy)) {
+    $(".now").classList.add("swiping"); $(".now").style.transform = `translateX(${barSwipe.dx * .6}px)`; }
+});
+function endBarSwipe(e, cancel) {
+  if (!barSwipe || e.pointerId !== barSwipe.id) return;
+  const { dx, dy } = barSwipe; barSwipe = null;
+  $(".now").classList.remove("swiping"); $(".now").style.transform = "";
+  if (cancel) return;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy)) { barSwiped = Date.now(); if (navigator.vibrate) navigator.vibrate(10); ctl(dx < 0 ? "next" : "prev"); }
+  else if (dy < -40 && Math.abs(dy) > Math.abs(dx)) { barSwiped = Date.now(); toggleCanvas(true); }
+}
+addEventListener("pointerup", e => endBarSwipe(e));
+addEventListener("pointercancel", e => endBarSwipe(e, true));
+
+/* the canvas: a swipe down closes it (touch) */
+let cDrag = null;
+$("#canvas").addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" || e.target.closest("input, .clyr")) return;
+  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dy: 0, on: false };
+});
+addEventListener("pointermove", e => {
+  if (!cDrag || e.pointerId !== cDrag.id) return;
+  const dy = e.clientY - cDrag.y, dx = e.clientX - cDrag.x;
+  if (!cDrag.on && dy > 10 && dy > Math.abs(dx)) { cDrag.on = true; $("#canvas").classList.add("dragging"); }
+  if (cDrag.on) { cDrag.dy = Math.max(0, dy); $("#canvas").style.transform = `translateY(${cDrag.dy}px)`; }
+});
+function endCanvasDrag(e) {
+  if (!cDrag || e.pointerId !== cDrag.id) return;
+  const d = cDrag; cDrag = null;
+  if (!d.on) return;
+  $("#canvas").classList.remove("dragging"); $("#canvas").style.transform = "";
+  if (d.dy > 110) toggleCanvas(false);
+}
+addEventListener("pointerup", endCanvasDrag);
+addEventListener("pointercancel", endCanvasDrag);
+
 /* ---------- keyboard shortcuts ---------- */
 document.addEventListener("keydown", e => {
   const tag = e.target.tagName;
-  if (e.key === "Escape") { closeAll(); return; }
+  if (e.key === "Escape") { if (!anyOpen() && canvasOpen()) toggleCanvas(false); else closeAll(); return; }
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.closest && e.target.closest(".eqc")) return;
   const k = e.key;
@@ -1500,7 +1734,7 @@ document.addEventListener("keydown", e => {
     "/": () => $("#q").focus(),
     q: () => toggleQueue(!$("#drawer").classList.contains("open")),
     l: () => toggleLyrics(), s: () => toggleSettings(!$("#settings").classList.contains("open")),
-    h: showHistory, p: showLists, e: showExplore, f: likeCurrent, z: undo, "?": () => toggleKeys(!$("#keys").classList.contains("open")),
+    n: () => toggleCanvas(), h: showHistory, p: showLists, e: showExplore, f: likeCurrent, z: undo, "?": () => toggleKeys(!$("#keys").classList.contains("open")),
   };
   const f = acts[k] || acts[k.toLowerCase?.()];
   if (!f || (tag === "BUTTON" && k === " ")) return;

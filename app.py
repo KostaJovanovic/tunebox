@@ -61,6 +61,7 @@ PRELOAD_AT = 20                             # hand the next track to mpv this ma
 HISTORY_MAX = 300
 STATS_DAYS = 30
 VOL_RANGE_DB = 50                           # the volume slider spans -50 dB .. 0 dB (0 = mute)
+PAUSE_FADE = 0.5                            # play/pause fades in or out over half a second
 SLEEP_FADE = 30                             # sleep timer fades out over the last 30 s
 TRACK_FADE = 8                              # "end of track" sleep fades over the last 8 s
 TEST_RAMP = 10                              # an alarm test ramps up over 10 s, not the alarm's minutes
@@ -460,9 +461,41 @@ class Player:
         self.seed = None                      # the last song someone added: the radio (auto songs) follows it
         self.seed_gen = 0                     # bumped on every re-seed; a radio that arrives late is dropped
         self.undo: list[dict] = []            # queue snapshots, oldest first
+        self.pp_db = 0.0                      # play/pause fade, on top of fade_db
+        self.pp_want: bool | None = None      # where a running play/pause fade is headed (True = playing)
+        self.pp_gen = 0                       # bumped by every play/pause; an older fade stops stepping
 
     async def apply_volume(self):
-        await self.mpv.send("set_property", "volume", level_to_mpv(settings["volume"], self.fade_db))
+        await self.mpv.send("set_property", "volume", level_to_mpv(settings["volume"], self.fade_db + self.pp_db))
+
+    async def fade_toggle(self):
+        """Play/pause with a short fade: out, then pause; or unpause silent, then in. Pressing again
+        mid-fade turns it around from wherever the volume is."""
+        self.pp_gen += 1
+        gen = self.pp_gen
+        play = (not self.pp_want) if self.pp_want is not None else bool(self.mpv.props.get("pause"))
+        self.pp_want = play
+        if play and self.mpv.props.get("pause"):
+            if self.pp_db == 0:
+                self.pp_db = -VOL_RANGE_DB
+                await self.apply_volume()
+            await self.mpv.send("set_property", "pause", False)
+        target = 0.0 if play else -VOL_RANGE_DB
+        start, t0 = self.pp_db, time.monotonic()
+        span = PAUSE_FADE * abs(target - start) / VOL_RANGE_DB
+        while span > 0:
+            await asyncio.sleep(0.03)
+            if gen != self.pp_gen:
+                return                        # pressed again: the newer call carries on from here
+            frac = min(1.0, (time.monotonic() - t0) / span)
+            self.pp_db = start + (target - start) * frac
+            await self.apply_volume()
+            if frac >= 1:
+                break
+        if not play:
+            await self.mpv.send("set_property", "pause", True)
+        self.pp_db, self.pp_want = 0.0, None
+        await self.apply_volume()
 
     def add_history(self, track: dict | None):
         if not track or (history and history[0]["videoId"] == track["videoId"]):
@@ -1366,7 +1399,7 @@ async def control(body: ControlBody, request: Request):
         if p.mpv.props.get("idle-active") and p.current:
             asyncio.get_running_loop().create_task(p.play_index(p.index, p.resume_at))
         else:
-            await p.mpv.send("cycle", "pause")
+            asyncio.get_running_loop().create_task(p.fade_toggle())
     elif a == "next":
         asyncio.get_running_loop().create_task(p.play_index(step=1))
     elif a == "prev":
