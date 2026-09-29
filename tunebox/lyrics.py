@@ -77,7 +77,6 @@ def fetch_lyrics(vid: str, title: str, artist: str, album: str, duration: str) -
     return {"none": True}
 
 
-
 async def lyrics_for(vid: str, title: str, artist: str, album: str, duration: str) -> dict:
     """Cached per song: the drawer, the canvas and the wall all ask for the same one."""
     if vid not in lyrics_cache:

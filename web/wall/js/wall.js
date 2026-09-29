@@ -1,9 +1,9 @@
 /* The wall screen: a tablet or TV showing what plays (cover, synced lyrics, big controls).
    Idle (nothing playing, or paused a while): a dimmed clock; a tap wakes it for half a minute. */
-import { $, $$, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
+import { $, $$, fmt, secs, cssUrl } from "../../shared/dom.js";
 import { state, onState, startPolling, setToaster, ctl, setVolume, position, poll } from "../../shared/playback.js";
 import { setupLikes, syncLikes, likeCurrent } from "../../shared/likes.js";
-import { fetchLyrics, activeLine } from "../../shared/lyrics.js";
+import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { on } from "../../shared/actions.js";
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
@@ -49,10 +49,10 @@ async function loadLyrics(c) {
   if (lyr.vid !== c.videoId || d.none || d.instrumental) return;
   if (d.synced) {
     lyr.lines = d.synced;
-    $("#lyrIn").innerHTML = d.synced.map(([, l], i) => l ? `<p data-i="${i}">${esc(l)}</p>` : `<p class="gap" data-i="${i}"></p>`).join("");
+    $("#lyrIn").innerHTML = syncedHtml(d.synced);
     $("#lyr").className = "lyr";
   } else {
-    $("#lyrIn").innerHTML = d.plain.split("\n").map(l => l.trim() ? `<p>${esc(l)}</p>` : '<p class="gap"></p>').join("");
+    $("#lyrIn").innerHTML = plainHtml(d.plain);
     $("#lyr").className = "lyr plain";
   }
   $("#lyr").hidden = false; $("#stage").classList.remove("nolyrics");

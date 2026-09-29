@@ -2,12 +2,9 @@
    Synced lyrics light up line by line; a tap on a line jumps there. */
 import { $, esc } from "../../shared/dom.js";
 import { state, ctl, position } from "../../shared/playback.js";
-import { fetchLyrics, activeLine } from "../../shared/lyrics.js";
+import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { on } from "../../shared/actions.js";
 import { loading, openDrawer, isOpen } from "./ui.js";
-
-export const syncedHtml = lines => lines.map(([t, l], i) => l ? `<p data-t="${t}" data-i="${i}">${esc(l)}</p>` : `<p class="gap" data-t="${t}" data-i="${i}"></p>`).join("");
-export const plainHtml = text => text.split("\n").map(l => l.trim() ? `<p>${esc(l)}</p>` : '<p class="gap"></p>').join("");
 
 /* Keeps a box of synced lines lit up and scrolled to the line being sung. `where` (0..1) is how far
    down the box that line sits; a scroll by hand pauses the following for 4 seconds. */

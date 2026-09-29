@@ -378,7 +378,7 @@ class Player:
         self.reseed(items[-1])
         await self.play_index(len(keep) + max(0, min(start, len(items) - 1)))
 
-    async def play_tracks(self, tracks: list[dict], start: int = 0, radio: bool = False):
+    async def play_tracks(self, tracks: list[dict], start: int = 0):
         """The alarm's way in: replace the queue with a list."""
         await self.replace(tracks, start, label="Alarm")
 
@@ -535,13 +535,13 @@ class Player:
         await self.apply_volume()
         tracks = (data.playlists.get(a.get("list") or "") or {}).get("tracks")
         if tracks:
-            await self.play_tracks(tracks, 0, radio=True)
+            await self.play_tracks(tracks)
         elif self.current and self.mpv.props.get("idle-active"):
             await self.play_index(self.index, self.resume_at)
         elif self.current:
             await self.mpv.send("set_property", "pause", False)
         elif data.history:
-            await self.play_tracks([dict(data.history[0])], 0, radio=True)
+            await self.play_tracks([dict(data.history[0])])
 
     def state(self):
         p = self.mpv.props

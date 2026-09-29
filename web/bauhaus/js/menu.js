@@ -6,17 +6,16 @@ import { $, $$, esc, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, lists, ctl, queueSongs, undo } from "../../shared/playback.js";
 import { isLiked, toggleLike } from "../../shared/likes.js";
-import { toast, closeAll, openDrawer, isOpen } from "./ui.js";
+import { toast, openDrawer } from "./ui.js";
 import { askPlay } from "./ask.js";
 import { openItem, goTo } from "./library.js";
 import { showList, pickFor, removeFromList } from "./playlists.js";
 import { toggleQueue } from "./queue.js";
 import { toggleLyrics } from "./lyrics.js";
 import { toggleSettings } from "./settings.js";
-import { toggleCanvas } from "./player.js";
+import { toggleCanvas, phone } from "./player.js";
 
 const box = $("#ctx"), back = $("#ctxBack");
-const phone = () => innerWidth <= 760;
 let items = [];
 
 /* ---------- what's under the pointer, and its menu ---------- */
@@ -151,7 +150,7 @@ function menuFor(el) {
 }
 
 /* ---------- showing it ---------- */
-export const menuOpen = () => box.classList.contains("open");
+const menuOpen = () => box.classList.contains("open");
 
 function render(head, list) {
   items = list.filter(Boolean).filter((x, k, a) => !(x === SEP && (!k || a[k - 1] === SEP)));
@@ -162,7 +161,7 @@ function render(head, list) {
       <span>${esc(x.label)}</span>${x.hint ? `<em>${esc(x.hint)}</em>` : ""}</button>`).join("");
 }
 
-export function openMenu(el, x, y) {
+function openMenu(el, x, y) {
   const [head, list] = menuFor(el);
   render(phone() ? head : null, list);             /* on a desktop the menu sits on the thing itself: no header */
   box.classList.toggle("sheet", phone());
@@ -176,7 +175,7 @@ export function openMenu(el, x, y) {
   box.querySelector("button")?.focus({ preventScroll: true });
 }
 
-export function closeMenu() {
+function closeMenu() {
   box.classList.remove("open"); back.classList.remove("open");
 }
 

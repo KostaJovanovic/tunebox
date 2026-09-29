@@ -83,7 +83,7 @@ def count_play(track: dict, when: float | None = None):
     """Remembers when a song played; saved with the session every minute (spares the SD card)."""
     global _stats_dirty
     s = stats.setdefault(track["videoId"], {"plays": []})
-    s["track"] = {k: str(track.get(k) or "") for k in TRACK_KEYS}
+    s["track"] = clean_track(track)
     s["plays"].append(int(when or time.time()))
     _stats_dirty = True
 

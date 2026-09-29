@@ -111,7 +111,6 @@ async def set_alarm(body: AlarmBody):
     return await get_settings()
 
 
-
 @router.post("/api/eq")
 async def set_eq(body: EqBody):
     if body.preset != "custom" and body.preset not in EQ_PRESETS:

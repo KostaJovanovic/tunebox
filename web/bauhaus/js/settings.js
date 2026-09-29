@@ -252,7 +252,7 @@ async function signOut() {
   $("#acctMsg").textContent = "Signed out."; loadSettings();
 }
 
-/* ---------- this device: interface, theme, accent ---------- */
+/* ---------- this device: theme, accent ---------- */
 $("#accents").innerHTML = Object.entries(ACCENTS).map(([k, a]) => `<button class="acc" data-a="${k}"><i class="sw" style="background:${a.c}"></i>${a.name}</button>`).join("");
 $("#accents").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_accent", b.dataset.a); applyLook(); renderDevice(); });
 $("#themeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_theme", b.dataset.t); applyLook(); renderDevice(); });

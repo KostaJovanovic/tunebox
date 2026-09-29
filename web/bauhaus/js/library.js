@@ -7,10 +7,9 @@ import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
 import { askPlay } from "./ask.js";
-import { toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
+import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 import { toggleCanvas } from "./player.js";
 
-const main = html => { $("#view").innerHTML = html; };
 let kind = "songs", lastQuery = "";
 
 /* ---------- Home: the house's own shelves first, then YouTube's ---------- */
@@ -67,7 +66,7 @@ async function openLink(url) {
   } catch (e) { if (my === seq) main(note(esc(errText(e)))); }
 }
 
-export async function doSearch() {
+async function doSearch() {
   const q = $("#q").value.trim();
   if (!q) return showHome();
   if (LINK.test(q)) return openLink(q);

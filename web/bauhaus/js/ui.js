@@ -38,6 +38,8 @@ export function openDrawer(id, open) {
 }
 
 /* ---------- HTML pieces ---------- */
+/* puts a page into the main view */
+export const main = html => { $("#view").innerHTML = html; };
 export const loading = t => `<div class="note"><i class="spin"></i>${t}</div>`;
 export const note = t => `<div class="note">${t}</div>`;
 export const section = (n, title, aside = "") =>

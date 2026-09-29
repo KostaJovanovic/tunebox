@@ -25,7 +25,7 @@ export function ago(ts) {
 }
 
 /* a cover that fails to load (YouTube sometimes refuses one) shows an empty tile, not the broken-image icon */
-export const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   /* 1x1 transparent */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   /* 1x1 transparent */
 addEventListener("error", e => {
   const im = e.target;
   if (im.tagName === "IMG" && im.src !== BLANK) im.src = BLANK;

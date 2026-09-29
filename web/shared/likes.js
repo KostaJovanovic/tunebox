@@ -12,7 +12,7 @@ export const isLiked = vid => liked.has(vid);
 /* toaster: shows messages; onChange: runs after a like or unlike (e.g. to refresh an open Liked list) */
 export function setupLikes(toaster, onChange = () => {}) { toast = toaster; changed = onChange; }
 
-export function paintLikes() {
+function paintLikes() {
   const cur = state.current?.videoId || "";
   $$(".like-now").forEach(b => b.dataset.like = cur);
   $$("[data-like]").forEach(b => {

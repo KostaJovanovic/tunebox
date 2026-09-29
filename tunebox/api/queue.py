@@ -22,9 +22,6 @@ class PlayBody(BaseModel):
     start: int = 0
     mode: str = "replace"                     # add | next | now | replace (see Player.add / Player.replace)
     label: str | None = None                  # what was added, for the undo list ("Album name")
-    radio: bool = True                        # older pages: ignored (the radio always follows)
-    similar: bool = False
-    shuffle: bool = False
 
 
 class QueueBody(BaseModel):                   # older pages; new ones use /api/play with a mode
@@ -162,7 +159,7 @@ async def control(body: ControlBody, request: Request):
         seed = p.seed or p.current
         if seed:
             p.snapshot("New radio songs", by)
-            p.seed, p.seed_gen = {k: seed.get(k, "") for k in ("videoId", "title", "artist", "thumb")}, p.seed_gen + 1
+            p.reseed(seed, fill=False)
             await p._reseed(p.seed_gen, fresh=True)
             msg = "New radio songs"
     elif a == "stop":

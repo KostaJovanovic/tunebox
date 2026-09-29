@@ -7,9 +7,8 @@ import { askPlay } from "./ask.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, setNav } from "./nav.js";
-import { toast, loading, note, section, backBtn, songRow, mosaic, dayName, at, syncScrim } from "./ui.js";
+import { main, toast, loading, note, section, backBtn, songRow, mosaic, dayName, at, syncScrim } from "./ui.js";
 
-const main = html => { $("#view").innerHTML = html; };
 let openList = null;                           /* the id of the playlist on screen */
 
 export async function showLists() {

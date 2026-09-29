@@ -1,5 +1,5 @@
 /* What's playing, and the requests that change it. Every page polls /api/state once a second and
-   repaints from `state`; the queue helpers here are the same for both interfaces. */
+   repaints from `state`; the queue helpers here are shared by the player and the wall screen. */
 import { api, errText } from "./api.js";
 
 export let state = {};                         /* the last /api/state (read-only elsewhere: only this module replaces it) */

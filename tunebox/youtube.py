@@ -27,6 +27,7 @@ def set_quality(quality: str):
     """Streams resolved from now on use this quality (blocking: call it in a thread)."""
     with ydl_lock:
         ydl.params["format"] = QUALITY[quality]
+        ydl.format_selector = ydl.build_format_selector(QUALITY[quality])   # built once in __init__, not from params
 
 
 def track_from(item: dict) -> dict | None:
@@ -50,10 +51,16 @@ def track_from(item: dict) -> dict | None:
     }
 
 
+def thumb_of(x: dict) -> str:
+    """The biggest of an item's thumbnails (ytmusicapi lists them smallest first), or ""."""
+    thumbs = x.get("thumbnails") or []
+    return thumbs[-1].get("url", "") if thumbs else ""
+
+
 def album_card(x: dict) -> dict:
     return {"type": "album", "id": x.get("browseId"), "title": x.get("title"),
             "subtitle": ", ".join(a["name"] for a in x.get("artists") or [] if a.get("name")),
-            "thumb": (x.get("thumbnails") or [{}])[-1].get("url", "")}
+            "thumb": thumb_of(x)}
 
 
 async def yt_get(what: str, fn, *args, **kw):

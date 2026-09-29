@@ -3,14 +3,14 @@
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
 import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
 import { state, ctl } from "../../shared/playback.js";
-import { fetchLyrics } from "../../shared/lyrics.js";
+import { fetchLyrics, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { store } from "../../shared/device.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
-import { syncedHtml, plainHtml, follower } from "./lyrics.js";
+import { follower } from "./lyrics.js";
 import { setVol, volumeTouched } from "./settings.js";
 
-const phone = () => innerWidth <= 760;
+export const phone = () => innerWidth <= 760;           /* the phone layout (phone.css) */
 const playIcon = s => s.paused || !s.current ? icon.PLAY : icon.PAUSE;
 /* the artist and album link to their pages */
 const subtitle = c => c ? [c.artist && `<button class="artlink" data-act="goto" data-to="artist">${esc(c.artist)}</button>`,
@@ -79,7 +79,7 @@ const cv = $("#canvas");
 export const canvasOpen = () => cv.classList.contains("open");
 
 /* on a desktop it sits above the bar */
-function placeCanvas() { cv.style.bottom = innerWidth > 760 ? $(".player").offsetHeight + "px" : ""; }
+function placeCanvas() { cv.style.bottom = phone() ? "" : $(".player").offsetHeight + "px"; }
 addEventListener("resize", placeCanvas);
 
 export function toggleCanvas(open = !canvasOpen()) {

@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 from .. import data, youtube
 from ..config import LIKED_ID, STATS_DAYS
-from ..youtube import album_card, cached, radio_for, track_from, yt_get
+from ..youtube import album_card, cached, radio_for, thumb_of, track_from, yt_get
 
 router = APIRouter()
 
@@ -23,7 +23,6 @@ async def search(q: str, kind: str = "songs"):
     res = await yt_get("search", youtube.yt.search, q, filter=filt, limit=30)
     out = []
     for r in res:
-        thumbs = r.get("thumbnails") or []
         if filt == "songs":
             t = track_from(r)
             if t:
@@ -31,13 +30,13 @@ async def search(q: str, kind: str = "songs"):
         elif filt == "albums":
             out.append({"type": "album", "id": r.get("browseId"), "title": r.get("title"),
                         "subtitle": ", ".join(a["name"] for a in r.get("artists") or []) + (f" · {r['year']}" if r.get("year") else ""),
-                        "thumb": thumbs[-1]["url"] if thumbs else ""})
+                        "thumb": thumb_of(r)})
         elif filt == "artists":
             out.append({"type": "artist", "id": r.get("browseId"), "title": r.get("artist"),
-                        "subtitle": "Artist", "thumb": thumbs[-1]["url"] if thumbs else ""})
+                        "subtitle": "Artist", "thumb": thumb_of(r)})
         else:
             out.append({"type": "playlist", "id": r.get("browseId"), "title": r.get("title"),
-                        "subtitle": r.get("author") or "Playlist", "thumb": thumbs[-1]["url"] if thumbs else ""})
+                        "subtitle": r.get("author") or "Playlist", "thumb": thumb_of(r)})
     return [o for o in out if o.get("videoId") or o.get("id")]
 
 
@@ -48,8 +47,7 @@ async def home():
     for shelf in shelves:
         items = []
         for c in shelf.get("contents", []):
-            thumbs = c.get("thumbnails") or []
-            thumb = thumbs[-1]["url"] if thumbs else ""
+            thumb = thumb_of(c)
             if c.get("videoId"):
                 t = track_from(c)
                 items.append({"type": "song", **t})
@@ -74,7 +72,7 @@ async def album(browse_id: str):
     artists = a.get("artists") or []
     return {"title": a.get("title"), "subtitle": ", ".join(x["name"] for x in artists),
             "artistId": next((x["id"] for x in artists if (x.get("id") or "").startswith("UC")), ""),
-            "thumb": thumbs[-1]["url"] if thumbs else "", "tracks": tracks}
+            "thumb": thumb_of(a), "tracks": tracks}
 
 
 @router.get("/api/playlist/{playlist_id}")
@@ -85,21 +83,19 @@ async def playlist(playlist_id: str):
         tracks = [t for t in map(track_from, w.get("tracks", [])) if t]
         return {"title": "Mix", "subtitle": "YouTube Music mix", "thumb": tracks[0]["thumb"] if tracks else "", "tracks": tracks}
     p = await yt_get("playlist", youtube.yt.get_playlist, pid, limit=100)
-    thumbs = p.get("thumbnails") or []
     tracks = [t for t in map(track_from, p.get("tracks", [])) if t]
     return {"title": p.get("title"), "subtitle": (p.get("author") or {}).get("name", "") if isinstance(p.get("author"), dict) else "",
-            "thumb": thumbs[-1]["url"] if thumbs else "", "tracks": tracks}
+            "thumb": thumb_of(p), "tracks": tracks}
 
 
 @router.get("/api/artist/{channel_id}")
 async def artist(channel_id: str):
     a = await yt_get("artist", youtube.yt.get_artist, channel_id)
-    thumbs = a.get("thumbnails") or []
     songs = [t for t in map(track_from, (a.get("songs") or {}).get("results", [])) if t]
     albums = [{"type": "album", "id": x.get("browseId"), "title": x.get("title"), "subtitle": x.get("year") or "",
-               "thumb": (x.get("thumbnails") or [{}])[-1].get("url", "")}
+               "thumb": thumb_of(x)}
               for x in (a.get("albums") or {}).get("results", [])]
-    return {"title": a.get("name"), "subtitle": "Artist", "thumb": thumbs[-1]["url"] if thumbs else "",
+    return {"title": a.get("name"), "subtitle": "Artist", "thumb": thumb_of(a),
             "tracks": songs, "albums": albums}
 
 _where: dict[str, dict] = {}
@@ -192,7 +188,7 @@ async def mood(params: str):
             a = p.get("author")
             return ", ".join(x.get("name", "") for x in a) if isinstance(a, list) else p.get("description") or ""
         return [{"type": "playlist", "id": p["playlistId"], "title": p.get("title"), "subtitle": sub(p),
-                 "thumb": (p.get("thumbnails") or [{}])[-1].get("url", "")}
+                 "thumb": thumb_of(p)}
                 for p in pls[:60] if p.get("playlistId")]
     return await cached("mood:" + params, fetch)
 
