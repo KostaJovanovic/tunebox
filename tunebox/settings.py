@@ -1,4 +1,5 @@
 """The house settings (volume, EQ, playback options, alarm), kept in settings.json."""
+import asyncio
 import math
 import sys
 
@@ -23,11 +24,32 @@ def load_settings() -> dict:
     return s
 
 
+_save_later: asyncio.TimerHandle | None = None
+
+
 def save_settings() -> None:
+    global _save_later
+    if _save_later:
+        _save_later.cancel()
+        _save_later = None
     try:
         write_json(SETTINGS_FILE, settings)
     except OSError as exc:                    # the live settings still apply; only persistence failed
         print(f"tunebox: cannot save settings: {exc}", file=sys.stderr)
+
+
+def save_settings_soon(delay: float = 3.0) -> None:
+    """One write a moment after the last change, not one per step of a volume drag (spares an SD card)."""
+    global _save_later
+    if _save_later:
+        _save_later.cancel()
+    _save_later = asyncio.get_running_loop().call_later(delay, save_settings)
+
+
+def flush_settings() -> None:
+    """Shutdown: write a pending save now."""
+    if _save_later:
+        save_settings()
 
 
 settings = load_settings()                    # changed in place, never replaced: import it freely

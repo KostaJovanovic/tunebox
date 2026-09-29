@@ -6,16 +6,17 @@ import { lists } from "../../shared/playback.js";
 import { askPlay } from "./ask.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
-import { view, setNav } from "./nav.js";
+import { view, seq, setNav } from "./nav.js";
 import { main, toast, loading, note, section, backBtn, songRow, mosaic, dayName, at, syncScrim } from "./ui.js";
 
 let openList = null;                           /* the id of the playlist on screen */
 
 export async function showLists() {
   setNav("lists"); $("#q").value = ""; openList = null;
+  const my = seq;
   main(loading("Loading"));
   const ls = await api("api/lists").catch(() => []);
-  if (view !== "lists") return;
+  if (my !== seq) return;
   main(section(1, "Tunebox playlists", "shared · anyone can edit") +
     `<div class="grid"><button class="card new" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>` +
     ls.map(p => `<button class="card" data-act="list-open" data-id="${esc(p.id)}">${p.liked && !p.thumbs.length ? `<div class="blank heart">${icon.HEART}</div>` : mosaic(p.thumbs)}<div class="t">${esc(p.name)}</div>

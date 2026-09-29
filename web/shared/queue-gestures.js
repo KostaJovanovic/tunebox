@@ -15,6 +15,7 @@ export function setupQueueGestures(list, on) {
   list.addEventListener("pointerdown", () => pressed = true, true);
   addEventListener("pointerup", () => { if (pressed) { pressed = false; setTimeout(on.redraw, 400); } }, true);
   addEventListener("pointercancel", () => pressed = false, true);
+  addEventListener("blur", () => pressed = false);            /* released outside the window: no pointerup comes */
 
   list.addEventListener("pointerdown", e => {
     const row = e.target.closest(".row");

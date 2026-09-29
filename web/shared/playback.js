@@ -20,9 +20,15 @@ let ppHold = { until: 0 };
 let base = { pos: 0, at: 0 };
 export const position = () => state.paused ? base.pos : base.pos + (performance.now() - base.at) / 1000;
 
+/* polls overlap (the timer, and one after every request): a slow older answer must not paint over a newer one */
+let asked = 0, shown = 0;
+
 export async function poll() {
+  const n = ++asked;
   let s;
   try { s = await api("api/state"); } catch { return; }
+  if (n < shown) return;
+  shown = n;
   if (Date.now() < ppHold.until) s.paused = ppHold.paused;
   state = s;
   base = { pos: s.position, at: performance.now() };
@@ -60,7 +66,7 @@ export const playAll = (key, label, mode = "replace") => queueSongs(lists[key], 
 
 export function setVolume(v) {
   v = Math.max(0, Math.min(100, Math.round(v)));
-  api("api/control", { action: "volume", value: v });
+  api("api/control", { action: "volume", value: v }).catch(e => toast(errText(e)));
   return v;
 }
 

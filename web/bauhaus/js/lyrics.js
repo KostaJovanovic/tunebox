@@ -54,6 +54,7 @@ async function loadLyrics() {
 
 /* after each poll: a new song gets its lyrics */
 export function paintLyrics() {
+  $("#lyrBtn").classList.toggle("on", isOpen("lyrics"));   /* Esc, the backdrop or another drawer may have closed it */
   if (isOpen("lyrics") && (state.current?.videoId || null) !== shown) loadLyrics();
 }
 

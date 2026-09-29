@@ -24,6 +24,7 @@ from tunebox import data, web  # noqa: E402
 from tunebox.api import browse, lists, lyrics, pages, people, queue, settings  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
+from tunebox.settings import flush_settings  # noqa: E402
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ async def lifespan(_app):
     yield
     player.save_session()
     data.save_stats()
+    flush_settings()
     await player.mpv.quit()
 
 

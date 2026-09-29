@@ -5,7 +5,7 @@ import { api, errText } from "../../shared/api.js";
 import { lists, LINK } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
-import { view, seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
+import { seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
 import { askPlay } from "./ask.js";
 import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 import { toggleCanvas } from "./player.js";
@@ -15,16 +15,17 @@ let kind = "songs", lastQuery = "";
 /* ---------- Home: the house's own shelves first, then YouTube's ---------- */
 export async function showHome() {
   setNav("home"); $("#q").value = ""; setBack(showHome);
+  const my = seq;
   main(loading("Loading"));
   const [mine, yt] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e }))]);
-  if (view !== "home") return;
+  if (my !== seq) return;
   let n = 0, html = "";
   for (const s of mine) {
     const key = "fy_" + s.key; lists[key] = s.items;
     html += section(++n, s.title, `<span class="hide-sm">${esc(s.subtitle)} · </span><button class="link" data-act="play-all" data-list="${esc(key)}" data-label="${esc(s.title)}">Play all</button>`)
       + `<div class="shelf">${s.items.map((t, i) => songCard(t, key, i)).join("")}</div>`;
   }
-  if (yt.error) html += note(`Could not load YouTube's home: ${esc(yt.error.message)}`);
+  if (yt.error) html += note(`Could not load YouTube's home: ${esc(errText(yt.error))}`);
   else html += yt.map(s => section(++n, s.title) + `<div class="shelf">${s.items.map(card).join("")}</div>`).join("");
   main(html || note("Nothing here yet. Try searching."));
 }
@@ -32,11 +33,12 @@ export async function showHome() {
 /* ---------- Explore: new releases, and moods & genres ---------- */
 export async function showExplore() {
   setNav("explore"); $("#q").value = ""; setBack(showExplore);
+  const my = seq;
   main(loading("Loading"));
   let ex;
   try { ex = await api("api/explore"); }
-  catch (e) { if (view === "explore") main(note(`Could not load Explore: ${esc(errText(e))}`)); return; }
-  if (view !== "explore") return;
+  catch (e) { if (my === seq) main(note(`Could not load Explore: ${esc(errText(e))}`)); return; }
+  if (my !== seq) return;
   let n = 0;
   main((ex.releases.length ? section(++n, "New releases", "albums") + `<div class="shelf">${ex.releases.map(card).join("")}</div>` : "")
     + ex.moods.map(g => section(++n, g.title) + `<div class="chips">${g.items.map((m, k) =>
@@ -45,9 +47,10 @@ export async function showExplore() {
 
 async function showMood(params, title) {
   setNav("explore"); setBack(() => showMood(params, title));
+  const my = seq;
   main(loading("Loading"));
   const ps = await api(`api/mood?params=${encodeURIComponent(params)}`).catch(() => null);
-  if (view !== "explore") return;
+  if (my !== seq) return;
   main(backBtn("Explore", 'data-act="nav" data-v="explore"') + section(1, title, ps ? `${ps.length} playlists` : "")
     + (ps && ps.length ? `<div class="grid">${ps.map(card).join("")}</div>` : note("Nothing here right now.")));
 }
@@ -71,14 +74,15 @@ async function doSearch() {
   if (!q) return showHome();
   if (LINK.test(q)) return openLink(q);
   lastQuery = q; setNav("search"); $("#tabs").hidden = false; setBack(doSearch);
+  const my = seq;
   main(loading("Searching"));
   try {
     const res = await api(`api/search?q=${encodeURIComponent(q)}&kind=${kind}`);
-    if (q !== lastQuery || view !== "search") return;
+    if (my !== seq) return;
     if (!res.length) return main(note("No results"));
     if (kind === "songs") { lists.search = res; main(`<div class="list">${res.map((t, i) => songRow(t, "search", i)).join("")}</div>`); }
     else main(`<div class="grid">${res.map(card).join("")}</div>`);
-  } catch (e) { main(note(`Search failed: ${esc(e.message)}`)); }
+  } catch (e) { if (my === seq) main(note(`Search failed: ${esc(errText(e))}`)); }
 }
 
 /* ---------- an album, playlist or artist page ---------- */
@@ -119,9 +123,10 @@ export async function goTo(kind, t) {
 /* ---------- History (shared by everyone) ---------- */
 export async function showHistory() {
   setNav("history"); $("#q").value = "";
+  const my = seq;
   main(loading("Loading"));
   const h = await api("api/history?limit=200").catch(() => []);
-  if (view !== "history") return;
+  if (my !== seq) return;
   lists.history = h;
   const off = h.length ? "" : "disabled";
   let html = section(1, "Recently played", `${h.length} songs · shared by everyone`) +

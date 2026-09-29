@@ -2,6 +2,7 @@
    player, the queue, likes, people and lyrics; buttons with data-act="..." find their handler in the
    module that owns them. Keyboard shortcuts are at the bottom. */
 import { $ } from "../../shared/dom.js";
+import { errText } from "../../shared/api.js";
 import { state, lists, onState, startPolling, setToaster, ctl, undo, addSong, playAll, saveQueue } from "../../shared/playback.js";
 import { setupLikes, syncLikes, toggleLike, likeCurrent } from "../../shared/likes.js";
 import { syncPeople } from "../../shared/people.js";
@@ -19,6 +20,8 @@ import "./menu.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
+/* a request that failed with nobody waiting for it (a button's action) still says why */
+addEventListener("unhandledrejection", e => { if (e.reason instanceof Error) toast(errText(e.reason)); });
 
 onState(async s => {
   paintBar(s);

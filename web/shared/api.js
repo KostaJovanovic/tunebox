@@ -1,6 +1,6 @@
 /* Talking to the Tunebox server. */
 
-let askName = async () => false;
+let askName = async () => false, asking = null;
 
 /* The page decides how to ask for a name (its "Who's listening?" picker). It resolves true once one is picked. */
 export function setNameAsker(fn) { askName = fn; }
@@ -13,7 +13,8 @@ export async function api(path, body, method, retried = false) {
     : { method: method || "GET" };
   const r = await fetch(path, opts);
   if (r.status === 401 && !retried) {
-    if (await askName()) return api(path, body, method, true);
+    asking ||= askName().finally(() => asking = null);   /* two taps before a name is picked share one question */
+    if (await asking) return api(path, body, method, true);
     throw new Error(JSON.stringify({ detail: "Pick your name first" }));
   }
   if (!r.ok) throw new Error(await r.text());

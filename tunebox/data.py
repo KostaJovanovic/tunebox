@@ -2,6 +2,7 @@
 
 The containers are changed in place and never replaced, so other modules can import them. The
 revision numbers are replaced, so read them as data.lists_rev / data.people_rev."""
+import re
 import sys
 import time
 
@@ -9,12 +10,13 @@ from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FIL
                      STATS_FILE)
 from .files import read_json, write_json
 
+VIDEO_ID = re.compile(r"[\w-]{11}")          # YouTube's video IDs: always 11 of these
 TRACK_KEYS = ("videoId", "title", "artist", "album", "duration", "thumb", "artistId", "albumId")
 
 
 def clean_track(t: dict) -> dict | None:
     """Only the fields a song needs, as short strings (anything else a client sends is dropped)."""
-    if not isinstance(t, dict) or not t.get("videoId"):
+    if not isinstance(t, dict) or not VIDEO_ID.fullmatch(str(t.get("videoId") or "")):
         return None
     return {k: str(t.get(k) or "")[:300] for k in TRACK_KEYS}
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..data import clean_track
 from ..player import player
-from ..settings import save_settings, settings
+from ..settings import save_settings_soon, settings
 from ..web import BaseModel, need_who, who
 
 router = APIRouter()
@@ -107,7 +107,7 @@ async def control(body: ControlBody, request: Request):
         if p.ramp:                            # touching the volume ends an alarm ramp
             p.ramp, p.fade_db = None, 0.0
         await p.apply_volume()
-        save_settings()
+        save_settings_soon()
     elif a == "jump" and v is not None:
         i = queue_at(int(v), body.videoId)
         asyncio.get_running_loop().create_task(p.play_index(i, vid=body.videoId))

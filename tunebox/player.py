@@ -150,6 +150,8 @@ class Player:
         if self.current and not p.get("idle-active") and p.get("time-pos"):
             self.resume_at = p["time-pos"]
         self.armed, self.cur_entry = None, None
+        self.pp_gen += 1                      # a play/pause fade cut short must not leave the volume down
+        self.pp_db, self.pp_want = 0.0, None
         self.save_session()
         delay = 1
         while True:

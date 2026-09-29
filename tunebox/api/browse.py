@@ -42,7 +42,7 @@ async def search(q: str, kind: str = "songs"):
 
 @router.get("/api/home")
 async def home():
-    shelves = await asyncio.to_thread(youtube.yt.get_home, limit=6)
+    shelves = await yt_get("home page", youtube.yt.get_home, limit=6)
     out = []
     for shelf in shelves:
         items = []
@@ -124,7 +124,7 @@ async def resolve(url: str):
     except ValueError:
         raise HTTPException(400, "That isn't a link")
     host = (u.hostname or "").lower()
-    if host != "youtu.be" and not host.endswith("youtube.com"):
+    if host not in ("youtu.be", "youtube.com") and not host.endswith(".youtube.com"):
         raise HTTPException(400, "Only YouTube and YouTube Music links work here")
     qs = urllib.parse.parse_qs(u.query)
     parts = [p for p in u.path.split("/") if p]
@@ -169,7 +169,8 @@ async def resolve(url: str):
 async def explore():
     """New releases (albums) and the moods & genres to browse."""
     async def fetch():
-        ex, moods = await asyncio.gather(asyncio.to_thread(youtube.yt.get_explore), asyncio.to_thread(youtube.yt.get_mood_categories))
+        ex, moods = await asyncio.gather(yt_get("explore page", youtube.yt.get_explore),
+                                         yt_get("list of moods", youtube.yt.get_mood_categories))
         releases = [album_card(x) for x in ex.get("new_releases") or [] if x.get("browseId")]
         groups = [{"title": k, "items": [{"title": m["title"], "params": m["params"]} for m in v if m.get("params")]}
                   for k, v in moods.items()]
@@ -183,7 +184,7 @@ async def mood(params: str):
         raise HTTPException(400, "bad mood")
 
     async def fetch():
-        pls = await asyncio.to_thread(youtube.yt.get_mood_playlists, params)
+        pls = await yt_get("mood", youtube.yt.get_mood_playlists, params)
         def sub(p):
             a = p.get("author")
             return ", ".join(x.get("name", "") for x in a) if isinstance(a, list) else p.get("description") or ""
