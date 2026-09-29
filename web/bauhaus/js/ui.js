@@ -4,7 +4,7 @@
 import { $, $$, esc, pad } from "../../shared/dom.js";
 import { state } from "../../shared/playback.js";
 import { isLiked } from "../../shared/likes.js";
-import { byChip } from "../../shared/people.js";
+import { byChip, people, avatar } from "../../shared/people.js";
 import * as icon from "./icons.js";
 
 /* ---------- toast ---------- */
@@ -56,7 +56,7 @@ export const likeBtn = (key, i, vid) => {
 
 /* A song row. A tap on the title adds the song (o.meta: other attributes for that tap); the buttons on
    the right are Play next, Play (asks first, see ask.js), Add to playlist and Like unless o.acts says otherwise.
-   o: num (shown number), playing (false: never marked as playing), by (who added it), d (text in place
+   o: num (shown number), playing (false: never marked as playing), by (who added it), likers (who liked it), d (text in place
    of the length), cls (extra class), extra (HTML after the buttons) */
 export function songRow(t, key, i, o = {}) {
   const cur = (o.playing ?? true) && state.current && state.current.videoId === t.videoId ? " playing" : "";
@@ -69,7 +69,7 @@ export function songRow(t, key, i, o = {}) {
     <span class="n">${pad(o.num ?? i + 1)}</span>
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="meta" ${meta}>
-      <div class="t">${esc(t.title)}</div><div class="s">${o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
+      <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
     <span class="d">${esc(o.d ?? t.duration)}</span>
     <div class="acts">${acts}${o.extra || ""}</div></div>`;

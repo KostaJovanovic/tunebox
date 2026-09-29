@@ -26,7 +26,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - 10-band equaliser with presets and optional loudness normalisation; EQ changes are heard at once, without gaps (the normaliser sits before the EQ, since it looks seconds ahead)
 - Volume slider linear in dB; audio quality setting (best / balanced / low)
 - Sleep timer (minutes or end of track) with fade-out; wake-up alarm with volume ramp
-- Shared playlists and play history for the whole house
+- Shared playlists and play history for the whole house; Liked songs shows who liked each song and can show just one person's or one seminar's likes
 - Lyrics from [LRCLIB](https://lrclib.net) (often time-synced), YouTube Music as fallback
 - Queue and position survive restarts and crashes (restored paused); mpv is restarted automatically if it dies
 - Skips streams that fail to load and stops after 3 failures in a row; keeps the last 50 played tracks in the queue

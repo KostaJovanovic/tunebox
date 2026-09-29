@@ -1,6 +1,7 @@
 /* Tunebox playlists (shared, anyone can edit; "liked" is the Liked songs list), and the
    "Add to playlist" pop-up. */
 import { $, esc, plural } from "../../shared/dom.js";
+import { people, seminars, avatar, semTag } from "../../shared/people.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { askPlay } from "./ask.js";
@@ -10,6 +11,7 @@ import { view, seq, setNav } from "./nav.js";
 import { main, toast, loading, note, section, backBtn, songRow, mosaic, dayName, at, syncScrim } from "./ui.js";
 
 let openList = null;                           /* the id of the playlist on screen */
+let likedBy = "";                              /* Liked songs shows only these: "" all, a person id, or "sem:<seminar id>" */
 
 export async function showLists() {
   setNav("lists"); $("#q").value = ""; openList = null;
@@ -49,9 +51,23 @@ export async function showList(id) {
 /* the Liked list is on screen and just changed */
 export function likesChanged() { if (openList === "liked" && view === "lists") showList("liked"); }
 
+/* Liked songs: who liked what, as chips to show one person's (or one seminar's) likes */
+function likers(tracks) {
+  const who = new Set(tracks.flatMap(t => t.likedBy || []).filter(id => people[id]));
+  const sems = new Set([...who].flatMap(id => people[id].seminars || []).filter(s => seminars[s]));
+  if (!who.size) return "";
+  const chip = (v, html) => `<button class="${likedBy === v ? "on" : ""}" aria-pressed="${likedBy === v}" data-act="liked-by" data-v="${esc(v)}">${html}</button>`;
+  return `<div class="likers">${chip("", "Everyone")}${[...who].sort((a, b) => people[a].name.localeCompare(people[b].name))
+    .map(id => chip(id, avatar(people[id], "sm") + esc(people[id].name))).join("")}${[...sems].map(s => chip("sem:" + s, semTag(s))).join("")}</div>`;
+}
+const likedFilter = t => !likedBy ? true : likedBy.startsWith("sem:")
+  ? (t.likedBy || []).some(id => people[id]?.seminars?.includes(likedBy.slice(4))) : (t.likedBy || []).includes(likedBy);
+
 function renderList(p, renaming = false) {
-  lists.mine = p.tracks; lists.mineMeta = p;
-  const n = p.tracks.length, isLiked = p.id === "liked", off = n ? "" : "disabled";
+  if (p.id !== lists.mineMeta?.id) likedBy = "";
+  const isLiked = p.id === "liked", shown = isLiked ? p.tracks.filter(likedFilter) : p.tracks, filtered = shown.length !== p.tracks.length;
+  lists.mine = shown; lists.mineMeta = p;
+  const n = shown.length, off = n ? "" : "disabled";
   const all = `data-list="mine" data-label="${esc(p.name)}" ${off}`;
   const title = renaming ? `<input class="name" id="rename" value="${esc(p.name)}" maxlength="80">` : `<h1>${esc(p.name)}</h1>`;
   const buttons = renaming ? `<button class="btn red" data-act="list-rename-save">Save name</button><button class="btn" data-act="list-rename-cancel">Cancel</button>`
@@ -61,18 +77,19 @@ function renderList(p, renaming = false) {
         <button class="btn" data-act="list-shuffle" ${off}>${icon.SHUFFLE}Shuffle</button>
         ${isLiked ? "" : `<button class="btn ghost" data-act="list-rename">Rename</button>
         <button class="btn ghost danger" data-act="list-delete">Delete</button>`}`;
-  const row = (t, i) => songRow(t, "mine", i, { acts:
-    `<button title="Move up" aria-label="Move up" data-act="list-move" data-i="${i}" data-d="-1" ${i ? "" : "disabled"}>${icon.UP}</button>
-     <button title="Move down" aria-label="Move down" data-act="list-move" data-i="${i}" data-d="1" ${i < n - 1 ? "" : "disabled"}>${icon.DOWN}</button>
+  const row = (t, i) => songRow(t, "mine", i, { likers: isLiked ? t.likedBy || [] : null, acts:
+    (filtered ? "" : `<button title="Move up" aria-label="Move up" data-act="list-move" data-i="${i}" data-d="-1" ${i ? "" : "disabled"}>${icon.UP}</button>
+     <button title="Move down" aria-label="Move down" data-act="list-move" data-i="${i}" data-d="1" ${i < n - 1 ? "" : "disabled"}>${icon.DOWN}</button>`) +
+     `
      <button class="wide" title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at("mine", i)}>${icon.NEXT}</button>
      <button title="Remove from playlist" aria-label="Remove from playlist" data-act="list-move" data-i="${i}" data-d="0">${icon.X}</button>` });
   main(`${backBtn("All playlists", 'data-act="nav" data-v="lists"')}
     <div class="hero">${mosaic(p.tracks.map(t => t.thumb))}<div>
-      <div class="k">${isLiked ? "Liked songs" : "Tunebox playlist"} · ${plural(n, "song")}</div>${title}
+      <div class="k">${isLiked ? "Liked songs" : "Tunebox playlist"} · ${filtered ? `${n} of ${plural(p.tracks.length, "song")}` : plural(n, "song")}</div>${title}
       <div class="s">Shared · updated ${esc(dayName(p.updated).toLowerCase())}</div>
       <div class="btns">${buttons}</div>
-    </div></div>
-    <div class="list">${n ? p.tracks.map(row).join("")
+    </div></div>${isLiked ? likers(p.tracks) : ""}
+    <div class="list">${n ? shown.map(row).join("")
       : note(isLiked ? "Nothing liked yet. Tap the heart on any song to add it here." : "Empty. Use the playlist button on any song to add it here.")}</div>`);
   if (renaming) {
     const r = $("#rename");
@@ -143,6 +160,7 @@ $("#pickForm").addEventListener("submit", async e => {
 
 /* ---------- wiring ---------- */
 on("list-new", newListForm);
+on("liked-by", el => { likedBy = el.dataset.v; renderList(lists.mineMeta); });
 on("list-open", el => showList(el.dataset.id));
 on("list-move", el => moveTrack(+el.dataset.i, +el.dataset.d));
 on("list-shuffle", shuffleList);

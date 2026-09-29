@@ -125,3 +125,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .newform.plain { background: none; }
 .hint.tight { margin: 0 0 8px; }
 .blank.heart { color: var(--red); }
+/* Liked songs: whose likes to show */
+.likers { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.likers button { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--line-2);
+  font: 600 12px var(--body, inherit); background: var(--bg); }
+.likers button .av.sm, .likers button .sem { margin: 0 6px 0 0; }
+.likers button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
