@@ -5,17 +5,19 @@ import { errText } from "../../shared/api.js";
 import { on } from "../../shared/actions.js";
 import { syncScrim, onCloseAll } from "./ui.js";
 
-let done = null, check = null, empty = false;
+let done = null, check = null, empty = false, alt = null;
 
 /* Asks for a phrase. check(phrase) runs before it closes: if it throws, its message shows and the
-   pop-up stays for another try. Resolves with the phrase, or null when closed. */
-export function askPhrase({ title, hint = "", button = "OK", allowEmpty = false, check: fn = null }) {
+   pop-up stays for another try. Resolves with the phrase, or null when closed. other: {label, run}, a link
+   under the field that closes the pop-up (null) and runs instead ("Forgot it?"). */
+export function askPhrase({ title, hint = "", button = "OK", allowEmpty = false, check: fn = null, other = null }) {
   if (done) done(null);
   $("#phraseTitle").textContent = title;
   $("#phraseHint").innerHTML = esc(hint);
   $("#phraseOk").textContent = button;
   $("#phraseIn").value = ""; $("#phraseMsg").textContent = "";
-  check = fn; empty = allowEmpty;
+  check = fn; empty = allowEmpty; alt = other;
+  $("#phraseAlt").hidden = !other; $("#phraseAlt").textContent = other?.label || "";
   $("#phrase").classList.add("open"); syncScrim();
   setTimeout(() => $("#phraseIn").focus(), 50);
   return new Promise(r => done = r);
@@ -40,7 +42,14 @@ $("#phraseForm").addEventListener("submit", async e => {
 });
 
 on("phrase-close", () => close(null));
+on("phrase-alt", () => { const run = alt?.run; close(null); run?.(); });
 onCloseAll(() => close(null));
+
+/* check for a new phrase: the server's rule (spaces squeezed, at least 4 characters); empty passes */
+export async function longEnough(v) {
+  const n = v.trim().split(/\s+/).join(" ").length;
+  if (n && n < 4) throw new Error("A pass phrase needs at least 4 characters");
+}
 
 /* Runs fn(admin) without the admin phrase first; if the server wants it, asks and tries again with it.
    Resolves with fn's result, or null if the pop-up was closed. */
