@@ -8,13 +8,18 @@ A lean YouTube Music player for the speakers of the computer it runs on. Everyon
 
 ## Get it running
 
+Get the code first: `git clone https://github.com/KostaJovanovic/tunebox.git` (or download the ZIP from GitHub and unpack it).
+
 **Windows, as a local app.** Install [Python](https://www.python.org/downloads/) 3.11 or newer (tick "Add python.exe to PATH"), then double-click `start.bat`. The first start sets everything up in this folder (the Python packages, mpv and Node) and takes a few minutes; then Tunebox opens in your browser at `http://localhost:8888/` and plays through this PC's speakers. Closing the window stops it. `start.bat --lan` lets phones on the same network use it too.
 
 **Linux, as a server** (a home server by the speakers; tested on Debian 13 / DietPi):
 
 ```sh
+cd tunebox
 ./install.sh              # asks for sudo: mpv, a systemd service that starts at boot, open to the network
 ```
+
+It installs mpv and Python's venv with apt, puts the Python packages in `.venv` and Node 22 in `tools/node`, adds your user to the `audio` group, and writes, enables and starts `/etc/systemd/system/tunebox.service` (it starts at boot and restarts if it stops). Then it prints the addresses to open, e.g. `http://myserver:8888/`. Without apt, install mpv and Python 3.11+ yourself first; the script does the rest. If the sound comes out of the wrong card, see [Audio output](#audio-output); to serve it under a path like `/music/`, see [Behind a reverse proxy](#behind-a-reverse-proxy-optional).
 
 **Linux, as a local app** on your own computer:
 
@@ -23,7 +28,7 @@ A lean YouTube Music player for the speakers of the computer it runs on. Everyon
 ./start.sh                # then this (or Tunebox in the app menu); ./start.sh --lan for the network too
 ```
 
-Run the same command again to update after pulling new code. Options: `--port N` (default 8888). With a server, `sudo journalctl -u tunebox -f` shows the log.
+To update: `git pull`, then run the same command again (a server restarts with the new code). Options: `--port N` (default 8888). With a server, `sudo journalctl -u tunebox -f` shows the log.
 
 Opening it by name from other devices works for the computer's own name (`http://myserver:8888/`, and `myserver.local`) and by IP address. For other names (your own DNS name, a reverse proxy's), list them in `TUNEBOX_HOSTS` (comma separated), e.g. `Environment=TUNEBOX_HOSTS=music.home` in the service.
 
