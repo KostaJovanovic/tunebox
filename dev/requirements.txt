@@ -1,0 +1,4 @@
+# Everything server.bat and save.bat need on this PC (the same .venv start.bat uses).
+-r ../requirements.txt
+# save.bat: deploying to ele over SSH
+paramiko

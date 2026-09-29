@@ -27,7 +27,19 @@ Run the same command again to update after pulling new code. Options: `--port N`
 
 Opening it by name from other devices works for the computer's own name (`http://myserver:8888/`, and `myserver.local`) and by IP address. For other names (your own DNS name, a reverse proxy's), list them in `TUNEBOX_HOSTS` (comma separated), e.g. `Environment=TUNEBOX_HOSTS=music.home` in the service.
 
-**Developing** it as part of homeapps: `server.bat` at the repository root runs it in the emulator, and `save.bat` deploys it to ele.
+
+## Working on it (Windows)
+
+- **`server.bat`** runs it at <http://localhost:8000/music/>, under `/music/` the way ele's Caddy serves it, and opens the browser. It plays through this PC's speakers; `server.bat --silent` swaps in a fake player (`dev/fakes.py`), `--lan` and `--port` as usual. Its data lives in `dev/data/` (git-ignored).
+- Edit, reload the page. HTML, CSS and JS changes show at once; restart `server.bat` after changing Python code.
+- **`save.bat`** commits, pushes to GitHub when a remote exists, and then, **if ele is reachable**, deploys (`dev/deploy.py`):
+  - Only files whose content differs from ele's are uploaded, after a list you confirm. The old copies go to `/opt/homeapps/tunebox/.bak/<time>/` (the last 10 are kept).
+  - Changed Python files are compile-checked on ele first; then the service restarts and has to answer, or you're offered a rollback. If music was playing, it presses play again.
+  - `tunebox.service` is only reported when it differs from ele's; install it by hand.
+  - `save.bat status` shows what would change; `save.bat pull-data` copies ele's playlists, history, people and settings into `dev/data/`. The YouTube sign-in cookies stay on ele.
+- The first `server.bat` or `save.bat` run creates `.venv` (the same one `start.bat` uses) and installs `dev/requirements.txt`.
+
+The rest of ele (the launcher page, Caddy, Paper) lives in the separate homeapps repository.
 
 ## Features
 
