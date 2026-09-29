@@ -1,0 +1,85 @@
+"""What every request goes through: the same-site guard, readable errors, and who is asking."""
+import ipaddress
+import urllib.parse
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel as PydanticModel, ConfigDict
+
+from . import data
+from .config import CGNAT, LOCAL_NAMES
+from .mpv import PlayerDown
+
+
+class BaseModel(PydanticModel):
+    """Request bodies: Python's JSON reader takes NaN and Infinity, which min/max can't clamp."""
+    model_config = ConfigDict(allow_inf_nan=False)
+
+
+def host_ok(host: str | None) -> bool:
+    """Our own names and private addresses only: a foreign name resolving to us is DNS rebinding."""
+    h = (host or "").strip().lower()
+    if h.startswith("["):                     # [v6]:port
+        h = h[1:h.find("]")] if "]" in h else ""
+    elif h.count(":") == 1:                   # name:port or v4:port
+        h = h.split(":")[0]
+    h = h.rstrip(".")
+    if h in LOCAL_NAMES or h.endswith(".ts.net"):
+        return True
+    try:
+        ip = ipaddress.ip_address(h)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local or (ip.version == 4 and ip in CGNAT)
+
+
+async def same_site_only(request: Request, call_next):
+    """Refuses foreign Host headers, writes from foreign pages (Origin), and non-JSON bodies
+    (a foreign page can send text/plain or form bodies without a CORS preflight)."""
+    if not host_ok(request.headers.get("host")):
+        return JSONResponse({"detail": "Unknown host"}, 403)
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if origin is not None:
+            try:
+                oh = urllib.parse.urlsplit(origin).hostname if origin != "null" else None
+            except ValueError:
+                oh = None
+            if not oh or not host_ok(oh):
+                return JSONResponse({"detail": "Cross-site request refused"}, 403)
+        has_body = request.headers.get("content-length", "0") != "0" or "transfer-encoding" in request.headers
+        if has_body and not request.headers.get("content-type", "").lower().startswith("application/json"):
+            return JSONResponse({"detail": "Send JSON"}, 415)
+    return await call_next(request)
+
+
+async def bad_body(_request, exc: RequestValidationError):
+    # FastAPI's own 422 echoes the input back, and a NaN in it can't be written as JSON (a 500 instead)
+    first = (exc.errors() or [{}])[0]
+    where = ".".join(str(x) for x in first.get("loc", ())[1:]) or "request"
+    return JSONResponse({"detail": f"{where}: {first.get('msg', 'invalid')}"}, 422)
+
+
+async def player_down(_request, _exc):
+    return JSONResponse({"detail": "Player is restarting"}, 503)
+
+
+def install(app: FastAPI):
+    app.middleware("http")(same_site_only)
+    app.add_exception_handler(RequestValidationError, bad_body)
+    app.add_exception_handler(PlayerDown, player_down)
+
+
+def who(request: Request) -> str:
+    """The person this device picked (cookie tb_who), or "" for nobody or a removed name."""
+    pid = request.cookies.get("tb_who") or ""
+    return pid if pid in data.people else ""
+
+
+def need_who(request: Request) -> str:
+    """Adding songs needs a name; the UI answers this 401 by showing its picker."""
+    pid = who(request)
+    if not pid:
+        raise HTTPException(401, "pick")
+    return pid
