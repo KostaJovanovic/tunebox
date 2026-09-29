@@ -18,6 +18,7 @@ LISTS_FILE = DATA / "playlists.json"       # Tunebox playlists (shared, editable
 PEOPLE_FILE = DATA / "people.json"         # who's listening: names picked per device (cookie tb_who)
 STATS_FILE = DATA / "stats.json"           # when each song played, last STATS_DAYS days (for "Most played")
 KEYS_FILE = DATA / "keys.json"             # pass phrase hashes (admin) and the secret that signs device cookies
+PLAYS_DIR = DATA / "plays"                 # the play log, a file per month, kept for good (Stats, recap)
 SEMINARS_FILE = DATA / "seminars.json"     # seminars people added themselves (the built-in ones are below)
 
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted

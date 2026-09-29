@@ -132,6 +132,7 @@ They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emula
 | `playlists.json` | Tunebox playlists |
 | `people.json` | names picked on devices (name, colour, emoji, seminars) |
 | `seminars.json` | seminars added under Other (Ele, Fiz and Teh are built in) |
+| `plays/` | the play log, one file per month (`2026-09.jsonl`), kept for good: each song that played, who added it and their seminars, and how many seconds were heard. Appended at most once a minute. Stats and the recap read it |
 | `stats.json` | when each song played, last 30 days (for Most played), saved at most every minute |
 | `keys.json` | the admin pass phrase (salted hash) and the secret that signs devices' name keys |
 | `browser.json` | YouTube Music sign-in headers, only if you sign in (contains your cookies) |

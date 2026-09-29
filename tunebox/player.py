@@ -8,7 +8,7 @@ import secrets
 import time
 from zoneinfo import ZoneInfo
 
-from . import data
+from . import data, plays
 from .audio import level_to_mpv
 from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_REFILL_AT, SESSION_EVERY,
                      SESSION_FILE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
@@ -93,6 +93,7 @@ class Player:
         while True:
             await asyncio.sleep(SESSION_EVERY)
             data.save_stats()
+            plays.flush()
             try:
                 self.trim_played()
                 now = self.session_data()
@@ -132,6 +133,7 @@ class Player:
         self.mpv.on_start = self._started
         self.mpv.on_loaded = self._loaded
         self.mpv.on_exit = self._mpv_lost
+        plays.seed()
         await self.mpv.start()
         loop = asyncio.get_running_loop()
         loop.create_task(self._preload_loop())
@@ -218,6 +220,7 @@ class Player:
             return
         self.fails = 0
         data.add_history(self.current)
+        plays.begin(self.current)
 
     async def disarm(self):
         """Forgets the preloaded next track after the queue changed."""
@@ -229,8 +232,14 @@ class Player:
                 pass
 
     async def _preload_loop(self):
+        last = time.monotonic()
         while True:
             await asyncio.sleep(1)
+            now = time.monotonic()
+            p = self.mpv.props
+            if self.current and not (p.get("pause") or p.get("idle-active") or self.loading):
+                plays.heard(self.current["videoId"], min(now - last, 5))   # what the play log counts as heard
+            last = now
             try:
                 await self.mpv.eq_sync()
             except Exception:
@@ -297,6 +306,7 @@ class Player:
     async def stop(self):
         self.gen += 1                         # cancels a play request still resolving
         self.armed, self.cur_entry, self.loading = None, None, False
+        plays.finish()
         await self.mpv.send("stop")
         self.queue, self.index = [], -1
 

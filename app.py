@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # tunebox/ sits next 
 
 from fastapi import FastAPI  # noqa: E402
 
-from tunebox import data, web  # noqa: E402
+from tunebox import data, plays, web  # noqa: E402
 from tunebox.api import browse, lists, lyrics, pages, people, queue, settings  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
@@ -33,6 +33,8 @@ async def lifespan(_app):
     yield
     player.save_session()
     data.save_stats()
+    plays.finish()
+    plays.flush()
     flush_settings()
     await player.mpv.quit()
 
