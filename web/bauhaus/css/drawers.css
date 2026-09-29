@@ -8,6 +8,8 @@
 .dhead h2 i { width: 12px; height: 12px; background: var(--yellow); }
 .dhead button { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; }
 .dhead button:hover { background: var(--s1); }
+.dhead a.gh { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; color: inherit; }
+.dhead a.gh:hover { background: var(--s1); }
 .dtools { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); flex: none; }
 .dtools button { height: var(--hit); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-right: 1px solid var(--line); }
 .dtools button:last-child { border-right: 0; }

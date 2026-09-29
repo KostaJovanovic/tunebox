@@ -96,6 +96,9 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); f();
 });
 
+/* ---------- installable as an app (browsers allow the service worker only over HTTPS or on localhost) ---------- */
+if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+
 /* ---------- start ---------- */
 showHome();
 startPolling();

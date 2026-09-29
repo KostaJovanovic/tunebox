@@ -29,6 +29,12 @@ def old_address():
     return RedirectResponse("./", 301)
 
 
+@router.get("/sw.js")
+def service_worker():
+    """At the root, so it may look after every page (a worker only covers its own folder and below)."""
+    return FileResponse(WEB_DIR / "sw.js", media_type="text/javascript", headers=NO_CACHE)
+
+
 @router.get("/wall")
 def wall():
     """The wall screen: a tablet or TV showing what plays."""

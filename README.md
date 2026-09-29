@@ -32,6 +32,8 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Lyrics from [LRCLIB](https://lrclib.net) (often time-synced), YouTube Music as fallback
 - Queue and position survive restarts and crashes (restored paused); mpv is restarted automatically if it dies
 - Skips streams that fail to load and stops after 3 failures in a row; keeps the last 50 played tracks in the queue
+- Installable as an app (manifest, icons, a service worker that says when the server can't be reached). Browsers install it fully only over HTTPS or on localhost; over plain http a phone gets a home-screen shortcut
+- The GitHub icon in Settings links to this code
 - One interface at `/`; the old `/classic` and `/bauhaus` addresses redirect there
 - Backup and restore (Settings): one file with people, seminars, pass phrases, playlists and likes, history, stats, the play log and settings (never the YouTube sign-in). A restore first saves what it replaces in `backups/`
 - Optional sign-in with your YouTube Music cookies for personalised Home and radio (playback stays anonymous)
