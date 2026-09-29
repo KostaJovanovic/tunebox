@@ -88,13 +88,19 @@ export function toggleCanvas(open = !canvasOpen()) {
   document.body.classList.toggle("canvas-open", open);
   if (open) { placeCanvas(); paintCanvas(true); history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
   else if (history.state?.canvas) history.back();
+  syncLyrBtn();
 }
 addEventListener("popstate", () => { if (canvasOpen()) { cv.classList.remove("open"); document.body.classList.remove("canvas-open"); } });
 
 let lyrOn = store.get("tb_clyr", "0") === "1", cSeeking = false, lyrVid = null;
 const lyrBox = $("#cLyr"), follow = follower(lyrBox, 0.4, true);
 
-function toggleCanvasLyrics() { lyrOn = !lyrOn; store.set("tb_clyr", lyrOn ? "1" : "0"); paintCanvas(true); }
+export function toggleCanvasLyrics(open = !lyrOn) { lyrOn = open; store.set("tb_clyr", lyrOn ? "1" : "0"); paintCanvas(true); syncLyrBtn(); }
+
+/* On a desktop with the canvas open, every Lyrics button (the canvas's and the bar's, and L) shows the
+   canvas's own lyrics beside the cover; otherwise they open the Lyrics drawer */
+export const canvasLyrics = () => canvasOpen() && !phone();
+export function syncLyrBtn() { $("#lyrBtn").classList.toggle("on", canvasLyrics() ? lyrOn : $("#lyrics").classList.contains("open")); }
 
 export function paintCanvas(force) {
   if (!canvasOpen()) return;
@@ -165,4 +171,4 @@ addEventListener("pointerup", endCanvasDrag);
 addEventListener("pointercancel", endCanvasDrag);
 
 on("canvas-close", () => toggleCanvas(false));
-on("canvas-lyrics", toggleCanvasLyrics);
+on("canvas-lyrics", () => toggleCanvasLyrics());

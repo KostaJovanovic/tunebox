@@ -5,6 +5,7 @@ import { state, ctl, position } from "../../shared/playback.js";
 import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { on } from "../../shared/actions.js";
 import { loading, openDrawer, isOpen } from "./ui.js";
+import { canvasLyrics, toggleCanvasLyrics, syncLyrBtn } from "./player.js";
 
 /* Keeps a box of synced lines lit up and scrolled to the line being sung. `where` (0..1) is how far
    down the box that line sits; a scroll by hand pauses the following for 4 seconds. */
@@ -32,7 +33,8 @@ const box = $("#lyr"), follow = follower(box, 0.38, false);
 let shown = null;                              /* the videoId the drawer shows lyrics for */
 
 export function toggleLyrics(open = !isOpen("lyrics")) {
-  openDrawer("lyrics", open); $("#lyrBtn").classList.toggle("on", open);
+  if (canvasLyrics()) return toggleCanvasLyrics();
+  openDrawer("lyrics", open); syncLyrBtn();
   if (open) loadLyrics();
 }
 
@@ -54,12 +56,12 @@ async function loadLyrics() {
 
 /* after each poll: a new song gets its lyrics */
 export function paintLyrics() {
-  $("#lyrBtn").classList.toggle("on", isOpen("lyrics"));   /* Esc, the backdrop or another drawer may have closed it */
+  syncLyrBtn();                                /* Esc, the backdrop or another drawer may have closed it */
   if (isOpen("lyrics") && (state.current?.videoId || null) !== shown) loadLyrics();
 }
 
 setInterval(() => { if (isOpen("lyrics")) follow.tick(); }, 200);
 
 on("lyrics-toggle", () => toggleLyrics());
-on("lyrics-open", () => toggleLyrics(true));
+on("lyrics-open", () => canvasLyrics() ? toggleCanvasLyrics(true) : toggleLyrics(true));
 on("lyrics-close", () => toggleLyrics(false));
