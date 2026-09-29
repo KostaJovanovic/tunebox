@@ -2,7 +2,7 @@
    People list in Settings. It also opens by itself the first time someone adds a song without a name. */
 import { $, esc } from "../../shared/dom.js";
 import { api, errText, setNameAsker } from "../../shared/api.js";
-import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTags } from "../../shared/people.js";
+import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTag, semTags } from "../../shared/people.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
 import { toast, syncScrim, onCloseAll } from "./ui.js";
@@ -17,9 +17,17 @@ export function paintMe() {
   $("#meBtn").title = p ? `Listening as ${p.name}` : "Who's listening?";
 }
 
+/* opens on the list of names, or straight on the form when there are none yet */
 function openWho() {
-  resetForm(); renderWho();
+  resetForm(); renderWho(); showForm(!sortedPeople().length);
   $("#who").classList.add("open"); $("#scrim").classList.add("open");
+}
+function showForm(on) {
+  $("#whoPick").hidden = on; $("#whoForm").hidden = !on;
+  $("#whoBack").textContent = editing ? "Cancel" : "Back";
+  $("#whoBack").hidden = !editing && !sortedPeople().length;
+  if (!on) $("#whoTitle").textContent = "Who's listening?";
+  else if (!editing) setTimeout(() => $("#whoName").focus(), 50);
 }
 function closeWho(chosen = false) {
   $("#who").classList.remove("open"); syncScrim();
@@ -60,10 +68,9 @@ function resetForm(p = null) {
   pickEmoji = p ? p.emoji : "";
   pickSems = new Set(p?.seminars || []); other = false; $("#whoOther").value = ""; finishing = false;
   $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
-  $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Who's listening?";
+  $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Add a name";
   $("#whoPhrase").value = ""; $("#whoPhrase").hidden = !!p;    /* editing: the pass phrase has its own button */
   paintPhraseBtn(p);
-  $("#whoList").hidden = !!p;
   paintForm();
 }
 
@@ -73,8 +80,20 @@ function paintForm() {
     + `<button type="button" class="${other ? "on" : ""}" aria-pressed="${other}" data-act="who-sem-other">Other</button>`;
   $("#whoOther").hidden = !other;
   $("#whoColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pickColor ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="who-color" data-c="${c}"></button>`).join("");
+  paintPreview();
   $("#whoEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pickEmoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="who-emoji" data-e="${e}">${e || "Aa"}</button>`).join("");
 }
+
+/* the badge being made, as it will look: avatar, then its seminar tags */
+function paintPreview() {
+  const name = $("#whoName").value.trim(), typed = $("#whoOther").value.trim();
+  $("#whoPreview").innerHTML = avatar({ name: name || "?", color: pickColor, emoji: pickEmoji });
+  const tags = [...pickSems].map(sid => semTag(sid)).join("")
+    + (other && typed ? `<i class="sem">${esc(typed)}</i>` : "");
+  $("#whoTags").innerHTML = tags || "No seminar yet";
+}
+$("#whoName").addEventListener("input", paintPreview);
+$("#whoOther").addEventListener("input", paintPreview);
 
 $("#whoForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -94,7 +113,7 @@ function formMsg(t) { $("#whoMsg").textContent = t; $("#whoMsg").className = "ms
 /* A name from before seminars: pick one before it can be used */
 function askSeminar(id) {
   if (!$("#who").classList.contains("open")) openWho();
-  resetForm(people[id]); finishing = true;
+  resetForm(people[id]); finishing = true; showForm(true);
   $("#whoTitle").textContent = `${people[id].name}: your seminar`;
   $("#whoMsg").textContent = "Pick your seminar to go on"; $("#whoMsg").className = "msg";
 }
@@ -190,7 +209,9 @@ on("who-color", el => { pickColor = el.dataset.c; paintForm(); });
 on("who-emoji", el => { pickEmoji = el.dataset.e; paintForm(); });
 on("who-sem", el => { const s = el.dataset.s; pickSems.has(s) ? pickSems.delete(s) : pickSems.add(s); paintForm(); });
 on("who-sem-other", () => { other = !other; paintForm(); if (other) $("#whoOther").focus(); });
-on("person-edit", async el => { const id = el.dataset.id; if (await unlocked(id)) { openWho(); resetForm(people[id]); } });
+on("person-edit", async el => { const id = el.dataset.id; if (await unlocked(id)) { openWho(); resetForm(people[id]); showForm(true); } });
+on("who-new", () => { resetForm(); showForm(true); });
+on("who-back", () => editing ? closeWho() : (resetForm(), showForm(false)));
 on("person-remove", el => remove(el.dataset.id));
 on("person-phrase", el => editPhrase(el.dataset.id));
 on("who-phrase", () => editPhrase(editing));

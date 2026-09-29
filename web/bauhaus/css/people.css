@@ -9,7 +9,6 @@
 .top .me .av.none { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
 .pick .av { width: 44px; height: 44px; font-size: 18px; }
 .pick.on .ok::before { content: "This device"; }
-.whoform { border-top: 1px solid var(--line); border-bottom: 0; }
 .swatches, .emojis { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
 .swatches button.on { border-color: var(--text); }
@@ -20,7 +19,6 @@
 .prow .acts button { width: auto; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
 .av.radio { background: var(--line-2); }
 .prow .me-tag { color: var(--muted); font-weight: 500; }
-.whoform .msg { width: 100%; margin: 0; }
 .note.tight { padding: 24px 16px; }
 .sem { display: inline-block; padding: 2px 5px; margin-right: 4px; background: var(--faint); color: #fff;
   font: 700 10px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; font-style: normal; vertical-align: 1px; }
@@ -40,3 +38,21 @@
 .adminrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0 4px; font-weight: 600; }
 #phraseForm .hint { width: 100%; }
 #phraseForm .msg:empty { display: none; }
+
+/* who's listening: the list of names, or the form (add / edit) */
+.whoview { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.whoview[hidden] { display: none; }
+.whoform .mbody { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.whoform .mbody > .lbl { margin-top: 8px; }
+.whoid { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: center; }
+.whoid .av { width: 64px; height: 64px; font-size: 28px; }
+.whoid .field { width: 100%; }
+.whoid .tags { min-height: 18px; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.whoform .link { align-self: flex-start; }
+.whofoot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--s1); }
+.whofoot .btn { gap: 8px; }
+#whoPick .whofoot .btn { flex: 1; justify-content: center; }
+.whofoot .msg { width: 100%; margin: 0; }
+.whofoot .msg:empty { display: none; }
+.whoview .mbody { flex: 1; min-height: 0; }
+.whoform .mbody > * { flex: none; }
