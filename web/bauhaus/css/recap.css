@@ -1,0 +1,45 @@
+/* ---------- the recap: full-screen story slides in the Bauhaus colours ---------- */
+.recap { position: fixed; inset: 0; z-index: 40; display: none; background: #111; color: #EDEAE3; touch-action: none; }
+.recap.open { display: block; }
+body.recap-open { overflow: hidden; }
+.recap .bars { position: absolute; z-index: 3; left: 12px; right: 56px; top: calc(12px + env(safe-area-inset-top)); display: flex; gap: 4px; height: 3px; padding: 0; }
+.recap .bars i { flex: 1; background: #ffffff40; overflow: hidden; }
+.recap .bars b { display: block; height: 100%; width: 0; background: #fff; }
+.recap .bars i.done b { width: 100%; }
+.recap .bars i.go b { animation: recapfill linear forwards; }
+.recap.paused .bars i.go b { animation-play-state: paused; }
+@keyframes recapfill { to { width: 100%; } }
+.recap .x { position: absolute; z-index: 3; right: 8px; top: calc(2px + env(safe-area-inset-top)); width: 44px; height: 44px; color: inherit; font-size: 20px; }
+.recap .stage, .recap .slide { position: absolute; inset: 0; }
+.recap .slide { display: grid; place-items: center; overflow: hidden; animation: recapin .35s var(--ease); }
+@keyframes recapin { from { opacity: 0; transform: scale(.98); } }
+.recap .slide .bg { position: absolute; inset: -80px; background: center / cover no-repeat; filter: blur(60px) brightness(.45) saturate(1.3); }
+.recap .in { position: relative; width: min(560px, 100% - 48px); display: grid; gap: 14px; }
+.recap .red { background: #E63B2E; color: #fff; }
+.recap .yellow { background: #F2C230; color: #111; }
+.recap .blue { background: #1F5FBF; color: #fff; }
+.recap .black, .recap .cover { background: #111; color: #EDEAE3; }
+.recap .k { font: 600 12px var(--display); letter-spacing: .18em; text-transform: uppercase; opacity: .8; }
+.recap h1 { margin: 0; font: 700 clamp(48px, 12vw, 104px)/.95 var(--display); letter-spacing: -.02em; }
+.recap h2 { margin: 0; font: 700 clamp(30px, 7vw, 56px)/1.02 var(--display); letter-spacing: -.01em; }
+.recap .huge { font: 700 clamp(72px, 22vw, 180px)/.9 var(--display); letter-spacing: -.03em; }
+.recap .lead { margin: 0; font: 600 clamp(18px, 4vw, 24px)/1.25 var(--display); }
+.recap p { margin: 0; font-size: 16px; line-height: 1.45; opacity: .9; }
+.recap .in > img, .recap .in > .blank { width: min(100%, 44vh); aspect-ratio: 1; object-fit: cover; box-shadow: 0 24px 70px #0009; background: #ffffff14; }
+.recap ol { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: n; }
+.recap .tops li { display: grid; grid-template-columns: 28px 52px minmax(0, 1fr); gap: 12px; align-items: center; counter-increment: n; }
+.recap .tops li::before { content: counter(n); font: 700 22px var(--display); }
+.recap .tops img, .recap .tops .blank { width: 52px; height: 52px; object-fit: cover; background: #0002; }
+.recap .tops b, .recap .tops span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap .tops b { font: 700 17px var(--display); }
+.recap .tops span { font-size: 13px; opacity: .75; }
+.recap .rank li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #0000001f; font-weight: 600; }
+.recap .rank li.me { background: #fff; color: #111; }
+.recap .rank li span { margin-left: auto; opacity: .85; }
+.recap .rank .sem { font-size: 13px; padding: 4px 8px; }
+.recap .sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.recap .sum div { background: #0000002a; padding: 14px; font-size: 13px; }
+.recap .sum b { display: block; font: 700 32px/1 var(--display); margin-bottom: 4px; }
+.recap .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.recap .acts .btn { width: auto; height: 46px; padding: 0 20px; flex: none; }
+.recap .acts .btn:not(.red) { background: transparent; color: inherit; border-color: currentColor; }

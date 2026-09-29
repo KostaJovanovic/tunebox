@@ -18,6 +18,7 @@ import { paintMe, renderPeople, renderWho, checkSeminar } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
 import { askPlay } from "./ask.js";
 import "./menu.js";
+import "./recap.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);

@@ -15,6 +15,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Right-click (long press on a phone) on any song, album, playlist or artist for a menu: play, play next, add to the end of the queue, add to playlist, like, go to artist or album, copy link. Anywhere else it's the player's own menu; Shift + right-click keeps the browser's
 - The artist and album names in the player, the now playing canvas and an album page open their pages; Back walks back through them
 - Stats (T): for any period (last 30 days, a month, a year, all time or custom) and for the house, one person or one seminar: minutes, plays, top songs and artists, who added the most, seminars, and when the house listens
+- A Wrapped-style recap for the same period and person or seminar: full-screen story slides (number one song, top songs and artists, minutes, range, when, seminars, who added the most), then play the top songs
 - Home starts with the house's own shelves: Most played (last 30 days), Liked mix and House mix
 - A two-part queue, like Spotify: the song playing, then the songs people added, then radio. Playing anything while a song is on (tapping a song, its play button, or Play on an album, playlist or history) asks first: Interrupt, Play next, or Add to the end of the queue (the end of the added songs). The Play next and Add all buttons skip the question. The radio always follows the last song someone added and stays after the added songs
 - Take turns (on by default): songs from different people alternate, so nobody takes over the queue
