@@ -59,5 +59,5 @@ EQ_PRESETS = {
     "night":      [-3, -2, -1, 0, 1, 2, 2, 1, -1, -2],
 }
 
-LOCAL_NAMES = {"ele.local", "ele", "ele.home", "localhost", "print-scan-server"}
+LOCAL_NAMES = {"ele.local", "ele", "ele.home", "localhost", "print-scan-server", "print-scan-server.local"}
 CGNAT = ipaddress.ip_network("100.64.0.0/10")   # Tailscale addresses
