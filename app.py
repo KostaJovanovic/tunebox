@@ -40,6 +40,7 @@ SESSION_FILE = DATA / "session.json"       # queue + position, restored paused a
 HISTORY_FILE = DATA / "history.json"       # recently played, newest first (shared by everyone)
 LISTS_FILE = DATA / "playlists.json"       # Tunebox playlists (shared, editable by anyone)
 PEOPLE_FILE = DATA / "people.json"         # who's listening: names picked per device (cookie tb_who)
+STATS_FILE = DATA / "stats.json"           # when each song played, last STATS_DAYS days (for "Most played")
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted
 URL_TTL = 4 * 3600                          # stream URLs expire after ~6 h; re-resolve well before that
 SESSION_EVERY = 60                          # save queue + position at most this often (seconds), spares the SD card
@@ -51,6 +52,7 @@ UNDO_KEEP = 15                              # queue snapshots kept for undo (sav
 UNDO_TRACKS = 200                           # songs kept per snapshot (the current one and what's up next)
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
 HISTORY_MAX = 300
+STATS_DAYS = 30
 VOL_RANGE_DB = 50                           # the volume slider spans -50 dB .. 0 dB (0 = mute)
 SLEEP_FADE = 30                             # sleep timer fades out over the last 30 s
 TRACK_FADE = 8                              # "end of track" sleep fades over the last 8 s
@@ -177,6 +179,8 @@ if LIKED_ID not in playlists:
 lists_rev = time.time_ns() // 1_000_000        # bumped on every playlist change, so clients refresh their liked hearts
 people: dict[str, dict] = read_json(PEOPLE_FILE, {})
 people_rev = time.time_ns() // 1_000_000       # bumped when names change, so clients refresh their chips
+stats: dict[str, dict] = read_json(STATS_FILE, {})   # {videoId: {"track": {...}, "plays": [ts, ...]}}
+stats_dirty = False
 ydl = yt_dlp.YoutubeDL({
     "format": QUALITY.get(settings["quality"], QUALITY["best"]),
     "quiet": True, "no_warnings": True, "noplaylist": True,
@@ -202,6 +206,37 @@ def track_from(item: dict) -> dict | None:
         "duration": item.get("duration") or item.get("length") or "",
         "thumb": thumbs[-1]["url"] if thumbs else "",
     }
+
+
+def count_play(track: dict, when: float | None = None):
+    """Remembers when a song played; saved with the session every minute (spares the SD card)."""
+    global stats_dirty
+    s = stats.setdefault(track["videoId"], {"plays": []})
+    s["track"] = {k: str(track.get(k) or "") for k in ("videoId", "title", "artist", "album", "duration", "thumb")}
+    s["plays"].append(int(when or time.time()))
+    stats_dirty = True
+
+
+def save_stats(force: bool = False):
+    global stats_dirty
+    if not (stats_dirty or force):
+        return
+    cutoff = time.time() - STATS_DAYS * 86400
+    for vid in list(stats):
+        stats[vid]["plays"] = [t for t in stats[vid]["plays"] if t > cutoff][-500:]
+        if not stats[vid]["plays"]:
+            del stats[vid]
+    try:
+        write_json(STATS_FILE, stats)
+        stats_dirty = False
+    except OSError:
+        pass
+
+
+if not STATS_FILE.exists():                   # first start: begin with what the history already knows
+    for h in reversed(history):
+        if h.get("videoId") and time.time() - h.get("playedAt", 0) < STATS_DAYS * 86400:
+            count_play(h, h["playedAt"])
 
 
 class Resolver:
@@ -425,6 +460,7 @@ class Player:
     def add_history(self, track: dict | None):
         if not track or (history and history[0]["videoId"] == track["videoId"]):
             return
+        count_play(track)
         history.insert(0, {**track, "playedAt": int(time.time())})
         del history[HISTORY_MAX:]
         try:
@@ -449,6 +485,7 @@ class Player:
         last = None
         while True:
             await asyncio.sleep(SESSION_EVERY)
+            save_stats()
             try:
                 self.trim_played()
                 data = self.session_data()
@@ -934,6 +971,7 @@ async def lifespan(_app):
     await player.start()
     yield
     player.save_session()
+    save_stats()
     await player.mpv.quit()
 
 
@@ -1065,7 +1103,7 @@ async def album(browse_id: str):
 @app.get("/api/playlist/{playlist_id}")
 async def playlist(playlist_id: str):
     pid = playlist_id[2:] if playlist_id.startswith("VL") else playlist_id
-    if pid.startswith("RD"):
+    if pid.startswith("RD") and not pid.startswith("RDCLAK"):      # a radio mix; RDCLAK are curated playlists
         w = await asyncio.to_thread(yt.get_watch_playlist, playlistId=pid, limit=50)
         tracks = [t for t in map(track_from, w.get("tracks", [])) if t]
         return {"title": "Mix", "subtitle": "YouTube Music mix", "thumb": tracks[0]["thumb"] if tracks else "", "tracks": tracks}
@@ -1086,6 +1124,132 @@ async def artist(channel_id: str):
               for x in (a.get("albums") or {}).get("results", [])]
     return {"title": a.get("name"), "subtitle": "Artist", "thumb": thumbs[-1]["url"] if thumbs else "",
             "tracks": songs, "albums": albums}
+
+
+# ---------- links, explore, moods ----------
+YT_ID = re.compile(r"[\w-]{2,80}")
+browse_cache: dict[str, tuple[float, object]] = {}
+
+
+async def cached(key: str, fn, ttl: float = 3600):
+    """YouTube Music's explore pages change slowly: fetch them at most once an hour."""
+    hit = browse_cache.get(key)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    data = await fn()
+    browse_cache[key] = (time.time(), data)
+    return data
+
+
+@app.get("/api/resolve")
+async def resolve(url: str):
+    """A pasted YouTube / YouTube Music link: which album, playlist, artist or song it points to."""
+    raw = url.strip()
+    try:
+        u = urllib.parse.urlsplit(raw if "://" in raw else "https://" + raw)
+    except ValueError:
+        raise HTTPException(400, "That isn't a link")
+    host = (u.hostname or "").lower()
+    if host != "youtu.be" and not host.endswith("youtube.com"):
+        raise HTTPException(400, "Only YouTube and YouTube Music links work here")
+    qs = urllib.parse.parse_qs(u.query)
+    parts = [p for p in u.path.split("/") if p]
+    vid = (qs.get("v") or [None])[0]
+    if host == "youtu.be" and parts:
+        vid = parts[0]
+    elif len(parts) > 1 and parts[0] in ("shorts", "live", "embed"):
+        vid = parts[1]
+    lst = (qs.get("list") or [None])[0]
+    kind, ident = None, None
+    if len(parts) > 1 and parts[0] in ("browse", "channel"):
+        b = parts[1]
+        kind, ident = ("album", b) if b.startswith("MPRE") else ("artist", b) if b.startswith("UC") else ("playlist", b)
+    elif lst and (not vid or parts[:1] == ["playlist"]):
+        kind, ident = "playlist", lst
+    elif lst and (not lst.startswith("RD") or lst.startswith("RDCLAK")):   # a song played from a playlist or album
+        kind, ident = "playlist", lst                          # (RD… on a song link is just its radio: the song wins)
+    elif vid:
+        kind, ident = "song", vid
+    if not kind or not YT_ID.fullmatch(ident or ""):
+        raise HTTPException(400, "That link doesn't point to a song, album, playlist or artist")
+    if kind == "playlist" and ident.startswith("OLAK5uy_"):   # an album's playlist: open the album itself
+        try:
+            ident = await asyncio.to_thread(yt.get_album_browse_id, ident) or ident
+        except Exception:
+            pass
+        if ident.startswith("MPRE"):
+            kind = "album"
+    if kind != "song":
+        return {"type": kind, "id": ident}
+    try:
+        w = await asyncio.to_thread(yt.get_watch_playlist, ident, limit=1)
+        t = track_from((w.get("tracks") or [{}])[0])
+    except Exception:
+        t = None
+    if not t:
+        raise HTTPException(404, "Couldn't find that song")
+    return {"type": "song", "track": t}
+
+
+def album_card(x: dict) -> dict:
+    return {"type": "album", "id": x.get("browseId"), "title": x.get("title"),
+            "subtitle": ", ".join(a["name"] for a in x.get("artists") or [] if a.get("name")),
+            "thumb": (x.get("thumbnails") or [{}])[-1].get("url", "")}
+
+
+@app.get("/api/explore")
+async def explore():
+    """New releases (albums) and the moods & genres to browse."""
+    async def fetch():
+        ex, moods = await asyncio.gather(asyncio.to_thread(yt.get_explore), asyncio.to_thread(yt.get_mood_categories))
+        releases = [album_card(x) for x in ex.get("new_releases") or [] if x.get("browseId")]
+        groups = [{"title": k, "items": [{"title": m["title"], "params": m["params"]} for m in v if m.get("params")]}
+                  for k, v in moods.items()]
+        return {"releases": releases, "moods": [g for g in groups if g["items"]]}
+    return await cached("explore", fetch)
+
+
+@app.get("/api/mood")
+async def mood(params: str):
+    if not re.fullmatch(r"[\w=%-]{4,200}", params):
+        raise HTTPException(400, "bad mood")
+
+    async def fetch():
+        pls = await asyncio.to_thread(yt.get_mood_playlists, params)
+        def sub(p):
+            a = p.get("author")
+            return ", ".join(x.get("name", "") for x in a) if isinstance(a, list) else p.get("description") or ""
+        return [{"type": "playlist", "id": p["playlistId"], "title": p.get("title"), "subtitle": sub(p),
+                 "thumb": (p.get("thumbnails") or [{}])[-1].get("url", "")}
+                for p in pls[:60] if p.get("playlistId")]
+    return await cached("mood:" + params, fetch)
+
+
+# ---------- for you: shelves from what the house plays and likes ----------
+@app.get("/api/forme")
+async def for_me():
+    now = time.time()
+    counts = []
+    for vid, s in stats.items():
+        recent = [t for t in s["plays"] if now - t < STATS_DAYS * 86400]
+        if recent:
+            counts.append((len(recent), max(recent), s["track"]))
+    counts.sort(key=lambda c: (-c[0], -c[1]))
+    most = [c[2] for c in counts[:24]]
+    likes = [{k: t.get(k, "") for k in TRACK_KEYS} for t in playlists[LIKED_ID]["tracks"]]
+    random.shuffle(likes)
+    shelves = []
+    if most:
+        shelves.append({"key": "most", "title": "Most played", "subtitle": f"The house, last {STATS_DAYS} days", "items": most})
+    if likes:
+        shelves.append({"key": "likedmix", "title": "Liked mix", "subtitle": "Everyone's likes, shuffled", "items": likes[:30]})
+    seeds = [c[2]["videoId"] for c in counts[:5]] or [t["videoId"] for t in likes[:5]]
+    if seeds:
+        seed = random.choice(seeds)
+        mix = await cached("housemix:" + seed, lambda: player.radio_for(seed, 40))
+        if mix:
+            shelves.append({"key": "housemix", "title": "House mix", "subtitle": "New songs like the ones you play", "items": mix[:30]})
+    return shelves
 
 
 class PlayBody(BaseModel):

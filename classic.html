@@ -83,6 +83,10 @@
   .hero .s { color: var(--muted); }
   .pill { margin-top: 14px; padding: 10px 20px; border-radius: 999px; background: var(--accent); color: white; font-weight: 700; }
   .back { color: var(--muted); margin-bottom: 6px; }
+  .shelfhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .shelfhead small { color: var(--muted); font-size: 13px; font-weight: 500; }
+  .shelfhead button { margin-left: auto; padding: 5px 12px; border-radius: 999px; background: var(--panel); font-size: 13px; font-weight: 600; }
+  #view .chips button { min-height: 44px; padding: 10px 16px; font-size: 14px; }
   .empty, .spinner { color: var(--muted); padding: 40px 0; text-align: center; }
 
   .player { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--player-bg);
@@ -228,13 +232,14 @@
     <a class="logo" href="/" title="ele.local"><i>♪</i><span>Tunebox</span></a>
     <label class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Search songs, albums, artists" autocomplete="off">
+      <input id="q" type="search" placeholder="Search, or paste a YouTube link" autocomplete="off">
     </label>
     <button class="icon-btn" id="meBtn" title="Who's listening" aria-label="Who's listening" onclick="toggleWho(true)"><i class="av none">?</i></button>
     <button class="icon-btn" title="Volume, EQ, account and interface" onclick="toggleSettings(true)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
     </button>
     <button class="icon-btn" title="Liked songs" aria-label="Liked songs" onclick="showLiked()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+    <button class="icon-btn" title="Explore: new releases, moods and genres" aria-label="Explore" onclick="showExplore()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></button>
     <button class="icon-btn" title="Home" onclick="showHome()">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
     </button>
@@ -383,7 +388,7 @@ async function toggleLike(t) {
   if (onLiked) showLiked();
 }
 async function showLiked() {
-  $("#tabs").hidden = true; $("#q").value = ""; onLiked = true;
+  $("#tabs").hidden = true; $("#q").value = ""; onLiked = true; page = "liked";
   $("#view").innerHTML = '<div class="spinner">Loading…</div>';
   let p; try { p = await api("api/lists/liked"); } catch (e) { $("#view").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; return; }
   if (!onLiked) return;
@@ -485,19 +490,63 @@ function card(it) {
     <div class="t">${esc(it.title)}</div><div class="s">${esc(it.subtitle || it.artist || "")}</div></button>`;
 }
 
+let backFn = "showHome()", page = "home";   /* where Back on an album / playlist / artist page goes */
+const songCard = (t, key, i) => `<button class="card" onclick="addSong('${key}', ${i})"><img loading="lazy" src="${esc(t.thumb)}" alt="">
+    <div class="t">${esc(t.title)}</div><div class="s">${esc(t.artist)}</div></button>`;
 async function showHome() {
-  onLiked = false; $("#tabs").hidden = true; $("#q").value = "";
+  onLiked = false; $("#tabs").hidden = true; $("#q").value = ""; backFn = "showHome()"; page = "home";
   $("#view").innerHTML = '<div class="spinner">Loading…</div>';
+  const [mine, yt] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e }))]);
+  if (page !== "home") return;
+  let html = "";
+  for (const s of mine) {                     /* ours first: the house's own shelves */
+    const key = "fy_" + s.key; lists[key] = s.items;
+    html += `<h2 class="shelfhead">${esc(s.title)} <small>${esc(s.subtitle)}</small><button onclick="playAll('${key}', ${esc(JSON.stringify(s.title))})">Play all</button></h2>
+      <div class="shelf">${s.items.map((t, i) => songCard(t, key, i)).join("")}</div>`;
+  }
+  if (yt.error) html += `<div class="empty">Could not load YouTube's home: ${esc(yt.error.message)}</div>`;
+  else html += yt.map(s => `<h2>${esc(s.title)}</h2><div class="shelf">${s.items.map(card).join("")}</div>`).join("");
+  $("#view").innerHTML = html || '<div class="empty">Nothing here yet. Try searching.</div>';
+}
+
+/* explore: new releases, and moods & genres */
+async function showExplore() {
+  onLiked = false; $("#tabs").hidden = true; $("#q").value = ""; backFn = "showExplore()"; page = "explore";
+  $("#view").innerHTML = '<div class="spinner">Loading…</div>';
+  let ex; try { ex = await api("api/explore"); }
+  catch (e) { if (page === "explore") $("#view").innerHTML = `<div class="empty">Could not load Explore: ${esc(errT(e))}</div>`; return; }
+  if (page !== "explore") return;
+  $("#view").innerHTML = (ex.releases.length ? `<h2>New releases</h2><div class="shelf">${ex.releases.map(card).join("")}</div>` : "")
+    + ex.moods.map(g => `<h2>${esc(g.title)}</h2><div class="chips">${g.items.map(m =>
+      `<button onclick="showMood(${esc(JSON.stringify(m.params))}, ${esc(JSON.stringify(m.title))})">${esc(m.title)}</button>`).join("")}</div>`).join("");
+}
+async function showMood(params, title) {
+  page = "explore"; backFn = `showMood(${JSON.stringify(params)}, ${JSON.stringify(title)})`;
+  $("#view").innerHTML = '<div class="spinner">Loading…</div>';
+  const ps = await api(`api/mood?params=${encodeURIComponent(params)}`).catch(() => null);
+  if (page !== "explore") return;
+  $("#view").innerHTML = `<button class="back" onclick="showExplore()">← Explore</button><h2>${esc(title)}</h2>`
+    + (ps && ps.length ? `<div class="grid">${ps.map(card).join("")}</div>` : '<div class="empty">Nothing here right now.</div>');
+}
+
+/* a pasted YouTube / YouTube Music link opens what it points to */
+const LINK = /^(https?:\/\/)?([\w-]+\.)*(youtube\.com|youtu\.be)\//i;
+async function openLink(url) {
+  lastQuery = url; onLiked = false; $("#tabs").hidden = true; backFn = "showHome()"; page = "link";
+  $("#view").innerHTML = '<div class="spinner">Opening the link…</div>';
   try {
-    const shelves = await api("api/home");
-    $("#view").innerHTML = shelves.map(s => `<h2>${esc(s.title)}</h2><div class="shelf">${s.items.map(card).join("")}</div>`).join("")
-      || '<div class="empty">Nothing here yet. Try searching.</div>';
-  } catch (e) { $("#view").innerHTML = `<div class="empty">Could not load home: ${esc(e.message)}</div>`; }
+    const r = await api(`api/resolve?url=${encodeURIComponent(url)}`);
+    if (lastQuery !== url) return;
+    if (r.type !== "song") return openItem(r.type, r.id);
+    lists.link = [r.track];
+    $("#view").innerHTML = `<h2>From your link</h2><div class="list">${songRow(r.track, "link", 0)}</div>`;
+  } catch (e) { if (lastQuery === url) $("#view").innerHTML = `<div class="empty">${esc(errT(e))}</div>`; }
 }
 
 async function doSearch() {
   const q = $("#q").value.trim(); if (!q) return showHome();
-  lastQuery = q; onLiked = false; $("#tabs").hidden = false;
+  if (LINK.test(q)) return openLink(q);
+  lastQuery = q; onLiked = false; $("#tabs").hidden = false; backFn = "doSearch()"; page = "search";
   $("#view").innerHTML = '<div class="spinner">Searching…</div>';
   try {
     const res = await api(`api/search?q=${encodeURIComponent(q)}&kind=${kind}`);
@@ -509,12 +558,12 @@ async function doSearch() {
 }
 
 async function openItem(type, id) {
-  onLiked = false;
+  onLiked = false; page = "item"; const back = backFn;
   $("#view").innerHTML = '<div class="spinner">Loading…</div>';
   try {
     const d = await api(`api/${type}/${encodeURIComponent(id)}`);
     lists.detail = d.tracks;
-    $("#view").innerHTML = `<button class="back" onclick="history.length ? doSearch() : showHome()">← Back</button>
+    $("#view").innerHTML = `<button class="back" onclick="${esc(back)}">← Back</button>
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div><h1>${esc(d.title)}</h1><div class="s">${esc(d.subtitle)} · ${d.tracks.length} songs</div>
       <div class="pills"><button class="pill" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))})">▶ Play</button>
         <button class="pill ghost" onclick="playAll('detail', ${esc(JSON.stringify(d.title || ""))}, 'next')">Play next</button>

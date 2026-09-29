@@ -101,10 +101,11 @@
   .sec .aside { margin-left: auto; color: var(--muted); font-size: 12px; }
 
   /* ---------- shelves / grid ---------- */
-  .shelf { display: grid; grid-auto-flow: column; grid-auto-columns: 136px; gap: 1px; overflow-x: auto; background: var(--line);
+  .shelf { display: grid; grid-auto-flow: column; grid-auto-columns: 137px; overflow-x: auto;
     border-bottom: 1px solid var(--line); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
   .card { background: var(--bg); padding: 10px; text-align: left; transition: background .15s var(--ease); min-width: 0; }
+  .shelf .card { border-right: 1px solid var(--line); }
   .card:hover { background: var(--s1); }
   .card img, .card .mosaic, .card .blank { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--s2); }
   .card .t { margin-top: 8px; font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -120,6 +121,16 @@
   .mosaic.one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
   .blank { display: grid; place-items: center; color: var(--faint); position: relative; }
   .card.new .blank { border: 1px dashed var(--line-2); background: none; }
+  .sec .aside .link { color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+  .sec .aside .link:hover { text-decoration: underline; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+  .chips button { height: 56px; background: var(--bg); text-align: left; padding: 0 14px; display: flex; align-items: center; gap: 12px;
+    font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; transition: background .12s; }
+  .chips button:hover { background: var(--s1); }
+  .chips i { width: 12px; height: 12px; flex: none; }
+  .chips i.c0 { background: var(--red); border-radius: 50%; }
+  .chips i.c1 { background: var(--yellow); }
+  .chips i.c2 { background: var(--blue); }
   .card.new:hover .blank { border-color: var(--red); color: var(--red); }
 
   /* ---------- song rows ---------- */
@@ -355,6 +366,8 @@
     .brand span { display: none; }
     .brand { padding: 0 12px; }
     .top .home.kb { display: none; }
+    .nav button { padding: 0 14px; }
+    .nav button b { display: none; }
     .player .in { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
     .now { grid-column: 1; grid-row: 1; }
     .right { grid-column: 2; grid-row: 1; gap: 0; }
@@ -435,7 +448,7 @@
     <a class="brand" href="/" title="ele.local"><div class="mark"><i class="c"></i><i class="t"></i><i class="s"></i></div><span>Tunebox</span></a>
     <label class="search">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
-      <input id="q" type="search" placeholder="Search songs, albums, artists" autocomplete="off" enterkeyhint="search">
+      <input id="q" type="search" placeholder="Search, or paste a YouTube link" autocomplete="off" enterkeyhint="search">
     </label>
     <button class="me" id="meBtn" title="Who's listening" aria-label="Who's listening" onclick="toggleWho(true)"><i class="av none">?</i></button>
     <button class="home kb" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onclick="toggleKeys(true)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="2" y="6" width="20" height="12"/><path d="M6 10h1M10 10h1M14 10h1M18 10h0M7 14h10"/></svg></button>
@@ -443,7 +456,7 @@
   </div>
 </header>
 <nav class="nav" id="nav">
-  <button data-v="home" class="on"><b>01</b>Home</button><button data-v="lists"><b>02</b>Playlists</button><button data-v="history"><b>03</b>History</button>
+  <button data-v="home" class="on"><b>01</b>Home</button><button data-v="lists"><b>02</b>Playlists</button><button data-v="history"><b>03</b>History</button><button data-v="explore"><b>04</b>Explore</button>
 </nav>
 <nav class="tabs" id="tabs" hidden>
   <button data-k="songs" class="on">Songs</button><button data-k="albums">Albums</button>
@@ -635,6 +648,7 @@
     <kbd>S</kbd><span>Settings</span>
     <kbd>H</kbd><span>History</span>
     <kbd>P</kbd><span>Playlists</span>
+    <kbd>E</kbd><span>Explore</span>
     <kbd>?</kbd><span>This list</span>
     <kbd>Esc</kbd><span>Close panels</span>
   </div>
@@ -799,20 +813,64 @@ function mosaic(thumbs, cls = "mosaic") {
 
 /* ---------- views ---------- */
 function setNav(v) { view = v; $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); if (v !== "search") $("#tabs").hidden = true; }
+let backFn = "showHome()";                   /* where Back on an album / playlist / artist page goes */
+const songCard = (t, key, i) => `<button class="card" onclick="addSong('${key}', ${i})"><img loading="lazy" src="${esc(t.thumb)}" alt="">
+    <div class="t">${esc(t.title)}</div><div class="s"><i class="kind song"></i>${esc(t.artist)}</div></button>`;
 async function showHome() {
-  setNav("home"); $("#q").value = "";
+  setNav("home"); $("#q").value = ""; backFn = "showHome()";
   $("#view").innerHTML = loading("Loading");
+  const [mine, yt] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e }))]);
+  if (view !== "home") return;
+  let n = 0, html = "";
+  for (const s of mine) {                     /* ours first: the house's own shelves */
+    const key = "fy_" + s.key; lists[key] = s.items;
+    html += section(++n, s.title, `<span class="hide-sm">${esc(s.subtitle)} · </span><button class="link" onclick="playAll('${key}', ${esc(JSON.stringify(s.title))})">Play all</button>`)
+      + `<div class="shelf">${s.items.map((t, i) => songCard(t, key, i)).join("")}</div>`;
+  }
+  if (yt.error) html += `<div class="note">Could not load YouTube's home: ${esc(yt.error.message)}</div>`;
+  else html += yt.map(s => section(++n, s.title) + `<div class="shelf">${s.items.map(card).join("")}</div>`).join("");
+  $("#view").innerHTML = html || '<div class="note">Nothing here yet. Try searching.</div>';
+}
+
+/* explore: new releases, and moods & genres */
+async function showExplore() {
+  setNav("explore"); $("#q").value = ""; backFn = "showExplore()";
+  $("#view").innerHTML = loading("Loading");
+  let ex; try { ex = await api("api/explore"); }
+  catch (e) { if (view === "explore") $("#view").innerHTML = `<div class="note">Could not load Explore: ${esc(errText(e))}</div>`; return; }
+  if (view !== "explore") return;
+  let n = 0;
+  $("#view").innerHTML = (ex.releases.length ? section(++n, "New releases", "albums") + `<div class="shelf">${ex.releases.map(card).join("")}</div>` : "")
+    + ex.moods.map(g => section(++n, g.title) + `<div class="chips">${g.items.map((m, k) =>
+      `<button onclick="showMood(${esc(JSON.stringify(m.params))}, ${esc(JSON.stringify(m.title))})"><i class="c${k % 3}"></i>${esc(m.title)}</button>`).join("")}</div>`).join("");
+}
+async function showMood(params, title) {
+  setNav("explore"); backFn = `showMood(${JSON.stringify(params)}, ${JSON.stringify(title)})`;
+  $("#view").innerHTML = loading("Loading");
+  const ps = await api(`api/mood?params=${encodeURIComponent(params)}`).catch(() => null);
+  if (view !== "explore") return;
+  $("#view").innerHTML = `<button class="back" onclick="showExplore()">${BACK}Explore</button>` + section(1, title, ps ? `${ps.length} playlists` : "")
+    + (ps && ps.length ? `<div class="grid">${ps.map(card).join("")}</div>` : '<div class="note">Nothing here right now.</div>');
+}
+
+/* a pasted YouTube / YouTube Music link opens what it points to */
+const LINK = /^(https?:\/\/)?([\w-]+\.)*(youtube\.com|youtu\.be)\//i;
+async function openLink(url) {
+  lastQuery = url; setNav("search"); $("#tabs").hidden = true; backFn = "showHome()";
+  $("#view").innerHTML = loading("Opening the link");
   try {
-    const shelves = await api("api/home");
-    if (view !== "home") return;
-    $("#view").innerHTML = shelves.map((s, i) => section(i + 1, s.title) + `<div class="shelf">${s.items.map(card).join("")}</div>`).join("")
-      || '<div class="note">Nothing here yet. Try searching.</div>';
-  } catch (e) { $("#view").innerHTML = `<div class="note">Could not load home: ${esc(e.message)}</div>`; }
+    const r = await api(`api/resolve?url=${encodeURIComponent(url)}`);
+    if (lastQuery !== url) return;
+    if (r.type !== "song") return openItem(r.type, r.id);
+    lists.link = [r.track];
+    $("#view").innerHTML = section(1, "From your link") + `<div class="list">${songRow(r.track, "link", 0)}</div>`;
+  } catch (e) { if (lastQuery === url) $("#view").innerHTML = `<div class="note">${esc(errText(e))}</div>`; }
 }
 
 async function doSearch() {
   const q = $("#q").value.trim(); if (!q) return showHome();
-  lastQuery = q; setNav("search"); $("#tabs").hidden = false;
+  if (LINK.test(q)) return openLink(q);
+  lastQuery = q; setNav("search"); $("#tabs").hidden = false; backFn = "doSearch()";
   $("#view").innerHTML = loading("Searching");
   try {
     const res = await api(`api/search?q=${encodeURIComponent(q)}&kind=${kind}`);
@@ -824,12 +882,12 @@ async function doSearch() {
 }
 
 async function openItem(type, id) {
-  const from = view;
+  const back = backFn;
   $("#view").innerHTML = loading("Loading");
   try {
     const d = await api(`api/${type}/${encodeURIComponent(id)}`);
     lists.detail = d.tracks;
-    $("#view").innerHTML = `<button class="back" onclick="${from === "search" ? "doSearch()" : "showHome()"}">${BACK}Back</button>
+    $("#view").innerHTML = `<button class="back" onclick="${esc(back)}">${BACK}Back</button>
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div>
         <div class="k">${esc(type)} · ${d.tracks.length} songs</div>
         <h1>${esc(d.title)}</h1><div class="s">${esc(d.subtitle)}</div>
@@ -1404,7 +1462,7 @@ $("#q").addEventListener("keydown", e => { if (e.key === "Enter") { clearTimeout
 $("#tabs").addEventListener("click", e => { const k = e.target.dataset.k; if (!k) return;
   kind = k; $$("#tabs button").forEach(b => b.classList.toggle("on", b === e.target)); doSearch(); });
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
-  ({ home: showHome, lists: showLists, history: showHistory })[b.dataset.v](); });
+  ({ home: showHome, lists: showLists, history: showHistory, explore: showExplore })[b.dataset.v](); });
 
 /* ---------- keyboard shortcuts ---------- */
 document.addEventListener("keydown", e => {
@@ -1423,7 +1481,7 @@ document.addEventListener("keydown", e => {
     "/": () => $("#q").focus(),
     q: () => toggleQueue(!$("#drawer").classList.contains("open")),
     l: () => toggleLyrics(), s: () => toggleSettings(!$("#settings").classList.contains("open")),
-    h: showHistory, p: showLists, f: likeCurrent, z: undo, "?": () => toggleKeys(!$("#keys").classList.contains("open")),
+    h: showHistory, p: showLists, e: showExplore, f: likeCurrent, z: undo, "?": () => toggleKeys(!$("#keys").classList.contains("open")),
   };
   const f = acts[k] || acts[k.toLowerCase?.()];
   if (!f || (tag === "BUTTON" && k === " ")) return;
