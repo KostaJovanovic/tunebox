@@ -136,9 +136,21 @@ It's Python ([FastAPI](https://fastapi.tiangolo.com)) on the back and plain Java
 | | |
 |---|---|
 | **`server.bat`** | runs a dev copy at <http://localhost:8000/music/> with test data in `dev/data/`. Add `--silent` for a fake player. |
-| **`save.bat`** | commits, pushes, and deploys to ele: only changed files, backed up first, health-checked, with a rollback if something breaks. |
+| **`save.bat`** (Windows) or **`./save.sh`** (macOS, Linux) | commits, pushes, and deploys to a server: only changed files, backed up first, health-checked, with a rollback if something breaks. |
 
 Edit and reload: HTML, CSS and JS changes show at once. Restart `server.bat` after changing Python.
+
+<details>
+<summary>Deploying to your own server</summary>
+
+The deploy works with any server that runs Tunebox as a systemd service, like one set up with `install.sh`. It reads the folder, the Python and the port from the service.
+
+1. Run `save.bat` and pick **servers**, or run `./save.sh servers`.
+2. Add the server: a name, its address and the SSH user.
+3. Pick **deploy**. With more than one server, it asks which. You can also name one: `save.bat deploy office`.
+
+Each device keeps its own list in `dev/servers.json`, and git ignores it. The deploy logs in with your SSH key. If the key doesn't work, it asks for the password. If sudo needs a password too, it asks once per deploy.
+</details>
 
 <details>
 <summary>Where things are</summary>
@@ -160,5 +172,5 @@ Buttons declare what they do with `data-act="..."`. The module that owns the act
 <details>
 <summary>About ele</summary>
 
-ele is the home server Tunebox started on. Its setup is by hand. Tunebox lives in `/opt/homeapps/tunebox`, and `tunebox.service` from this folder starts it. `save.bat` updates it, not `git pull`. The rest of ele (the launcher, Caddy, Paper) is in the homeapps repository.
+ele is the home server Tunebox started on. Its setup is by hand. Tunebox lives in `/opt/homeapps/tunebox`, and `tunebox.service` from this folder starts it. `save.bat` updates it, not `git pull`. ele is the server the deploy uses when a device has no server list yet. The rest of ele (the launcher, Caddy, Paper) is in the homeapps repository.
 </details>

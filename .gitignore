@@ -21,3 +21,7 @@ data/
 
 # The emulator's local data (can hold a copy of ele's live data)
 dev/data/
+
+# Which servers this device deploys to (dev/servers.py), and the backups a deploy keeps on a server
+dev/servers.json
+.bak/

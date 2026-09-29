@@ -1,22 +1,37 @@
 @echo off
+rem The quick message is read before delayed expansion is on, or its "!"s go.
+setlocal disabledelayedexpansion
+set "QMSG=%~2"
+set "SERVER=%~2"
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-rem Git + ele helper for Tunebox, the same as homeapps' save.bat.
+rem Git + deploy helper for Tunebox, the same as homeapps' save.bat.
 rem
-rem   save.bat            menu
-rem   save.bat save       commit + push to GitHub, then deploy to ele if it is reachable
-rem   save.bat commit     commit only
-rem   save.bat deploy     upload what changed in Tunebox to ele (no git)
-rem   save.bat status     show what differs from ele, change nothing
-rem   save.bat pull       git pull
-rem   save.bat pull-data  copy ele's live data into dev\data for server.bat
+rem   save.bat                     menu
+rem   save.bat save                commit + push to GitHub, then deploy to the default server if it is reachable
+rem   save.bat commit              commit only
+rem   save.bat deploy [server]     upload what changed in Tunebox to a server (no git)
+rem   save.bat status [server]     show what differs on the server, change nothing
+rem   save.bat pull                git pull
+rem   save.bat pull-data [server]  copy the server's live data into dev\data for server.bat
+rem   save.bat servers             list, add or remove the servers this device deploys to
+rem   save.bat quick "msg"         commit + push to GitHub, no menu, prompts or deploy
+rem   save.bat quick-commit "msg"  commit only, no menu or prompts
 rem
-rem Deploying asks for the SSH user and password each time and stores neither.
-rem Only app code goes to ele (dev\deploy.py lists it); the systemd unit is
+rem The quick actions are for scripts: the message defaults to "update <date>",
+rem every question takes the safe answer (no git init, no deploy, no pause), and
+rem the exit code is non-zero on any failure, a failed push included.
+rem
+rem The servers are in dev\servers.json on each device (git-ignored; without it,
+rem ele). save deploys to the default server; deploy, status and pull-data ask
+rem which one when there are several and none is named. Deploying logs in with
+rem this device's SSH key, or asks for the password each time and stores none.
+rem Only app code goes up (dev\deploy.py lists it); ele's systemd unit is
 rem compared and reported, never installed.
 
 set "COMMIT_ONLY=0"
+set "QUICK=0"
 set "SAVE_ERROR=0"
 set "ACTION=%~1"
 call :resolvebranch
@@ -27,28 +42,33 @@ if /i "%ACTION%"=="deploy"    goto deploy
 if /i "%ACTION%"=="status"    goto status
 if /i "%ACTION%"=="pull"      goto pull
 if /i "%ACTION%"=="pull-data" goto pulldata
+if /i "%ACTION%"=="servers"   goto servers
+if /i "%ACTION%"=="quick"        (set "QUICK=1" & goto checkrepo)
+if /i "%ACTION%"=="quick-commit" (set "QUICK=1" & set "COMMIT_ONLY=1" & goto checkrepo)
 
 :menu
 echo.
 echo === tunebox ===
 echo.
 echo   1  commit      add + commit, no push
-echo   2  save        add + commit + push to GitHub, then deploy to ele if it is reachable
-echo   3  deploy      upload what changed to ele (no git)
-echo   4  status      what differs from ele (changes nothing)
+echo   2  save        add + commit + push to GitHub, then deploy to the default server if it is reachable
+echo   3  deploy      upload what changed to a server (no git)
+echo   4  status      what differs on a server (changes nothing)
 echo   5  pull        git pull
-echo   6  pull data   copy ele's live data into dev\data for server.bat
-echo   7  quit
+echo   6  pull data   copy a server's live data into dev\data for server.bat
+echo   7  servers     list, add or remove servers
+echo   8  quit
 echo.
 set "CHOICE="
-set /p CHOICE=select [1-7]:
+set /p CHOICE=select [1-8]:
 if "%CHOICE%"=="1" (set "COMMIT_ONLY=1" & goto checkrepo)
 if "%CHOICE%"=="2" goto checkrepo
 if "%CHOICE%"=="3" goto deploy
 if "%CHOICE%"=="4" goto status
 if "%CHOICE%"=="5" goto pull
 if "%CHOICE%"=="6" goto pulldata
-if "%CHOICE%"=="7" exit /b 0
+if "%CHOICE%"=="7" goto servers
+if "%CHOICE%"=="8" exit /b 0
 echo [err]  invalid choice
 goto menu
 
@@ -58,7 +78,7 @@ if exist ".git" goto save
 echo.
 echo [warn] no git repository here yet
 set "DOINIT="
-set /p DOINIT=run "git init" now? (y/n):
+if not "%QUICK%"=="1" set /p DOINIT=run "git init" now? (y/n):
 if /i not "%DOINIT%"=="y" (
   echo [git]  skipped - nothing to commit into
   set "SAVE_ERROR=1"
@@ -106,7 +126,11 @@ rem a UTF-8 file from the environment and git reads the file.
 for /f "delims=" %%d in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm'"') do set "NOW=%%d"
 set "DEFMSG=update %NOW%"
 set "MSG="
-set /p "MSG=commit message [%DEFMSG%]: "
+if "%QUICK%"=="1" (
+  set "MSG=!QMSG!"
+) else (
+  set /p "MSG=commit message [%DEFMSG%]: "
+)
 if not defined MSG set "MSG=%DEFMSG%"
 set "MSGFILE=%TEMP%\tunebox-save-message.txt"
 powershell -NoProfile -Command "[IO.File]::WriteAllText($env:MSGFILE, $env:MSG)"
@@ -156,14 +180,15 @@ if errorlevel 1 (
 set "SAVE_ERROR=1"
 
 :maybedeploy
+rem Quick never deploys: that can ask for passwords.
+if "%QUICK%"=="1" goto end
 echo.
 call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
-"%PY%" dev\deploy.py check >nul
+"%PY%" dev\deploy.py check
 if errorlevel 1 (
-  echo [ele]  ele is not on this network - not deployed ^(run "save.bat deploy" when you are home^)
+  echo [srv]  not deployed ^(run "save.bat deploy" when the server is reachable^)
   goto end
 )
-echo [ele]  ele is reachable - deploying
 "%PY%" dev\deploy.py deploy
 if errorlevel 1 set "SAVE_ERROR=1"
 goto end
@@ -171,29 +196,36 @@ goto end
 
 :deploy
 echo.
-echo === ele: deploy ===
+echo === server: deploy ===
 echo.
 call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
-"%PY%" dev\deploy.py deploy
+"%PY%" dev\deploy.py deploy %SERVER% --ask
 if errorlevel 1 set "SAVE_ERROR=1"
 goto end
 
 :status
 echo.
-echo === ele: status ===
+echo === server: status ===
 echo.
 call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
-"%PY%" dev\deploy.py status
+"%PY%" dev\deploy.py status %SERVER% --ask
 if errorlevel 1 set "SAVE_ERROR=1"
 goto end
 
 :pulldata
 echo.
-echo === ele: pull data ===
+echo === server: pull data ===
 echo.
 call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
-"%PY%" dev\deploy.py pull-data
+"%PY%" dev\deploy.py pull-data %SERVER% --ask
 if errorlevel 1 set "SAVE_ERROR=1"
+goto end
+
+:servers
+echo.
+echo === servers ===
+call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
+"%PY%" dev\deploy.py servers
 goto end
 
 :pull
@@ -225,5 +257,5 @@ exit /b 0
 
 :end
 echo.
-pause
+if not "%QUICK%"=="1" pause
 exit /b %SAVE_ERROR%

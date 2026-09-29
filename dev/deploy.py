@@ -1,133 +1,86 @@
-"""Pushes Tunebox to ele and pulls ele's Tunebox data for the emulator.
+"""Pushes Tunebox to a server and pulls a server's Tunebox data for the emulator.
 
-  python dev/deploy.py check       is ele reachable from here? (exit 0 = yes)
-  python dev/deploy.py deploy      upload what changed, restart what needs it
-  python dev/deploy.py status      same comparison as deploy, but changes nothing
-  python dev/deploy.py pull-data   copy ele's live data (playlists, history, people...) into dev/data
+  python dev/deploy.py check [SERVER]       is the server reachable from here? (exit 0 = yes)
+  python dev/deploy.py deploy [SERVER]      upload what changed, restart Tunebox if Python changed
+  python dev/deploy.py status [SERVER]      same comparison as deploy, but changes nothing
+  python dev/deploy.py pull-data [SERVER]   copy the server's data (playlists, history, people...) into dev/data
+  python dev/deploy.py servers              list, add or remove servers
+  --ask: with several servers and none named, ask which one instead of taking the default
 
-Only app code is deployed (MODULES). The systemd unit is compared and reported, never
-installed: that stays a deliberate job by hand. ele's other apps (the launcher, Caddy,
-Paper) live in the homeapps repository, with a deploy tool of their own.
+The servers live in dev/servers.json on each device (see servers.py). Without it, ele is the
+server. Where Tunebox lives on a server, which Python runs it and on which port is read from
+its systemd unit (`tunebox` unless the server names another "service"), so it works for ele
+and for a server set up with install.sh. A server can pin these in servers.json instead:
+"dir", "python", "port", "data", "service".
 
-It logs in with this PC's SSH key when ele accepts it; otherwise the SSH user and
-password are asked for every run and never stored.
+Only app code is deployed. The systemd unit is compared and reported (on a server that runs
+this repo's tunebox.service, like ele), never installed: that stays a deliberate job by hand.
 """
 import datetime
 import difflib
-import getpass
 import hashlib
 import json
-import os
 import posixpath
+import re
 import shlex
 import shutil
-import socket
 import sys
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# ele's address comes from DHCP (it was 10.100.0.62, then 10.100.0.105), so try its mDNS name
-# first; ELE_HOST overrides. HOST becomes whichever answers first (see reachable()).
-CANDIDATES = [os.environ["ELE_HOST"]] if os.environ.get("ELE_HOST") else ["ele.local", "10.100.0.105", "10.100.0.62"]
-HOST = CANDIDATES[0]
+sys.path.insert(0, str(ROOT / "dev"))
+import servers  # noqa: E402
+from servers import Server, say  # noqa: E402
+
 KEEP_BACKUPS = 10
+# ele, the home server, is the built-in server. Its address comes from DHCP (10.100.0.62, then
+# 10.100.0.105), so its mDNS name is tried first.
+BUILTIN = {"name": "ele", "hosts": ["ele.local", "10.100.0.105", "10.100.0.62"], "user": "dietpi"}
 
-# local folder -> folder on ele, what gets deployed, and how to tell it's healthy.
-#   files: single files in the folder.  dirs: whole folders, mirrored (a file deleted here is
-#   deleted on ele too).  retired: old files that no longer belong on ele and are removed there.
-MODULES = [
-    {"name": "music", "local": ".", "remote": "/opt/homeapps/tunebox",
-     "files": ["app.py"], "dirs": ["tunebox", "web"], "retired": ["index.html", "classic.html", "wall.html"],
-     "health": "http://127.0.0.1:8888/api/state"},
-]
-SKIP = {"__pycache__", ".bak"}                           # never deployed, never removed on ele
-# compared and reported only
-SYSTEM_FILES = [
-    ("tunebox.service", "/etc/systemd/system/tunebox.service"),
-]
-# ele's live data -> dev/data (browser.json, the YouTube sign-in cookies, is left on ele)
-DATA_FILES = [(f"/opt/homeapps/tunebox/{f}", f) for f in
-              ("settings.json", "playlists.json", "history.json", "session.json", "people.json",
-               "stats.json", "seminars.json", "keys.json")]
+# what gets deployed, relative to this folder and to Tunebox's folder on the server
+#   files: single files.  dirs: whole folders, mirrored (a file deleted here is deleted there
+#   too).  retired: old files that no longer belong there and are removed.
+FILES = ["app.py"]
+DIRS = ["tunebox", "web"]
+RETIRED = ["index.html", "classic.html", "wall.html"]
+SKIP = {"__pycache__", ".bak"}                           # never deployed, never removed there
+UNIT = ROOT / "tunebox.service"                          # ele's unit: compared and reported only
+# the server's live data -> dev/data (browser.json, the YouTube sign-in cookies, stays there)
+DATA_FILES = ["settings.json", "playlists.json", "history.json", "session.json", "people.json",
+              "stats.json", "seminars.json", "keys.json"]
 
 
-def say(tag, msg=""):
-    print(f"[{tag}]".ljust(8) + msg, flush=True)
+def open_server(name: str, choose: bool):
+    """The server to use and an SSH session to it, or (server, None) when that fails."""
+    server = servers.pick(BUILTIN, name, choose)
+    if not server:
+        return None, None
+    host = servers.reachable(server)
+    if not host:
+        say("srv", f"{server['name']} is not reachable from here (tried {', '.join(server['hosts'])})")
+        return server, None
+    return server, Server.connect(server, host)
 
 
-def reachable(timeout=3.0) -> bool:
-    """True when ele answers on SSH at one of the candidate addresses; HOST is set to that one."""
-    global HOST
-    for host in CANDIDATES:
-        try:
-            with socket.create_connection((host, 22), timeout=timeout):
-                HOST = host
-                return True
-        except OSError:
-            continue
-    return False
-
-
-def connect():
-    import paramiko
-    # this PC's SSH key (~/.ssh/id_ed25519, installed for dietpi on 2026-09-29) first, no prompts
-    try:
-        c = paramiko.SSHClient()
-        c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        c.connect(HOST, username="dietpi", look_for_keys=True, allow_agent=True, timeout=10)
-        say("ssh", f"key login as dietpi@{HOST}")
-        return c
-    except paramiko.AuthenticationException:
-        pass
-    except (paramiko.SSHException, OSError):
-        pass
-    for attempt in range(3):
-        user = input(f"ssh user for {HOST} [dietpi]: ").strip() or "dietpi"
-        pw = getpass.getpass(f"password for {user}@{HOST}: ")
-        c = paramiko.SSHClient()
-        c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            c.connect(HOST, username=user, password=pw, look_for_keys=False, allow_agent=False, timeout=10)
-            return c
-        except paramiko.AuthenticationException:
-            say("err", "wrong user or password")
-        except OSError as e:
-            say("err", f"can't connect: {e}")
-            return None
-    return None
-
-
-class Ele:
-    def __init__(self, client):
-        self.c = client
-        self.sftp = client.open_sftp()
-
-    def run(self, cmd, check=True):
-        _, out, err = self.c.exec_command(cmd)
-        rc = out.channel.recv_exit_status()
-        o, e = out.read().decode(errors="replace"), err.read().decode(errors="replace")
-        if check and rc != 0:
-            raise RuntimeError(f"`{cmd}` failed ({rc}): {(e or o).strip()[:400]}")
-        return rc, o, e
-
-    def read(self, path) -> bytes | None:
-        try:
-            with self.sftp.open(path, "rb") as f:
-                return f.read()
-        except OSError:
-            return None
-
-    def hashes(self, paths) -> dict:
-        _, o, _ = self.run("sha256sum " + " ".join(shlex.quote(p) for p in paths) + " 2>/dev/null", check=False)
-        return {line[66:]: line[:64] for line in o.splitlines() if len(line) > 66}
-
-    def service_for(self, remote_dir) -> str | None:
-        """The systemd unit that runs from this folder, found rather than hard-coded."""
-        _, o, _ = self.run(f"grep -l '^WorkingDirectory={remote_dir}$' /etc/systemd/system/*.service 2>/dev/null",
-                           check=False)
-        units = [posixpath.basename(u).removesuffix(".service") for u in o.split()]
-        return units[0] if units else None
+def target(server: dict, srv: Server) -> dict | None:
+    """Where Tunebox lives on the server: its unit, folder, Python, port and data folder."""
+    service = server.get("service", "tunebox")
+    unit = srv.unit(service)
+    start = unit.get("ExecStart", "")
+    exe = shlex.split(start)[0].lstrip("@-:+!") if start else ""
+    python = server.get("python") or (exe if posixpath.basename(exe).startswith("python")
+                                      else posixpath.join(posixpath.dirname(exe), "python") if "/" in exe else "")
+    port = re.search(r"--port[= ](\d+)", start)
+    t = {"service": service, "dir": server.get("dir") or unit.get("WorkingDirectory", ""), "python": python,
+         "port": int(server.get("port") or unit["env"].get("TUNEBOX_PORT") or (port and port.group(1)) or 8888)}
+    t["data"] = server.get("data") or unit["env"].get("TUNEBOX_DATA") or t["dir"]
+    if not t["dir"] or not t["python"]:
+        say("err", f"no {service}.service on {server['name']} to read Tunebox's folder and Python from. Set "
+                   f"\"dir\" and \"python\" for it in {servers.FILE.name}, or set Tunebox up there with install.sh")
+        return None
+    say("srv", f"{server['name']}: {t['dir']} ({service}.service, port {t['port']})")
+    return t
 
 
 def quoted(paths) -> str:
@@ -151,70 +104,63 @@ def line_delta(old: bytes | None, new: bytes) -> str:
     return f"+{plus} -{minus} lines"
 
 
-def local_files(m) -> list[str]:
-    """The module's deployable files, as paths relative to its folder (posix style)."""
-    base = ROOT / m["local"]
-    out = [f for f in m["files"] if (base / f).is_file()]
-    for d in m.get("dirs", []):
-        for p in sorted((base / d).rglob("*")):
-            rel = p.relative_to(base)
+def local_files() -> list[str]:
+    """The deployable files, as paths relative to this folder (posix style)."""
+    out = [f for f in FILES if (ROOT / f).is_file()]
+    for d in DIRS:
+        for p in sorted((ROOT / d).rglob("*")):
+            rel = p.relative_to(ROOT)
             if p.is_file() and not SKIP & set(rel.parts) and not p.name.startswith("."):
                 out.append(rel.as_posix())
     return out
 
 
-def remote_files(ele: Ele, m) -> list[str]:
-    """What ele has in the module's mirrored folders (plus retired files still there), relative to its folder."""
+def remote_files(srv: Server, rdir) -> list[str]:
+    """What the server has in the mirrored folders (plus retired files still there), relative to rdir."""
     out = []
-    for d in m.get("dirs", []):
-        _, o, _ = ele.run(f"cd {m['remote']} && find {shlex.quote(d)} -type f 2>/dev/null", check=False)
+    for d in DIRS:
+        _, o, _ = srv.run(f"cd {rdir} && find {shlex.quote(d)} -type f 2>/dev/null", check=False)
         out += [f for f in o.split("\n") if f and not SKIP & set(f.split("/"))]
-    return out + [f for f in m.get("retired", []) if ele.read(posixpath.join(m["remote"], f)) is not None]
+    return out + [f for f in RETIRED if srv.read(posixpath.join(rdir, f)) is not None]
 
 
-def compare(ele: Ele):
-    """Files whose content differs from ele's copy, and files on ele that should go."""
-    changes, removals = [], []
-    for m in MODULES:
-        mine = local_files(m)
-        theirs = ele.hashes(posixpath.join(m["remote"], f) for f in mine)
-        for f in mine:
-            remote, local = posixpath.join(m["remote"], f), ROOT / m["local"] / f
-            if sha(local) != theirs.get(remote):
-                changes.append((m, f, line_delta(ele.read(remote), local.read_bytes())))
-        removals += [(m, f) for f in remote_files(ele, m) if f not in mine]
+def compare(srv: Server, rdir):
+    """Files whose content differs from the server's copy, and files there that should go."""
+    mine = local_files()
+    theirs = srv.hashes(posixpath.join(rdir, f) for f in mine)
+    changes = [(f, line_delta(srv.read(posixpath.join(rdir, f)), (ROOT / f).read_bytes()))
+               for f in mine if sha(ROOT / f) != theirs.get(posixpath.join(rdir, f))]
+    removals = [f for f in remote_files(srv, rdir) if f not in mine]
     return changes, removals
 
 
-def report_system(ele: Ele):
-    theirs = ele.hashes([r for _, r in SYSTEM_FILES])
-    for local, remote in SYSTEM_FILES:
-        lp = ROOT / local
-        if not lp.exists():
-            continue
-        if remote not in theirs:
-            say("sys", f"{local}: not found at {remote} on ele (or not readable)")
-        elif sha(lp) != theirs[remote]:
-            say("sys", f"{local} differs from {remote} - NOT deployed, install it by hand if intended")
+def report_system(srv: Server, t):
+    """This repo's tunebox.service is ele's unit: report when a server that runs it has another version."""
+    if f"WorkingDirectory={t['dir']}\n" not in UNIT.read_text(encoding="utf-8"):
+        return                                           # a server set up with install.sh has its own unit
+    remote = f"/etc/systemd/system/{t['service']}.service"
+    theirs = srv.hashes([remote])
+    if remote not in theirs:
+        say("sys", f"tunebox.service: not found at {remote} (or not readable)")
+    elif sha(UNIT) != theirs[remote]:
+        say("sys", f"tunebox.service differs from {remote} - NOT deployed, install it by hand if intended")
 
 
-def healthy(ele: Ele, m, service) -> bool:
+def healthy(srv: Server, t) -> bool:
     for _ in range(20):
         time.sleep(1)
-        rc, o, _ = ele.run(f"systemctl is-active {service}", check=False)
+        rc, o, _ = srv.run(f"systemctl is-active {t['service']}", check=False)
         if o.strip() != "active":
             continue
-        if not m["health"]:
-            return True
-        rc, o, _ = ele.run(f"curl -s -o /dev/null -w '%{{http_code}}' {m['health']}", check=False)
+        rc, o, _ = srv.run(f"curl -s -o /dev/null -w '%{{http_code}}' http://127.0.0.1:{t['port']}/api/state", check=False)
         if o.strip() == "200":
             return True
     return False
 
 
-def tunebox_playing(ele: Ele) -> bool:
+def tunebox_playing(srv: Server, t) -> bool:
     """Tunebox restores its queue paused after a restart; note whether it was playing."""
-    rc, o, _ = ele.run("curl -s --max-time 5 http://127.0.0.1:8888/api/state", check=False)
+    rc, o, _ = srv.run(f"curl -s --max-time 5 http://127.0.0.1:{t['port']}/api/state", check=False)
     try:
         st = json.loads(o)
         return bool(st.get("current")) and not st.get("paused") and not st.get("idle")
@@ -222,11 +168,11 @@ def tunebox_playing(ele: Ele) -> bool:
         return False
 
 
-def resume_tunebox(ele: Ele):
+def resume_tunebox(srv: Server, t):
     """Presses play again, so a deploy is only a short gap in the music."""
     for _ in range(10):
-        rc, o, _ = ele.run("curl -s --max-time 5 -H 'Content-Type: application/json' "
-                           "-d '{\"action\":\"toggle\"}' http://127.0.0.1:8888/api/control", check=False)
+        rc, o, _ = srv.run("curl -s --max-time 5 -H 'Content-Type: application/json' "
+                           f"-d '{{\"action\":\"toggle\"}}' http://127.0.0.1:{t['port']}/api/control", check=False)
         if '"ok"' in o:
             say("ok", "music was playing - pressed play again")
             return
@@ -234,134 +180,137 @@ def resume_tunebox(ele: Ele):
     say("warn", "music was playing but didn't resume - press play in Tunebox")
 
 
-def deploy(dry=False) -> int:
-    if not reachable():
-        say("ele", f"{HOST} is not reachable from here - nothing deployed")
+def deploy(name="", choose=False, dry=False) -> int:
+    server, srv = open_server(name, choose)
+    if not srv:
         return 1
-    client = connect()
-    if not client:
-        return 1
-    ele = Ele(client)
-    changes, removals = compare(ele)
-    report_system(ele)
+    try:
+        t = target(server, srv)
+        return push(server, srv, t, dry) if t else 1
+    finally:
+        srv.close()
+
+
+def push(server, srv: Server, t, dry) -> int:
+    rdir, where = t["dir"], server["name"]
+    changes, removals = compare(srv, rdir)
+    report_system(srv, t)
     if not changes and not removals:
-        say("ele", "ele already runs exactly these files - nothing to deploy")
+        say("srv", f"{where} already runs exactly these files - nothing to deploy")
         return 0
     print()
-    for m, f, delta in changes:
-        say("diff", f"{m['local']}/{f}  ->  {m['remote']}/{f}   ({delta})")
-    for m, f in removals:
-        say("gone", f"{m['remote']}/{f}   (no longer in {m['local']}/, will be removed)")
+    for f, delta in changes:
+        say("diff", f"{f}  ->  {rdir}/{f}   ({delta})")
+    for f in removals:
+        say("gone", f"{rdir}/{f}   (no longer here, will be removed)")
     if dry:
         return 0
-    if input("\nupload these to ele? (y/n): ").strip().lower() != "y":
-        say("ele", "skipped - nothing uploaded")
+    if input(f"\nupload these to {where}? (y/n): ").strip().lower() != "y":
+        say("srv", "skipped - nothing uploaded")
         return 1
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tmp = f"/tmp/tunebox-deploy-{stamp}"
-    failed = False
-    by_module = {}
-    for m, f, _ in changes:
-        by_module.setdefault(m["name"], [m, [], []])[1].append(f)
-    for m, f in removals:
-        by_module.setdefault(m["name"], [m, [], []])[2].append(f)
-    for name, (m, files, gone) in by_module.items():
-        rdir, bak = m["remote"], f"{m['remote']}/.bak/{stamp}"
-        existing = []
-        try:
-            for f in files:
-                ele.run(f"mkdir -p {tmp}/{name}/{posixpath.dirname(f) or '.'}")
-                ele.sftp.put(str(ROOT / m["local"] / f), f"{tmp}/{name}/{f}")
-                if f.endswith(".py"):     # never swap in a file that doesn't even compile
-                    ele.run(f"/opt/homeapps/venv/bin/python -m py_compile {tmp}/{name}/{f}")
-            existing = [f for f in files + gone if ele.read(f"{rdir}/{f}") is not None]
-            ele.run(f"sudo mkdir -p {bak} && sudo chown --reference={rdir} {rdir}/.bak {bak}"   # the app's owner, not root
-                    + (f" && cd {rdir} && sudo cp -p --parents {quoted(existing)} {bak}/" if existing else ""))
-            ele.run(f"cd {rdir}/.bak && ls -1d */ | head -n -{KEEP_BACKUPS} | xargs -r sudo rm -rf")
-            for f in files:              # cp onto the old file keeps its owner and mode
-                d = posixpath.dirname(f)
-                ele.run((f"sudo mkdir -p {rdir}/{d} && sudo chown --reference={rdir} {rdir}/{d} && " if d else "")
-                        + f"sudo cp {tmp}/{name}/{f} {rdir}/{f} && sudo chown --reference={rdir} {rdir}/{f}")
-            if gone:
-                ele.run(f"cd {rdir} && sudo rm -f {quoted(gone)}")
-                for d in m.get("dirs", []):   # folders left empty go too
-                    ele.run(f"cd {rdir} && [ -d {d} ] && sudo find {d} -mindepth 1 -type d -empty -delete", check=False)
-            say("up", f"{name}: {len(files)} updated, {len(gone)} removed (old copies in {bak})")
-        except RuntimeError as e:
-            say("err", f"{name}: {e}")
-            failed = True
-            continue
-
-        if not any(f.endswith(".py") for f in files + gone):
-            continue                     # pages, CSS and JS are read from disk per request
-        service = ele.service_for(rdir)
-        if not service:
-            say("warn", f"{name}: no systemd unit runs from {rdir} - restart it by hand")
-            continue
-        playing = name == "music" and tunebox_playing(ele)
-        say("svc", f"restarting {service}")
-        ele.run(f"sudo systemctl restart {service}", check=False)
-        if healthy(ele, m, service):
-            say("ok", f"{service} is up")
-            if playing:
-                resume_tunebox(ele)
-            continue
-        failed = True
-        say("err", f"{service} did not come back healthy. Last log lines:")
-        print(ele.run(f"sudo journalctl -u {service} -n 25 --no-pager", check=False)[1])
-        if input(f"roll {name} back to the previous files? (y/n): ").strip().lower() == "y":
-            added = [f for f in files if f not in existing]
-            if added:
-                ele.run(f"cd {rdir} && sudo rm -f {quoted(added)}", check=False)
-            if existing:
-                ele.run(f"sudo cp -a {bak}/. {rdir}/", check=False)
-            ele.run(f"sudo systemctl restart {service}", check=False)
-            back = healthy(ele, m, service)
-            say("ok" if back else "err", f"{service} rolled back" + ("" if back else " but still not healthy"))
-    ele.run(f"rm -rf {tmp}", check=False)
-    client.close()
-    return 1 if failed else 0
-
-
-def pull_data() -> int:
-    if not reachable():
-        say("ele", f"{HOST} is not reachable from here")
+    tmp, bak = f"/tmp/tunebox-deploy-{stamp}", f"{rdir}/.bak/{stamp}"
+    files, gone = [f for f, _ in changes], removals
+    existing = []
+    try:
+        for f in files:
+            srv.run(f"mkdir -p {tmp}/{posixpath.dirname(f) or '.'}")
+            srv.sftp.put(str(ROOT / f), f"{tmp}/{f}")
+            if f.endswith(".py"):         # never swap in a file that doesn't even compile
+                srv.run(f"{t['python']} -m py_compile {tmp}/{f}")
+        existing = [f for f in files + gone if srv.read(f"{rdir}/{f}") is not None]
+        srv.run(f"sudo mkdir -p {bak} && sudo chown --reference={rdir} {rdir}/.bak {bak}"   # the app's owner, not root
+                + (f" && cd {rdir} && sudo cp -p --parents {quoted(existing)} {bak}/" if existing else ""))
+        srv.run(f"cd {rdir}/.bak && ls -1d */ | head -n -{KEEP_BACKUPS} | xargs -r sudo rm -rf")
+        for f in files:                   # cp onto the old file keeps its owner and mode
+            d = posixpath.dirname(f)
+            srv.run((f"sudo mkdir -p {rdir}/{d} && sudo chown --reference={rdir} {rdir}/{d} && " if d else "")
+                    + f"sudo cp {tmp}/{f} {rdir}/{f} && sudo chown --reference={rdir} {rdir}/{f}")
+        if gone:
+            srv.run(f"cd {rdir} && sudo rm -f {quoted(gone)}")
+            for d in DIRS:                # folders left empty go too
+                srv.run(f"cd {rdir} && [ -d {d} ] && sudo find {d} -mindepth 1 -type d -empty -delete", check=False)
+        say("up", f"{len(files)} updated, {len(gone)} removed (old copies in {bak})")
+    except RuntimeError as e:
+        say("err", str(e))
+        srv.run(f"rm -rf {tmp}", check=False)
         return 1
-    print("This replaces the emulator's local data with ele's live data (the old local copy is kept).")
+    srv.run(f"rm -rf {tmp}", check=False)
+
+    if not any(f.endswith(".py") for f in files + gone):
+        return 0                          # pages, CSS and JS are read from disk per request
+    service = t["service"]
+    playing = tunebox_playing(srv, t)
+    say("svc", f"restarting {service}")
+    srv.run(f"sudo systemctl restart {service}", check=False)
+    if healthy(srv, t):
+        say("ok", f"{service} is up")
+        if playing:
+            resume_tunebox(srv, t)
+        return 0
+    say("err", f"{service} did not come back healthy. Last log lines:")
+    print(srv.run(f"sudo journalctl -u {service} -n 25 --no-pager", check=False)[1])
+    if input("roll back to the previous files? (y/n): ").strip().lower() == "y":
+        added = [f for f in files if f not in existing]
+        if added:
+            srv.run(f"cd {rdir} && sudo rm -f {quoted(added)}", check=False)
+        if existing:
+            srv.run(f"sudo cp -a {bak}/. {rdir}/", check=False)
+        srv.run(f"sudo systemctl restart {service}", check=False)
+        back = healthy(srv, t)
+        say("ok" if back else "err", f"{service} rolled back" + ("" if back else " but still not healthy"))
+    return 1
+
+
+def pull_data(name="", choose=False) -> int:
+    server, srv = open_server(name, choose)
+    if not srv:
+        return 1
+    print(f"This replaces the emulator's local data with {server['name']}'s live data (the old local copy is kept).")
     print("Stop server.bat first, or it may write over what arrives.")
-    client = connect()
-    if not client:
-        return 1
-    ele = Ele(client)
-    data = ROOT / "dev" / "data"
-    keep = data / ".old" / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    for remote, local in DATA_FILES:
-        body = ele.read(remote)
-        if body is None:
-            say("skip", f"{remote} (not on ele)")
-            continue
-        dest = data / local
-        if dest.exists():
-            (keep / local).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(dest, keep / local)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(body)
-        say("got", f"{remote} -> dev/data/{local}")
-    client.close()
-    return 0
+    try:
+        t = target(server, srv)
+        if not t:
+            return 1
+        data = ROOT / "dev" / "data"
+        keep = data / ".old" / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        for f in DATA_FILES:
+            remote = posixpath.join(t["data"], f)
+            body = srv.read(remote)
+            if body is None:
+                say("skip", f"{remote} (not there)")
+                continue
+            dest = data / f
+            if dest.exists():
+                keep.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dest, keep / f)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(body)
+            say("got", f"{remote} -> dev/data/{f}")
+        return 0
+    finally:
+        srv.close()
 
 
 def main():
-    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    if cmd == "check":
-        ok = reachable()
-        say("ele", f"reachable at {HOST}" if ok else f"not reachable (tried {', '.join(CANDIDATES)})")
-        return 0 if ok else 1
+    args = [a for a in sys.argv[1:] if a != "--ask"]
+    choose = "--ask" in sys.argv
+    cmd, name = (args + ["", ""])[:2]
+    if cmd == "check":                    # never asks anything: save.bat runs it quietly
+        server = servers.pick(BUILTIN, name, interactive=False)
+        if not server:
+            return 1
+        host = servers.reachable(server)
+        say("srv", f"{server['name']} reachable at {host}" if host
+            else f"{server['name']} not reachable (tried {', '.join(server['hosts'])})")
+        return 0 if host else 1
     if cmd in ("deploy", "status"):
-        return deploy(dry=cmd == "status")
+        return deploy(name, choose, dry=cmd == "status")
     if cmd == "pull-data":
-        return pull_data()
+        return pull_data(name, choose)
+    if cmd == "servers":
+        return servers.manage(BUILTIN)
     print(__doc__)
     return 2
 
