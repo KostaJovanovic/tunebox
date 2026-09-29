@@ -5,7 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import data
+from .. import auth, data
 from ..config import HISTORY_MAX, LIKED_ID
 from ..data import clean_track, list_summary, playlists, save_lists, sorted_lists
 from ..player import player
@@ -21,8 +21,13 @@ async def get_history(limit: int = 100):
     return data.history[:max(1, min(limit, HISTORY_MAX))]
 
 
+class AdminBody(BaseModel):
+    admin: str | None = None
+
+
 @router.delete("/api/history")
-async def clear_history():
+async def clear_history(body: AdminBody | None = None):
+    await auth.need_admin(body and body.admin)
     data.clear_history()
     return {"ok": True}
 

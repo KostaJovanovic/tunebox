@@ -1,8 +1,9 @@
 /* "Who's listening?": pick, add or edit the name this device adds songs as (top-bar badge), and the
    People list in Settings. It also opens by itself the first time someone adds a song without a name. */
 import { $, esc } from "../../shared/dom.js";
-import { errText, setNameAsker } from "../../shared/api.js";
-import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, avatar, semTags } from "../../shared/people.js";
+import { api, errText, setNameAsker } from "../../shared/api.js";
+import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTags } from "../../shared/people.js";
+import { askPhrase, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
 import { toast, syncScrim, onCloseAll } from "./ui.js";
 
@@ -27,7 +28,16 @@ function closeWho(chosen = false) {
 onCloseAll(() => { if (waiting) { waiting(false); waiting = null; } });
 setNameAsker(() => { openWho(); return new Promise(r => waiting = r); });
 
-function choose(id) {
+/* a name with a pass phrase: this device types it once */
+async function unlocked(id) {
+  const p = people[id];
+  if (!p.locked || p.mine) return true;
+  return await askPhrase({ title: `${p.name}'s pass phrase`, hint: "This name has a pass phrase. Type it once on this device.",
+    button: "Unlock", check: ph => unlockPerson(id, ph) }) !== null;
+}
+
+async function choose(id) {
+  if (!await unlocked(id)) return;
   if (!people[id].seminars?.length) return askSeminar(id);
   setMe(id);
   paintMe(); renderPeople(); closeWho(true);
@@ -35,7 +45,7 @@ function choose(id) {
 }
 
 export function renderWho() {
-  const cur = myId(), ps = sortedPeople();
+  const cur = me()?.id, ps = sortedPeople();
   $("#whoList").innerHTML = ps.length ? ps.map(p => `<button class="pick${p.id === cur ? " on" : ""}" data-act="who-set" data-id="${esc(p.id)}">${avatar(p)}
     <div class="min0"><div class="t">${esc(p.name)}</div><div class="s">${semTags(p)}</div></div><span class="ok"></span></button>`).join("")
     : '<div class="note tight">No names yet. Add yours below.</div>';
@@ -49,6 +59,9 @@ function resetForm(p = null) {
   pickSems = new Set(p?.seminars || []); other = false; $("#whoOther").value = ""; finishing = false;
   $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
   $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Who's listening?";
+  $("#whoPhrase").value = "";
+  $("#whoPhrase").placeholder = p?.locked ? "New pass phrase (empty: keep it)" : "Pass phrase (optional)";
+  $("#whoPhraseOff").hidden = !p?.locked;
   $("#whoList").hidden = !!p;
   paintForm();
 }
@@ -66,11 +79,11 @@ $("#whoForm").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("#whoName").value.trim(), typed = $("#whoOther").value.trim();
   if (!name) return $("#whoName").focus();
-  const sems = [...pickSems, ...(other && typed ? [typed] : [])];
+  const sems = [...pickSems, ...(other && typed ? [typed] : [])], phrase = $("#whoPhrase").value;
   if (other && typed.length !== 3) return formMsg("Other: type the seminar's 3 letters"), $("#whoOther").focus();
   if (!sems.length) return formMsg("Pick your seminar");
   try {
-    const p = await savePerson(editing, { name, color: pickColor, emoji: pickEmoji, seminars: sems });
+    const p = await savePerson(editing, { name, color: pickColor, emoji: pickEmoji, seminars: sems, ...(phrase.trim() ? { phrase } : {}) });
     if (finishing || !editing) choose(p.id);
     else { closeWho(); renderPeople(); paintMe(); toast("Saved"); }
   } catch (err) { formMsg(errText(err)); }
@@ -97,15 +110,51 @@ export function checkSeminar() {
 /* ---------- Settings → People ---------- */
 export function renderPeople() {
   const cur = myId();
-  $("#peopleList").innerHTML = sortedPeople().map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)} ${semTags(p, "sm")}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>
-    <div class="acts"><button data-act="person-edit" data-id="${esc(p.id)}">Edit</button><button data-act="person-remove" data-id="${esc(p.id)}">Remove</button></div></div>`).join("")
+  $("#peopleList").innerHTML = sortedPeople().map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)} ${semTags(p, "sm")}${p.locked ? '<span class="lock" title="Has a pass phrase">🔒</span>' : ""}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>
+    <div class="acts">${p.locked && !p.mine ? `<button data-act="person-reset" data-id="${esc(p.id)}" title="Forgotten pass phrase: take it off with the admin pass phrase">Reset</button>` : ""}<button data-act="person-edit" data-id="${esc(p.id)}">Edit</button><button data-act="person-remove" data-id="${esc(p.id)}">Remove</button></div></div>`).join("")
     || '<p class="hint tight">No names yet.</p>';
 }
 
 async function remove(id) {
   if (!confirm(`Remove ${people[id].name}? Their songs stay in the queue.`)) return;
-  await removePerson(id);
+  if (await withAdmin(admin => removePerson(id, admin)) === null) return;
   renderPeople(); paintMe();
+}
+
+async function resetPhrase(id) {
+  const name = people[id].name;
+  if (!confirm(`Take the pass phrase off ${name}? Anyone can then pick the name and set a new one.`)) return;
+  if (await withAdmin(admin => api(`api/people/${id}/reset`, { admin })) === null) return;
+  people[id].locked = false; renderPeople(); toast(`${name} has no pass phrase now`);
+}
+
+async function phraseOff() {
+  const p = await savePerson(editing, { phrase: "" });
+  $("#whoPhraseOff").hidden = true; $("#whoPhrase").placeholder = "Pass phrase (optional)";
+  renderPeople(); toast(`${p.name} has no pass phrase now`);
+}
+
+/* ---------- the admin pass phrase (Settings → People) ---------- */
+let adminSet = false;
+export async function paintAdmin() {
+  try { adminSet = (await api("api/admin")).set; } catch { return; }
+  $("#adminState").textContent = `Admin pass phrase: ${adminSet ? "set" : "not set"}`;
+  $("#adminBtn").textContent = adminSet ? "Change" : "Set";
+}
+
+async function setAdmin() {
+  let old;
+  if (adminSet && (old = await askPhrase({ title: "Current admin pass phrase" })) === null) return;
+  const nu = await askPhrase({ title: "New admin pass phrase", button: "Next", allowEmpty: adminSet,
+    hint: adminSet ? "At least 4 characters. Leave it empty to remove the admin pass phrase." : "At least 4 characters." });
+  if (nu === null) return;
+  if (nu.trim() && await askPhrase({ title: "Type it again", button: "Save",
+    check: async v => { if (v !== nu) throw new Error("That's not the same"); } }) === null) return;
+  try {
+    const r = await api("api/admin", { old, new: nu.trim() ? nu : null });
+    toast(r.set ? "Admin pass phrase saved" : "Admin pass phrase removed");
+  } catch (e) { toast(errText(e)); }
+  paintAdmin();
 }
 
 /* ---------- wiring ---------- */
@@ -116,5 +165,8 @@ on("who-color", el => { pickColor = el.dataset.c; paintForm(); });
 on("who-emoji", el => { pickEmoji = el.dataset.e; paintForm(); });
 on("who-sem", el => { const s = el.dataset.s; pickSems.has(s) ? pickSems.delete(s) : pickSems.add(s); paintForm(); });
 on("who-sem-other", () => { other = !other; paintForm(); if (other) $("#whoOther").focus(); });
-on("person-edit", el => { openWho(); resetForm(people[el.dataset.id]); });
+on("person-edit", async el => { const id = el.dataset.id; if (await unlocked(id)) { openWho(); resetForm(people[id]); } });
 on("person-remove", el => remove(el.dataset.id));
+on("person-reset", el => resetPhrase(el.dataset.id));
+on("who-phrase-off", phraseOff);
+on("admin-set", setAdmin);

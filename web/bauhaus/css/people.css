@@ -34,3 +34,9 @@
 .sems button.on { background: var(--c, var(--text)); color: #fff; }
 .sems button:not([style]).on { color: var(--bg); }
 .whoform .field.other { flex: none; width: 120px; text-transform: uppercase; }
+.prow .lock { font-size: 11px; margin-left: 2px; }
+.whoform .link, .adminrow .link { color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.whoform .link:hover, .adminrow .link:hover { text-decoration: underline; }
+.adminrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0 4px; font-weight: 600; }
+#phraseForm .hint { width: 100%; }
+#phraseForm .msg:empty { display: none; }

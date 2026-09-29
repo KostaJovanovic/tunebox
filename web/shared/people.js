@@ -1,5 +1,6 @@
 /* People: who's listening on this device. The name is picked once per device (cookie tb_who, which the
-   server reads to know who added a song). Anyone can add, rename or remove names. */
+   server reads to know who added a song). Anyone can add names; a name with a pass phrase can only be
+   picked or changed on a device that typed it, and removing names may need the admin pass phrase. */
 import { cookie, esc, setCookie } from "./dom.js";
 import { api } from "./api.js";
 
@@ -12,7 +13,8 @@ export let seminars = {};                      /* {id: {id, name, color}}: Ele, 
 let peopleRev = null;
 
 export const myId = () => cookie("tb_who");
-export const me = () => people[myId()] || null;
+/* this device's name; a name with a pass phrase only once this device has typed it (p.mine) */
+export const me = () => { const p = people[myId()]; return p && (!p.locked || p.mine) ? p : null; };
 export const sortedPeople = () => Object.values(people).sort((a, b) => a.name.localeCompare(b.name));
 
 /* Reloads the names when the server says they changed (state.peopleRev); true if they did */
@@ -34,8 +36,14 @@ export async function savePerson(id, fields) {
   return p;
 }
 
-export async function removePerson(id) {
-  await api(`api/people/${id}`, undefined, "DELETE");
+/* this device knows the name's pass phrase: the server hands it a key (cookie) */
+export async function unlockPerson(id, phrase) {
+  await api(`api/people/${id}/unlock`, { phrase });
+  people[id].mine = true;
+}
+
+export async function removePerson(id, admin) {
+  await api(`api/people/${id}`, { admin }, "DELETE");
   delete people[id];
 }
 

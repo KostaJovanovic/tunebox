@@ -212,6 +212,8 @@
       <p>Everyone picks their name and seminar once per device, so the queue shows who added what.</p>
       <div id="peopleList"></div>
       <div class="eqtools"><button class="btn" data-act="who-open">Switch or add a name</button></div>
+      <p class="adminrow"><span id="adminState">Admin pass phrase: not set</span><button class="link" data-act="admin-set" id="adminBtn">Set</button></p>
+      <p class="hint tight">A name can have its own pass phrase, asked once per device. The admin pass phrase guards removing people, clearing the history and resetting a forgotten pass phrase.</p>
     </div>
 
     <div class="sec"><b>08</b><h2>This device</h2></div>
@@ -259,9 +261,21 @@
     <div class="lbl">Seminar <span>pick one or more</span></div>
     <div class="sems" id="whoSems"></div>
     <input class="field other" id="whoOther" placeholder="3 letters" maxlength="3" autocomplete="off" hidden>
+    <input class="field" id="whoPhrase" type="password" placeholder="Pass phrase (optional)" autocomplete="new-password">
+    <button type="button" class="link" id="whoPhraseOff" data-act="who-phrase-off" hidden>Remove the pass phrase</button>
     <div class="swatches" id="whoColors"></div>
     <div class="emojis" id="whoEmoji"></div>
     <div class="msg" id="whoMsg"></div>
+  </form>
+</div>
+
+<div class="modal" id="phrase" role="dialog" aria-label="Pass phrase">
+  <div class="dhead"><h2><i></i><span id="phraseTitle">Pass phrase</span></h2><button data-act="phrase-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <form class="newform whoform" id="phraseForm">
+    <p class="hint tight" id="phraseHint"></p>
+    <input class="field" id="phraseIn" type="password" autocomplete="off" placeholder="Pass phrase"><button class="btn red" id="phraseOk">OK</button>
+    <div class="msg err" id="phraseMsg"></div>
   </form>
 </div>
 

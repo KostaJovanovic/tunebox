@@ -1,11 +1,12 @@
-"""People: who's listening, picked per device (cookie tb_who), so the queue can show who added what."""
+"""People: who's listening, picked per device (cookie tb_who), so the queue can show who added what;
+their seminars; pass phrases for names (optional) and the admin phrase (see auth.py)."""
 import asyncio
 import re
 import secrets
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 
-from .. import data
+from .. import auth, data
 from ..config import SEMINARS
 from ..data import people, save_people
 from ..web import BaseModel
@@ -21,6 +22,7 @@ class PersonBody(BaseModel):
     color: str | None = None
     emoji: str | None = None
     seminars: list[str] | None = None         # ids or names; a new 3-letter name adds that seminar
+    phrase: str | None = None                 # a new pass phrase; "" takes it off
 
 
 def person_fields(p: dict, body: PersonBody) -> None:
@@ -62,8 +64,8 @@ def pick_seminars(names: list[str]) -> list[str]:
 
 
 @router.get("/api/people")
-async def all_people():
-    return sorted(people.values(), key=lambda p: p["name"].lower())
+async def all_people(request: Request):
+    return sorted((auth.public(p, request) for p in people.values()), key=lambda p: p["name"].lower())
 
 
 @router.get("/api/seminars")
@@ -72,32 +74,95 @@ async def all_seminars():
     return sorted(data.seminars.values(), key=lambda s: (s["id"] not in SEMINARS, s["name"]))
 
 
+def set_phrase(p: dict, phrase: str | None):
+    """None: unchanged; "": none any more; else the new one (every other device must type it again)."""
+    if phrase is not None:
+        p["phrase"] = auth.hash_phrase(auth.clean_phrase(phrase)) if phrase else None
+        if not p["phrase"]:
+            del p["phrase"]
+
+
 @router.post("/api/people")
-async def add_person(body: PersonBody):
+async def add_person(body: PersonBody, request: Request, response: Response):
     async with people_lock:
         p = {"id": secrets.token_hex(4), "name": "", "color": "#1F5FBF", "emoji": "", "seminars": []}
         person_fields(p, PersonBody(name=body.name or "", color=body.color, emoji=body.emoji,
                                     seminars=body.seminars or []))
+        set_phrase(p, body.phrase or None)
         people[p["id"]] = p
         save_people()
-    return p
+    auth.give_key(response, p["id"])
+    return {**auth.public(p, request), "mine": True}
 
 
 @router.patch("/api/people/{pid}")
-async def edit_person(pid: str, body: PersonBody):
+async def edit_person(pid: str, body: PersonBody, request: Request, response: Response):
     async with people_lock:
         if pid not in people:
             raise HTTPException(404, "No such person")
+        if not auth.holds_key(request, pid):
+            raise HTTPException(403, "Only they can change it: that name has a pass phrase")
         person_fields(people[pid], body)
+        set_phrase(people[pid], body.phrase)
         save_people()
-    return people[pid]
+    auth.give_key(response, pid)
+    return {**auth.public(people[pid], request), "mine": True}
+
+
+class PhraseBody(BaseModel):
+    phrase: str | None = None
+    admin: str | None = None
+
+
+@router.post("/api/people/{pid}/unlock")
+async def unlock(pid: str, body: PhraseBody, response: Response):
+    """This device knows the name's pass phrase: it may use the name from now on."""
+    if pid not in people:
+        raise HTTPException(404, "No such person")
+    if not await auth.matches(body.phrase, people[pid].get("phrase")):
+        raise HTTPException(403, "Wrong pass phrase")
+    auth.give_key(response, pid)
+    return {"ok": True}
+
+
+@router.post("/api/people/{pid}/reset")
+async def reset_phrase(pid: str, body: PhraseBody):
+    """A forgotten pass phrase: the admin phrase takes it off (then anyone can set a new one)."""
+    if not auth.admin_set():
+        raise HTTPException(400, "Set an admin pass phrase in Settings first")
+    await auth.need_admin(body.admin)
+    async with people_lock:
+        if pid not in people:
+            raise HTTPException(404, "No such person")
+        people[pid].pop("phrase", None)
+        save_people()
+    return {"ok": True}
 
 
 @router.delete("/api/people/{pid}")
-async def remove_person(pid: str):
+async def remove_person(pid: str, body: PhraseBody | None = None):
     """Their songs stay where they are; they just show no name any more."""
+    await auth.need_admin(body and body.admin)
     async with people_lock:
         people.pop(pid, None)
         save_people()
     return {"ok": True}
 
+
+# ---------- the admin pass phrase ----------
+class AdminBody(BaseModel):
+    old: str | None = None
+    new: str | None = None                    # "" or null: no admin phrase any more
+
+
+@router.get("/api/admin")
+async def admin_state():
+    return {"set": auth.admin_set()}
+
+
+@router.post("/api/admin")
+async def set_admin(body: AdminBody):
+    if auth.admin_set() and not await auth.matches(body.old, auth.keys["admin"]):
+        raise HTTPException(403, "Wrong admin pass phrase")
+    auth.set_admin(body.new)
+    return {"set": auth.admin_set()}

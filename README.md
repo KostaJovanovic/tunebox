@@ -19,6 +19,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Take turns (on by default): songs from different people alternate, so nobody takes over the queue
 - Undo for every queue change (the toast, the Up next drawer, or Z), and an Earlier queues list to restore from
 - People: everyone picks a name (with colour and emoji) and one or more seminars (Ele, Fiz, Teh, or any 3-letter one typed under Other) once per device; the queue and history show who added each song, with their seminars, and likes remember who liked them. Adding songs asks for a name first
+- Pass phrases (optional): a name can have one, asked once per device before it can be used; an admin pass phrase guards removing people and clearing the history, and resets a forgotten one
 - On touch screens, swipe a queued song left to remove it or right to play it next; the grip drags it
 - A wall screen at `/wall` for a tablet or TV: cover, synced lyrics and big controls; a dimmed clock when nothing plays. It keeps the screen on only over HTTPS (or localhost), since browsers allow wake locks only there
 - Gapless hand-over: the next track is preloaded 20 s before the current one ends
@@ -32,7 +33,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - One interface at `/`; the old `/classic` and `/bauhaus` addresses redirect there
 - Optional sign-in with your YouTube Music cookies for personalised Home and radio (playback stays anonymous)
 
-There is no authentication: it is meant for a trusted local network only. It does refuse requests that don't come from it:
+There are no accounts to sign in to (pass phrases only guard names and a few admin actions): it is meant for a trusted local network only. It does refuse requests that don't come from it:
 
 - The `Host` header must be a private, loopback or Tailscale (100.64.0.0/10) address, a `*.ts.net` name, or one of the names in `LOCAL_NAMES` in `tunebox/config.py`. **Put your server's hostname(s) there**, otherwise opening it by name gives `403 Unknown host` (by IP address always works). This blocks DNS-rebinding attacks from web pages.
 - Writes carrying a foreign `Origin` are refused, and request bodies must be JSON, so other websites can't drive the player from your browser.
@@ -132,6 +133,7 @@ They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emula
 | `people.json` | names picked on devices (name, colour, emoji, seminars) |
 | `seminars.json` | seminars added under Other (Ele, Fiz and Teh are built in) |
 | `stats.json` | when each song played, last 30 days (for Most played), saved at most every minute |
+| `keys.json` | the admin pass phrase (salted hash) and the secret that signs devices' name keys |
 | `browser.json` | YouTube Music sign-in headers, only if you sign in (contains your cookies) |
 
 ## Updating yt-dlp

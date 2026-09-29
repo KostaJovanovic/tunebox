@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel as PydanticModel, ConfigDict
 
-from . import data
+from . import auth, data
 from .config import CGNAT, LOCAL_NAMES
 from .mpv import PlayerDown
 
@@ -72,9 +72,10 @@ def install(app: FastAPI):
 
 
 def who(request: Request) -> str:
-    """The person this device picked (cookie tb_who), or "" for nobody or a removed name."""
+    """The person this device picked (cookie tb_who), or "" for nobody, a removed name, or a protected
+    name this device hasn't unlocked."""
     pid = request.cookies.get("tb_who") or ""
-    return pid if pid in data.people else ""
+    return pid if pid in data.people and auth.holds_key(request, pid) else ""   # a protected name needs its key
 
 
 def need_who(request: Request) -> str:

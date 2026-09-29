@@ -7,6 +7,7 @@ import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
 import { askPlay } from "./ask.js";
+import { withAdmin } from "./phrase.js";
 import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 import { toggleCanvas } from "./player.js";
 
@@ -146,7 +147,7 @@ export async function showHistory() {
 
 async function clearHistory() {
   if (!confirm("Clear the play history for everyone?")) return;
-  await api("api/history", undefined, "DELETE");
+  if (await withAdmin(admin => api("api/history", { admin }, "DELETE")) === null) return;
   showHistory();
 }
 

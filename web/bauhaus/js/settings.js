@@ -6,6 +6,7 @@ import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash } from "./ui.js";
+import { paintAdmin } from "./who.js";
 
 const FREQ_LABEL = f => f >= 1000 ? `${f / 1000}k` : String(f);
 const PRESET_NAMES = { flat: "Flat", bass: "Bass", treble: "Treble", vocal: "Vocal", rock: "Rock", pop: "Pop", electronic: "Electro",
@@ -25,7 +26,7 @@ export function toggleSettings(open) {
   if (!open) clearHash();
 }
 
-async function loadSettings() { cfg = await api("api/settings"); renderSettings(); }
+async function loadSettings() { paintAdmin(); cfg = await api("api/settings"); renderSettings(); }
 
 function renderSettings() {
   const presets = { ...cfg.presets, custom: cfg.eq.custom };
