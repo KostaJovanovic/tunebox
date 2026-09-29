@@ -86,6 +86,8 @@ async def cached(key: str, fn, ttl: float = 3600):
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
     data = await fn()
+    if len(_browse_cache) >= 300:             # moods and house mixes add keys: drop the oldest
+        del _browse_cache[next(iter(_browse_cache))]
     _browse_cache[key] = (time.time(), data)
     return data
 
@@ -123,14 +125,19 @@ class Resolver:
             loop = asyncio.get_running_loop()
             self.pending[vid] = loop.run_in_executor(None, self._extract, vid)
         try:
-            url = await self.pending[vid]
+            url = await asyncio.shield(self.pending[vid])   # one caller giving up mustn't cancel it for the others
         except Exception:
             self.failed[vid] = time.time()
             raise
         finally:
             self.pending.pop(vid, None)
         self.failed.pop(vid, None)
-        self.cache[vid] = (time.time(), url)
+        now = time.time()
+        for k in [k for k, (at, _) in self.cache.items() if now - at > URL_TTL]:
+            del self.cache[k]                 # expired: they'd be resolved again anyway
+        for k in [k for k, at in self.failed.items() if now - at > FAIL_TTL]:
+            del self.failed[k]
+        self.cache[vid] = (now, url)
         return url
 
     def prefetch(self, vid: str) -> None:

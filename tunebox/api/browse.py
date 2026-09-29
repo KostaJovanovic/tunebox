@@ -107,6 +107,8 @@ async def where(video_id: str):
     if video_id not in _where:
         w = await yt_get("song", youtube.yt.get_watch_playlist, video_id, limit=1)
         t = track_from((w.get("tracks") or [{}])[0]) or {}
+        if len(_where) >= 2000:               # the oldest lookups go first (dicts keep their order)
+            del _where[next(iter(_where))]
         _where[video_id] = {"artistId": t.get("artistId", ""), "albumId": t.get("albumId", "")}
     return _where[video_id]
 

@@ -90,7 +90,9 @@ async def edit_list(list_id: str, body: ListBody):
         if body.name is not None and body.name.strip() and list_id != LIKED_ID:
             p["name"] = body.name.strip()[:80]
         if body.tracks is not None:
-            p["tracks"] = [t for t in map(clean_track, body.tracks) if t]
+            liked_by = {t["videoId"]: t["likedBy"] for t in p["tracks"] if t.get("likedBy")}   # who liked what stays
+            p["tracks"] = [{**t, "likedBy": liked_by[t["videoId"]]} if t["videoId"] in liked_by else t
+                           for t in map(clean_track, body.tracks) if t]
         p["updated"] = int(time.time())
         save_lists()
     return p
