@@ -32,8 +32,24 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 
 There is no authentication: it is meant for a trusted local network only. It does refuse requests that don't come from it:
 
-- The `Host` header must be a private, loopback or Tailscale (100.64.0.0/10) address, a `*.ts.net` name, or one of the names in `LOCAL_NAMES` at the top of `app.py`. **Put your server's hostname(s) there**, otherwise opening it by name gives `403 Unknown host` (by IP address always works). This blocks DNS-rebinding attacks from web pages.
+- The `Host` header must be a private, loopback or Tailscale (100.64.0.0/10) address, a `*.ts.net` name, or one of the names in `LOCAL_NAMES` in `tunebox/config.py`. **Put your server's hostname(s) there**, otherwise opening it by name gives `403 Unknown host` (by IP address always works). This blocks DNS-rebinding attacks from web pages.
 - Writes carrying a foreign `Origin` are refused, and request bodies must be JSON, so other websites can't drive the player from your browser.
+
+## How the code is laid out
+
+| Path | What's in it |
+|---|---|
+| `app.py` | The entry point uvicorn runs: builds the FastAPI app from the parts below |
+| `tunebox/config.py` | Paths, limits, EQ presets, the allowed host names |
+| `tunebox/player.py`, `mpv.py` | The queue, playback, fades, sleep timer and alarm; talking to mpv |
+| `tunebox/youtube.py`, `lyrics.py`, `audio.py` | YouTube Music and yt-dlp; lyrics lookup; volume and EQ maths |
+| `tunebox/data.py`, `settings.py`, `files.py` | History, playlists, people, play counts, settings, and saving them |
+| `tunebox/web.py` | Host/origin checks and error handling for every request |
+| `tunebox/api/` | The HTTP API, one file per area (queue, browse, lists, people, settings, lyrics, pages) |
+| `web/bauhaus/`, `web/classic/`, `web/wall/` | The three pages, each an `index.html` with its `css/` and `js/` (ES modules, no build step) |
+| `web/shared/` | JavaScript every page uses: the API, polling and the queue, likes, names, lyrics, queue gestures, theme |
+
+Buttons say what they do with `data-act="..."`; the module that owns the action registers it with `on(...)` from `web/shared/actions.js`. Pages and their files are sent with `Cache-Control: no-cache`, so a phone picks up a deploy on the next load.
 
 ## Requirements
 
@@ -75,7 +91,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now tunebox
 ```
 
-Then open `http://<server>:8888/` (add the name you use to `LOCAL_NAMES` in `app.py` first, see above).
+Then open `http://<server>:8888/` (add the name you use to `LOCAL_NAMES` in `tunebox/config.py` first, see above).
 
 For a quick manual run instead: `TUNEBOX_RUN=/tmp/tunebox ../venv/bin/uvicorn app:app --host 0.0.0.0 --port 8888` from the `tunebox` folder.
 
@@ -101,7 +117,7 @@ handle_path /music/* {
 
 ## Files it creates
 
-Next to `app.py` (all git-ignored):
+In the app folder, next to `app.py` (all git-ignored):
 
 They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emulator does this).
 
