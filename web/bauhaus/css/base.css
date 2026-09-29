@@ -23,6 +23,9 @@
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 var(--ui); }
 body { transition: background .2s var(--ease), color .2s var(--ease); }
+/* an app, not a document: nothing selects on a click or drag except what you type into */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
 img { display: block; }
