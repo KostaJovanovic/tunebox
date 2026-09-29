@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # tunebox/ sits next 
 from fastapi import FastAPI  # noqa: E402
 
 from tunebox import data, plays, web  # noqa: E402
-from tunebox.api import browse, lists, lyrics, pages, people, queue, settings, stats  # noqa: E402
+from tunebox.api import backup, browse, lists, lyrics, pages, people, queue, settings, stats  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
 from tunebox.settings import flush_settings  # noqa: E402
@@ -41,6 +41,6 @@ async def lifespan(_app):
 
 app = FastAPI(title="Tunebox", lifespan=lifespan)
 web.install(app)
-for area in (pages, queue, browse, lists, people, settings, lyrics, stats):
+for area in (pages, queue, browse, lists, people, settings, lyrics, stats, backup):
     app.include_router(area.router)
 app.mount("/web", pages.NoCacheFiles(directory=WEB_DIR, check_dir=False), name="web")

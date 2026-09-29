@@ -171,6 +171,21 @@ async function setOpt(key, btn) {
   btn.setAttribute("aria-checked", on);
   cfg = await api("api/options", { [key]: on }); renderSettings();
 }
+/* ---------- backup: restore from a downloaded file ---------- */
+$("#restoreFile").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  let backup;
+  try { backup = JSON.parse(await f.text()); } catch { return toast("That file isn't a Tunebox backup"); }
+  const made = backup.made ? new Date(backup.made * 1000).toLocaleString() : "an unknown date";
+  if (!confirm(`Restore the backup from ${made}? It replaces people, playlists, likes, history, stats and settings for everyone.`)) return;
+  try {
+    await api("api/restore", { backup });
+    toast("Restored"); setTimeout(() => location.reload(), 900);
+  } catch (err) { toast(errText(err)); }
+});
+
 $("#xfade").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b) return;

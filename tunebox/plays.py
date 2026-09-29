@@ -56,6 +56,12 @@ def finish():
         _open = None
 
 
+def reset():
+    """The log files were replaced (a restore): read them afresh."""
+    _parsed.clear()
+    _done.clear()
+
+
 def month_file(ts: float) -> Path:
     return PLAYS_DIR / (time.strftime("%Y-%m", time.localtime(ts)) + ".jsonl")
 

@@ -17,9 +17,15 @@ from .files import read_json, write_json
 KEY_AGE = 10 * 365 * 86400                    # a device stays signed in until the phrase changes
 
 keys: dict = read_json(KEYS_FILE, {})         # {"secret": hex, "admin": {"salt", "hash"} | None}
-if not keys.get("secret"):
-    keys["secret"] = secrets.token_hex(32)
-    write_json(KEYS_FILE, keys)
+
+
+def ensure_secret():
+    if not keys.get("secret"):
+        keys["secret"] = secrets.token_hex(32)
+        write_json(KEYS_FILE, keys)
+
+
+ensure_secret()
 
 
 def hash_phrase(phrase: str, salt: str | None = None) -> dict:

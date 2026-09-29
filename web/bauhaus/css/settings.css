@@ -88,3 +88,4 @@ textarea:focus { outline: 2px solid var(--yellow); outline-offset: -1px; }
 .eqplot .dbl.mid { top: 50%; }
 .eqplot .dbl.bot { top: 94%; }
 a.btn { color: inherit; text-decoration: none; }
+label.btn { cursor: pointer; }

@@ -44,8 +44,14 @@ def clear_history():
 
 # ---------- playlists, including the built-in Liked songs ----------
 playlists: dict[str, dict] = read_json(LISTS_FILE, {})
-if LIKED_ID not in playlists:
-    playlists[LIKED_ID] = {"id": LIKED_ID, "name": "Liked songs", "tracks": [], "created": int(time.time()), "updated": int(time.time())}
+
+
+def ensure_liked():
+    if LIKED_ID not in playlists:
+        playlists[LIKED_ID] = {"id": LIKED_ID, "name": "Liked songs", "tracks": [], "created": int(time.time()), "updated": int(time.time())}
+
+
+ensure_liked()
 lists_rev = time.time_ns() // 1_000_000        # bumped on every playlist change, so clients refresh their liked hearts
 
 

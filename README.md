@@ -33,6 +33,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Queue and position survive restarts and crashes (restored paused); mpv is restarted automatically if it dies
 - Skips streams that fail to load and stops after 3 failures in a row; keeps the last 50 played tracks in the queue
 - One interface at `/`; the old `/classic` and `/bauhaus` addresses redirect there
+- Backup and restore (Settings): one file with people, seminars, pass phrases, playlists and likes, history, stats, the play log and settings (never the YouTube sign-in). A restore first saves what it replaces in `backups/`
 - Optional sign-in with your YouTube Music cookies for personalised Home and radio (playback stays anonymous)
 
 There are no accounts to sign in to (pass phrases only guard names and a few admin actions): it is meant for a trusted local network only. It does refuse requests that don't come from it:
@@ -138,6 +139,7 @@ They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emula
 | `plays/` | the play log, one file per month (`2026-09.jsonl`), kept for good: each song that played, who added it and their seminars, and how many seconds were heard. Appended at most once a minute. Stats and the recap read it |
 | `stats.json` | when each song played, last 30 days (for Most played), saved at most every minute |
 | `keys.json` | the admin pass phrase (salted hash) and the secret that signs devices' name keys |
+| `backups/` | what a restore replaced (`before-restore-<time>.json`) |
 | `browser.json` | YouTube Music sign-in headers, only if you sign in (contains your cookies) |
 
 ## Updating yt-dlp
