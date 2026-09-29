@@ -6,7 +6,7 @@
 <meta name="theme-color" id="themeColor" content="#111111">
 <title>Tunebox</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%23111'/><circle cx='9' cy='12' r='6' fill='%23E63B2E'/><path d='M14 6l8 12h-8z' fill='%23F2C230'/></svg>">
-<script src="web/shared/look.js" data-ui="bauhaus"></script>
+<script src="web/shared/look.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Jost:wght@500;600;700&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="web/bauhaus/css/settings.css">
 <link rel="stylesheet" href="web/bauhaus/css/modals.css">
 <link rel="stylesheet" href="web/bauhaus/css/people.css">
+<link rel="stylesheet" href="web/bauhaus/css/menu.css">
 <link rel="stylesheet" href="web/bauhaus/css/phone.css">
 <script type="module" src="web/bauhaus/js/main.js"></script>
 </head>
@@ -216,8 +217,6 @@
     <div class="sec"><b>08</b><h2>This device</h2></div>
     <div class="body">
       <p>Remembered in this browser only; other devices keep their own.</p>
-      <span class="lbl">Interface</span>
-      <div class="seg2"><button class="on" data-act="use-ui" data-ui="bauhaus">Bauhaus</button><button data-act="use-ui" data-ui="classic">Classic</button></div>
       <span class="lbl">Theme</span>
       <div class="seg2 c3" id="themeSeg"><button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
       <span class="lbl">Accent</span>
@@ -287,5 +286,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="ctxback" id="ctxBack"></div>
+<div class="ctx" id="ctx" role="menu" aria-label="Menu"></div>
 </body>
 </html>

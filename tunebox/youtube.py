@@ -34,16 +34,19 @@ def track_from(item: dict) -> dict | None:
     vid = item.get("videoId")
     if not vid:
         return None
-    artists = ", ".join(a["name"] for a in item.get("artists") or [] if a.get("name"))
+    named = [a for a in item.get("artists") or [] if a.get("name")]
     thumbs = item.get("thumbnails") or item.get("thumbnail") or []
     album = item.get("album")
     return {
         "videoId": vid,
         "title": item.get("title", ""),
-        "artist": artists,
+        "artist": ", ".join(a["name"] for a in named),
         "album": album.get("name") if isinstance(album, dict) else (album or ""),
         "duration": item.get("duration") or item.get("length") or "",
         "thumb": thumbs[-1]["url"] if thumbs else "",
+        # for "Go to artist / album": the first artist that has a page (YouTube leaves some without one)
+        "artistId": next((a["id"] for a in named if (a.get("id") or "").startswith("UC")), ""),
+        "albumId": (album.get("id") or "") if isinstance(album, dict) else "",
     }
 
 

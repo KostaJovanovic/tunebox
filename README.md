@@ -12,6 +12,8 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 
 - Search, Home, albums, artists and playlists; Explore has new releases and moods & genres
 - Pasting a YouTube or YouTube Music link into the search box opens its song, album, playlist or artist
+- Right-click (long press on a phone) on any song, album, playlist or artist for a menu: play, play next, add to the end of the queue, add to playlist, like, go to artist or album, copy link. Anywhere else it's the player's own menu; Shift + right-click keeps the browser's
+- The artist and album names in the player, the now playing canvas and an album page open their pages; Back walks back through them
 - Home starts with the house's own shelves: Most played (last 30 days), Liked mix and House mix
 - A two-part queue, like Spotify: the song playing, then the songs people added, then radio. Playing anything while a song is on (tapping a song, its play button, or Play on an album, playlist or history) asks first: Interrupt, Play next, or Add to the end of the queue (the end of the added songs). The Play next and Add all buttons skip the question. The radio always follows the last song someone added and stays after the added songs
 - Take turns (on by default): songs from different people alternate, so nobody takes over the queue
@@ -27,7 +29,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Lyrics from [LRCLIB](https://lrclib.net) (often time-synced), YouTube Music as fallback
 - Queue and position survive restarts and crashes (restored paused); mpv is restarted automatically if it dies
 - Skips streams that fail to load and stops after 3 failures in a row; keeps the last 50 played tracks in the queue
-- Two UIs: `/` (default, or `/bauhaus`) and `/classic`; a `tb_ui=classic` cookie makes `/` serve the classic one. Both have every feature
+- One interface at `/`; the old `/classic` and `/bauhaus` addresses redirect there
 - Optional sign-in with your YouTube Music cookies for personalised Home and radio (playback stays anonymous)
 
 There is no authentication: it is meant for a trusted local network only. It does refuse requests that don't come from it:
@@ -46,7 +48,7 @@ There is no authentication: it is meant for a trusted local network only. It doe
 | `tunebox/data.py`, `settings.py`, `files.py` | History, playlists, people, play counts, settings, and saving them |
 | `tunebox/web.py` | Host/origin checks and error handling for every request |
 | `tunebox/api/` | The HTTP API, one file per area (queue, browse, lists, people, settings, lyrics, pages) |
-| `web/bauhaus/`, `web/classic/`, `web/wall/` | The three pages, each an `index.html` with its `css/` and `js/` (ES modules, no build step) |
+| `web/bauhaus/`, `web/wall/` | The two pages (the player, and the wall screen), each an `index.html` with its `css/` and `js/` (ES modules, no build step) |
 | `web/shared/` | JavaScript every page uses: the API, polling and the queue, likes, names, lyrics, queue gestures, theme |
 
 Buttons say what they do with `data-act="..."`; the module that owns the action registers it with `on(...)` from `web/shared/actions.js`. Pages and their files are sent with `Cache-Control: no-cache`, so a phone picks up a deploy on the next load.

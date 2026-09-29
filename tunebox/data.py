@@ -9,7 +9,7 @@ from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FIL
                      STATS_FILE)
 from .files import read_json, write_json
 
-TRACK_KEYS = ("videoId", "title", "artist", "album", "duration", "thumb")
+TRACK_KEYS = ("videoId", "title", "artist", "album", "duration", "thumb", "artistId", "albumId")
 
 
 def clean_track(t: dict) -> dict | None:

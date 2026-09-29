@@ -1,7 +1,6 @@
 /* Loaded as a plain (blocking) script in <head>, so theme and accent apply before the first paint.
-   Device-only preferences live in localStorage: interface (tb_ui), theme (tb_theme), accent (tb_accent).
-   Its <script> tag names the page's interface: data-ui="bauhaus" or "classic". If this device chose the
-   other one, it switches straight away. The modules reach these through shared/device.js. */
+   Device-only preferences live in localStorage: theme (tb_theme), accent (tb_accent). The modules reach
+   these through shared/device.js. */
 (() => {
   const store = {
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
@@ -15,14 +14,13 @@
     blue:    { name: "Blue",    c: "#1F5FBF", on: "#FFFFFF" },
     magenta: { name: "Magenta", c: "#C8327A", on: "#FFFFFF" },
   };
-  const ui = document.currentScript?.dataset.ui || "";
-  const lightBg = ui === "classic" ? "#f4f5f8" : "#EFEBE1", darkBg = ui === "classic" ? "#0e0f13" : "#111111";
+  const lightBg = "#EFEBE1", darkBg = "#111111";
 
   function apply() {
     const theme = store.get("tb_theme", "auto"), acc = ACCENTS[store.get("tb_accent", "red")] || ACCENTS.red;
     const root = document.documentElement;
     if (theme === "auto") root.removeAttribute("data-theme"); else root.dataset.theme = theme;
-    if (ui !== "classic") { root.style.setProperty("--red", acc.c); root.style.setProperty("--on-red", acc.on); }   /* Classic keeps its pink */
+    root.style.setProperty("--red", acc.c); root.style.setProperty("--on-red", acc.on);
     const light = theme === "light" || (theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
     const m = document.getElementById("themeColor");
     if (m) m.content = light ? lightBg : darkBg;
@@ -31,8 +29,5 @@
   window.look = { store, ACCENTS, apply };
   apply();
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", apply);
-
-  const chosen = store.get("tb_ui", "");
-  if (ui === "bauhaus" && chosen === "classic" && !/\/bauhaus$/.test(location.pathname)) location.replace("classic" + location.hash);
-  if (ui === "classic" && chosen === "bauhaus" && !/\/classic$/.test(location.pathname)) location.replace("bauhaus");
+  try { localStorage.removeItem("tb_ui"); } catch {}      /* left from when there was a Classic interface */
 })();

@@ -3,7 +3,7 @@
 import { $, $$, esc, fmt } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
-import { store, ACCENTS, applyLook, useUi, clearLocal } from "../../shared/device.js";
+import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash } from "./ui.js";
 
@@ -273,5 +273,4 @@ on("alarm-toggle", el => { el.setAttribute("aria-checked", el.getAttribute("aria
 on("alarm-test", () => saveAlarm(true));
 on("account-save", saveAccount);
 on("account-out", signOut);
-on("use-ui", el => useUi(el.dataset.ui));
 on("clear-local", clearLocal);

@@ -1,7 +1,7 @@
 /* The player bar at the bottom, and the now playing canvas (big cover). On a phone the bar is a mini
    bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
-import { $, fmt, secs, cssUrl } from "../../shared/dom.js";
+import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
 import { state, ctl } from "../../shared/playback.js";
 import { fetchLyrics } from "../../shared/lyrics.js";
 import { store } from "../../shared/device.js";
@@ -12,7 +12,10 @@ import { setVol, volumeTouched } from "./settings.js";
 
 const phone = () => innerWidth <= 760;
 const playIcon = s => s.paused || !s.current ? icon.PLAY : icon.PAUSE;
-const subtitle = c => c ? [c.artist, c.album].filter(Boolean).join(" · ") : "Search for something to play";
+/* the artist and album link to their pages */
+const subtitle = c => c ? [c.artist && `<button class="artlink" data-act="goto" data-to="artist">${esc(c.artist)}</button>`,
+  c.album && `<button class="artlink" data-act="goto" data-to="album">${esc(c.album)}</button>`].filter(Boolean).join(" · ") : "Search for something to play";
+const setHtml = (el, html) => { if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; } };
 const upcoming = s => Math.max(0, (s.queue || []).length - 1);
 const countBadge = (el, n) => { el.hidden = !n; el.textContent = n > 99 ? "99+" : n; };
 
@@ -21,7 +24,7 @@ let seeking = false;
 export function paintBar(s) {
   const c = s.current;
   $("#pTitle").textContent = c ? c.title : "Nothing playing";
-  $("#pSub").textContent = subtitle(c);
+  setHtml($("#pSub"), subtitle(c));
   if (c && $("#pImg").dataset.src !== c.thumb) { $("#pImg").src = c.thumb; $("#pImg").dataset.src = c.thumb; }
   $("#pBtn").innerHTML = playIcon(s);
   $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : ""));
@@ -46,7 +49,7 @@ $("#seek").addEventListener("change", async () => { await ctl("seek", +$("#seek"
 let barSwipe = null, barSwiped = 0;
 const bar = $(".player .in"), now = $(".player .now");
 bar.addEventListener("click", e => {
-  if (Date.now() - barSwiped < 400) return;
+  if (Date.now() - barSwiped < 400 || e.target.closest(".artlink")) return;
   if (e.target.closest(".now") || (phone() && !e.target.closest("button, input"))) toggleCanvas(phone() ? true : undefined);
 });
 bar.addEventListener("pointerdown", e => {
@@ -102,7 +105,7 @@ export function paintCanvas(force) {
     $("#cBg").style.backgroundImage = c?.thumb ? cssUrl(c.thumb) : "";
   }
   $("#cTitle").textContent = c ? c.title : "Nothing playing";
-  $("#cSub").textContent = subtitle(c);
+  setHtml($("#cSub"), subtitle(c));
   const dur = s.duration || secs(c?.duration);
   $("#cPos").textContent = fmt(s.position); $("#cDur").textContent = fmt(dur);
   if (!cSeeking) {

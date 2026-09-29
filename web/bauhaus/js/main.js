@@ -7,7 +7,7 @@ import { setupLikes, syncLikes, toggleLike, likeCurrent } from "../../shared/lik
 import { syncPeople } from "../../shared/people.js";
 import { on } from "../../shared/actions.js";
 import { toast, hideToast, closeAll, anyOpen, isOpen, openDrawer } from "./ui.js";
-import { showHome, showExplore, showHistory } from "./library.js";
+import { showHome, showExplore, showHistory, goTo } from "./library.js";
 import { showLists, likesChanged } from "./playlists.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleLyrics, paintLyrics } from "./lyrics.js";
@@ -15,6 +15,7 @@ import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from ".
 import { paintMe, renderPeople, renderWho } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
 import { askPlay } from "./ask.js";
+import "./menu.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
@@ -51,6 +52,7 @@ on("play-all", el => {
 });
 on("like", el => toggleLike(lists[el.dataset.list][+el.dataset.i]));
 on("like-now", likeCurrent);
+on("goto", el => goTo(el.dataset.to, state.current));
 on("prev", () => ctl("prev"));
 on("next", () => ctl("next"));
 on("toggle", () => ctl("toggle"));

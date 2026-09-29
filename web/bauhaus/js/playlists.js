@@ -89,6 +89,7 @@ async function patchList(body, sub = "") {
 function doRename() { const v = $("#rename").value.trim(); if (v) patchList({ name: v }); }
 
 /* d: -1 up, 1 down, 0 remove. By videoId on the server, so someone else's edit in between is kept. */
+export const removeFromList = i => moveTrack(i, 0);
 function moveTrack(i, d) {
   const videoId = lists.mine[i].videoId;
   patchList(d ? { op: "move", videoId, at: i, to: i + d } : { op: "remove", videoId, at: i }, "/tracks");
@@ -113,8 +114,8 @@ async function saveAsList(key, name) {
 
 /* ---------- the "Add to playlist" pop-up ---------- */
 let pickTrack = null;
-async function openPicker(key, i) {
-  pickTrack = lists[key][i];
+export async function pickFor(track) {
+  pickTrack = track;
   $("#pickList").innerHTML = loading("Loading");
   $("#picker").classList.add("open"); syncScrim();     /* on top: the queue drawer may stay open under it */
   const ls = await api("api/lists").catch(() => []);
@@ -150,6 +151,6 @@ on("list-rename-save", doRename);
 on("list-rename-cancel", () => renderList(lists.mineMeta));
 on("list-delete", deleteList);
 on("save-as-list", el => saveAsList(el.dataset.list, el.dataset.label));
-on("pick", el => openPicker(el.dataset.list, +el.dataset.i));
+on("pick", el => pickFor(lists[el.dataset.list][+el.dataset.i]));
 on("pick-add", pickAdd);
 on("picker-close", closePicker);

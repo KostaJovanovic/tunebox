@@ -68,9 +68,12 @@ async def home():
 async def album(browse_id: str):
     a = await yt_get("album", youtube.yt.get_album, browse_id)
     thumbs = a.get("thumbnails") or []
-    tracks = [t for t in (track_from({**x, "album": a.get("title"), "thumbnails": x.get("thumbnails") or thumbs})
+    tracks = [t for t in (track_from({**x, "album": {"name": a.get("title"), "id": browse_id},
+                                      "thumbnails": x.get("thumbnails") or thumbs})
                           for x in a.get("tracks", [])) if t]
-    return {"title": a.get("title"), "subtitle": ", ".join(x["name"] for x in a.get("artists") or []),
+    artists = a.get("artists") or []
+    return {"title": a.get("title"), "subtitle": ", ".join(x["name"] for x in artists),
+            "artistId": next((x["id"] for x in artists if (x.get("id") or "").startswith("UC")), ""),
             "thumb": thumbs[-1]["url"] if thumbs else "", "tracks": tracks}
 
 
@@ -98,6 +101,19 @@ async def artist(channel_id: str):
               for x in (a.get("albums") or {}).get("results", [])]
     return {"title": a.get("name"), "subtitle": "Artist", "thumb": thumbs[-1]["url"] if thumbs else "",
             "tracks": songs, "albums": albums}
+
+_where: dict[str, dict] = {}
+
+
+@router.get("/api/where/{video_id}")
+async def where(video_id: str):
+    """A song's artist and album pages, for songs saved before tracks carried them (history, playlists)."""
+    if video_id not in _where:
+        w = await yt_get("song", youtube.yt.get_watch_playlist, video_id, limit=1)
+        t = track_from((w.get("tracks") or [{}])[0]) or {}
+        _where[video_id] = {"artistId": t.get("artistId", ""), "albumId": t.get("albumId", "")}
+    return _where[video_id]
+
 
 # ---------- links, explore, moods ----------
 YT_ID = re.compile(r"[\w-]{2,80}")

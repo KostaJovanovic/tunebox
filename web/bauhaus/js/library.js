@@ -5,9 +5,10 @@ import { api, errText } from "../../shared/api.js";
 import { lists, LINK } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
-import { view, seq, back, setNav, bump, setBack } from "./nav.js";
+import { view, seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
 import { askPlay } from "./ask.js";
-import { loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
+import { toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
+import { toggleCanvas } from "./player.js";
 
 const main = html => { $("#view").innerHTML = html; };
 let kind = "songs", lastQuery = "";
@@ -82,9 +83,10 @@ export async function doSearch() {
 }
 
 /* ---------- an album, playlist or artist page ---------- */
-export async function openItem(type, id) {
+export async function openItem(type, id, goingBack = false) {
   const my = bump();
-  main(loading("Loading"));
+  visit({ type, id }, goingBack);
+  main(loading("Loading")); scrollTo(0, 0);
   try {
     const d = await api(`api/${type}/${encodeURIComponent(id)}`);
     if (my !== seq) return;
@@ -93,7 +95,7 @@ export async function openItem(type, id) {
     main(`${backBtn("Back")}
       <div class="hero"><img src="${esc(d.thumb)}" alt=""><div>
         <div class="k">${esc(type)} · ${d.tracks.length} songs</div>
-        <h1>${title}</h1><div class="s">${esc(d.subtitle)}</div>
+        <h1>${title}</h1><div class="s">${d.artistId ? `<button class="artlink" data-act="open" data-type="artist" data-id="${esc(d.artistId)}">${esc(d.subtitle)}</button>` : esc(d.subtitle)}</div>
         <div class="btns"><button class="btn red" data-act="play-all" ${all}>${icon.PLAYS}Play</button>
           <button class="btn" data-act="play-all" data-mode="next" ${all}>${icon.NEXT}Play next</button>
           <button class="btn" data-act="play-all" data-mode="add" ${all}>${icon.ADD}Add all</button>
@@ -102,6 +104,17 @@ export async function openItem(type, id) {
       <div class="list">${d.tracks.map((t, i) => songRow(t, "detail", i)).join("")}</div>
       ${d.albums && d.albums.length ? section(2, "Albums") + `<div class="shelf">${d.albums.map(card).join("")}</div>` : ""}`);
   } catch (e) { if (my === seq) main(note(`Could not load: ${esc(errText(e))}`)); }
+}
+
+/* A song's artist or album page (kind: "artist" or "album"). Songs saved before tracks carried those
+   ids (history, older playlists) ask the server which they are. */
+export async function goTo(kind, t) {
+  if (!t) return;
+  let id = t[kind + "Id"];
+  if (!id) try { id = (await api(`api/where/${encodeURIComponent(t.videoId)}`))[kind + "Id"]; } catch {}
+  if (!id) return toast(kind === "artist" ? "YouTube Music has no page for this artist" : "Couldn't find this song's album");
+  closeAll(); toggleCanvas(false);
+  openItem(kind, id);
 }
 
 /* ---------- History (shared by everyone) ---------- */
@@ -136,7 +149,7 @@ async function clearHistory() {
 /* ---------- wiring ---------- */
 on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
-on("back", () => back());
+on("back", () => { const p = previous(); p ? openItem(p.type, p.id, true) : back(); });
 on("clear-history", clearHistory);
 on("add-track", el => askPlay([JSON.parse(el.dataset.track)]));
 
