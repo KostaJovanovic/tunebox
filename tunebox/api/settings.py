@@ -8,6 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
+from pydantic import Field
 from ytmusicapi import YTMusic, setup as yt_setup
 
 from .. import data, youtube
@@ -91,7 +92,7 @@ class AlarmBody(BaseModel):
     enabled: bool
     time: str
     days: list[int]
-    list: str | None = None
+    playlist: str | None = Field(None, alias="list")   # "list" in the JSON; as a field name it hides list[] (Python 3.14)
     level: int = 45
     ramp: float = 5
     tz: str = "Europe/Belgrade"
@@ -108,7 +109,7 @@ async def set_alarm(body: AlarmBody):
         raise HTTPException(400, "unknown time zone")
     a = settings["alarm"]
     a.update(enabled=body.enabled, time=body.time, days=sorted({d for d in body.days if 0 <= d <= 6}),
-             list=body.list if body.list in data.playlists else None, level=max(1, min(100, body.level)),
+             list=body.playlist if body.playlist in data.playlists else None, level=max(1, min(100, body.level)),
              ramp=max(0, min(30, body.ramp)), tz=body.tz)
     save_settings()
     if body.test:

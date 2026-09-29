@@ -1,3 +1,4 @@
+# Tunebox for ele (homeapps): runs uvicorn from /opt/homeapps/venv. Elsewhere install.sh writes its own unit.
 [Unit]
 Description=Tunebox - YouTube Music player for the local speakers
 After=network-online.target sound.target

@@ -3,3 +3,4 @@ uvicorn==0.54.0
 pydantic==2.13.5
 ytmusicapi==1.12.3
 yt-dlp==2026.8.19
+tzdata==2026.4; sys_platform == "win32"

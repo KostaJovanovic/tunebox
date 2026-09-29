@@ -1,13 +1,19 @@
 """Where Tunebox keeps its files, and the numbers that tune its behaviour."""
 import ipaddress
 import os
+import socket
+import tempfile
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent.parent   # music/ here, /opt/homeapps/tunebox on ele
+WINDOWS = os.name == "nt"
+APP_DIR = Path(__file__).resolve().parent.parent   # the Tunebox folder (app.py, run.py, web/)
 WEB_DIR = APP_DIR / "web"                            # the pages, their CSS and JS
-RUN_DIR = Path(os.environ.get("TUNEBOX_RUN", "/run/tunebox"))
-DATA = Path(os.environ.get("TUNEBOX_DATA") or APP_DIR)   # where the files below live (the dev emulator moves them)
-NODE = APP_DIR.parent / "node" / "bin" / "node"     # official Node 22 build (Debian's Node 20 is too old for yt-dlp)
+TOOLS = APP_DIR / "tools"                            # mpv (Windows) and Node, when run.py fetched them
+DATA = Path(os.environ.get("TUNEBOX_DATA") or APP_DIR)   # where the files below live
+# mpv's control socket: systemd makes /run/tunebox for the service; anything else uses a temp folder
+RUN_DIR = Path(os.environ.get("TUNEBOX_RUN") or ("/run/tunebox" if os.path.isdir("/run/tunebox")
+                                                 else Path(tempfile.gettempdir()) / f"tunebox-{os.getpid()}"))
+AUDIO_OUT = os.environ.get("TUNEBOX_AO", "")        # mpv's --ao (alsa, pipewire, pulse, wasapi...); empty: mpv picks
 
 AUTH_FILE = DATA / "browser.json"          # optional: personal YT Music headers
 SETTINGS_FILE = DATA / "settings.json"     # volume + equaliser, survives restarts
@@ -70,5 +76,9 @@ EQ_PRESETS = {
     "night":      [-3, -2, -1, 0, 1, 2, 2, 1, -1, -2],
 }
 
-LOCAL_NAMES = {"ele.local", "ele", "ele.home", "localhost", "print-scan-server", "print-scan-server.local"}
+# Host names Tunebox answers to (by IP address it always does): this machine's own name (and name.local),
+# the ones in $TUNEBOX_HOSTS (comma separated), and the names of the house it was written for.
+_me = socket.gethostname().lower().split(".")[0]
+LOCAL_NAMES = ({"localhost", _me, f"{_me}.local", "ele.local", "ele", "ele.home", "print-scan-server", "print-scan-server.local"}
+               | {h.strip().lower() for h in os.environ.get("TUNEBOX_HOSTS", "").split(",") if h.strip()})
 CGNAT = ipaddress.ip_network("100.64.0.0/10")   # Tailscale addresses

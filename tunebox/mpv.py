@@ -1,10 +1,12 @@
 """mpv, driven over its JSON IPC socket: start/stop, commands, events, and the live equaliser."""
 import asyncio
 import json
+import os
 
 from .audio import eq_bands, eq_filter, level_to_mpv, pre_cut
-from .config import RUN_DIR
+from .config import AUDIO_OUT, RUN_DIR, WINDOWS
 from .settings import settings
+from .tools import mpv_path
 
 
 class PlayerDown(ConnectionError):
@@ -15,7 +17,8 @@ class Mpv:
     """Minimal async client for mpv's JSON IPC."""
 
     def __init__(self, name: str = "mpv"):
-        self.sock = RUN_DIR / f"{name}.sock"   # two players (crossfade): one socket each
+        self.sock = RUN_DIR / f"{name}.sock"   # two players (crossfade): one socket (Windows: pipe) each
+        self.pipe = rf"\\.\pipe\tunebox-{os.getpid()}-{name}"
         self.proc = None
         self.writer = None
         self.req = 0
@@ -35,22 +38,46 @@ class Mpv:
             await self.proc.wait()
         self.props = {"pause": False, "time-pos": 0, "duration": 0, "volume": 70, "idle-active": True}
         self.eq_chain = self.eq_live = self.started = None
-        RUN_DIR.mkdir(parents=True, exist_ok=True)
-        self.sock.unlink(missing_ok=True)
+        if not WINDOWS:
+            RUN_DIR.mkdir(parents=True, exist_ok=True)
+            self.sock.unlink(missing_ok=True)
+        ao = AUDIO_OUT or ("" if WINDOWS else "alsa")   # Windows: mpv's own pick (WASAPI)
         self.proc = await asyncio.create_subprocess_exec(
-            "mpv", "--idle=yes", "--no-video", "--no-terminal", "--no-config",
-            f"--input-ipc-server={self.sock}", "--ao=alsa", f"--volume={level_to_mpv(settings['volume'])}",
+            mpv_path() or "mpv", "--idle=yes", "--no-video", "--force-window=no", "--no-terminal", "--no-config",
+            f"--input-ipc-server={self.pipe if WINDOWS else self.sock}", *([f"--ao={ao}"] if ao else []),
+            f"--volume={level_to_mpv(settings['volume'])}",
             "--cache=yes", "--demuxer-max-bytes=16MiB", "--audio-buffer=0.5",
             "--prefetch-playlist=yes", "--gapless-audio=weak")
+        reader = await (self._connect_pipe() if WINDOWS else self._connect_socket())
+        asyncio.get_running_loop().create_task(self._read(reader))
+        for i, prop in enumerate(self.props, 1):
+            await self.send("observe_property", i, prop)
+        await self.apply_eq()
+
+    async def _connect_socket(self) -> asyncio.StreamReader:
         for _ in range(50):
             if self.sock.exists():
                 break
             await asyncio.sleep(0.1)
         reader, self.writer = await asyncio.open_unix_connection(str(self.sock), limit=1 << 20)
-        asyncio.get_running_loop().create_task(self._read(reader))
-        for i, prop in enumerate(self.props, 1):
-            await self.send("observe_property", i, prop)
-        await self.apply_eq()
+        return reader
+
+    async def _connect_pipe(self) -> asyncio.StreamReader:
+        """Windows: mpv listens on a named pipe; asyncio reaches those only with its Proactor loop."""
+        loop = asyncio.get_running_loop()
+        if not hasattr(loop, "create_pipe_connection"):
+            raise RuntimeError("Tunebox on Windows needs asyncio's Proactor event loop (start it with run.py)")
+        reader = asyncio.StreamReader(limit=1 << 20)
+        for _ in range(50):
+            try:
+                transport, protocol = await loop.create_pipe_connection(lambda: asyncio.StreamReaderProtocol(reader), self.pipe)
+                break
+            except OSError:
+                await asyncio.sleep(0.1)
+        else:
+            raise RuntimeError("mpv did not open its control pipe")
+        self.writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+        return reader
 
     async def quit(self):
         """Server shutdown: stop mpv (no restart), killing it if it will not go."""

@@ -1,0 +1,20 @@
+# What Tunebox makes as it runs (its data, and what setup fetched): never part of the code
+.venv/
+tools/
+__pycache__/
+*.pyc
+settings.json
+session.json
+history.json
+playlists.json
+people.json
+seminars.json
+stats.json
+keys.json
+browser.json
+browser*.new
+plays/
+backups/
+data/
+*.tmp
+*.corrupt-*

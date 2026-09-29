@@ -1,12 +1,33 @@
 # Tunebox
 
-> The `music` module of homeapps. To develop it, run `server.bat` at the repository root; `save.bat` deploys it to ele. The steps below install it on a fresh server.
-
-A lean YouTube Music player for a home server's own speakers. Everyone on the local network opens it in a browser and controls the same queue; the audio comes out of the server.
+A lean YouTube Music player for the speakers of the computer it runs on. Everyone on the network opens it in a browser and controls the same queue; the audio comes out of that computer. Run it on a home server by the stereo, or on your own PC as a local app.
 
 - [ytmusicapi](https://github.com/sigma67/ytmusicapi) for search, home shelves, albums, artists, playlists and YouTube Music's own radio ("up next")
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) resolves each track to a direct audio stream (no ads)
-- [mpv](https://mpv.io) plays it through ALSA and is driven over its JSON IPC socket
+- [mpv](https://mpv.io) plays it, driven over its JSON IPC socket (a named pipe on Windows)
+
+## Get it running
+
+**Windows, as a local app.** Install [Python](https://www.python.org/downloads/) 3.11 or newer (tick "Add python.exe to PATH"), then double-click `start.bat`. The first start sets everything up in this folder (the Python packages, mpv and Node) and takes a few minutes; then Tunebox opens in your browser at `http://localhost:8888/` and plays through this PC's speakers. Closing the window stops it. `start.bat --lan` lets phones on the same network use it too.
+
+**Linux, as a server** (a home server by the speakers; tested on Debian 13 / DietPi):
+
+```sh
+./install.sh              # asks for sudo: mpv, a systemd service that starts at boot, open to the network
+```
+
+**Linux, as a local app** on your own computer:
+
+```sh
+./install.sh --desktop    # once
+./start.sh                # then this (or Tunebox in the app menu); ./start.sh --lan for the network too
+```
+
+Run the same command again to update after pulling new code. Options: `--port N` (default 8888). With a server, `sudo journalctl -u tunebox -f` shows the log.
+
+Opening it by name from other devices works for the computer's own name (`http://myserver:8888/`, and `myserver.local`) and by IP address. For other names (your own DNS name, a reverse proxy's), list them in `TUNEBOX_HOSTS` (comma separated), e.g. `Environment=TUNEBOX_HOSTS=music.home` in the service.
+
+**Developing** it as part of homeapps: `server.bat` at the repository root runs it in the emulator, and `save.bat` deploys it to ele.
 
 ## Features
 
@@ -40,72 +61,47 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 
 There are no accounts to sign in to (pass phrases only guard names and a few admin actions): it is meant for a trusted local network only. It does refuse requests that don't come from it:
 
-- The `Host` header must be a private, loopback or Tailscale (100.64.0.0/10) address, a `*.ts.net` name, or one of the names in `LOCAL_NAMES` in `tunebox/config.py`. **Put your server's hostname(s) there**, otherwise opening it by name gives `403 Unknown host` (by IP address always works). This blocks DNS-rebinding attacks from web pages.
+- The `Host` header must be a private, loopback or Tailscale (100.64.0.0/10) address, a `*.ts.net` name, this computer's own name (plain or `.local`), or one of the names in `TUNEBOX_HOSTS` or `LOCAL_NAMES` in `tunebox/config.py`. Any other name gives `403 Unknown host` (by IP address always works). This blocks DNS-rebinding attacks from web pages.
 - Writes carrying a foreign `Origin` are refused, and request bodies must be JSON, so other websites can't drive the player from your browser.
 
 ## How the code is laid out
 
 | Path | What's in it |
 |---|---|
-| `app.py` | The entry point uvicorn runs: builds the FastAPI app from the parts below |
+| `run.py` | Starts it: fetches mpv and Node the first time, serves it, opens the browser (`start.bat`, `start.sh` and the service call it) |
+| `install.sh`, `start.bat`, `start.sh` | Setup for Linux (server or desktop), and starting it on Windows and Linux |
+| `app.py` | Builds the FastAPI app from the parts below (what uvicorn runs) |
 | `tunebox/config.py` | Paths, limits, EQ presets, the allowed host names |
-| `tunebox/player.py`, `mpv.py` | The queue, playback, fades, sleep timer and alarm; talking to mpv |
+| `tunebox/tools.py` | Finding (or fetching) mpv and Node |
+| `tunebox/player.py`, `mpv.py` | The queue, playback, crossfade, fades, sleep timer and alarm; talking to mpv |
 | `tunebox/youtube.py`, `lyrics.py`, `audio.py` | YouTube Music and yt-dlp; lyrics lookup; volume and EQ maths |
-| `tunebox/data.py`, `settings.py`, `files.py` | History, playlists, people, play counts, settings, and saving them |
+| `tunebox/data.py`, `settings.py`, `files.py` | History, playlists, people, seminars, play counts, settings, and saving them |
+| `tunebox/plays.py`, `auth.py` | The play log (Stats and the recap); pass phrases |
 | `tunebox/web.py` | Host/origin checks and error handling for every request |
-| `tunebox/api/` | The HTTP API, one file per area (queue, browse, lists, people, settings, lyrics, pages) |
+| `tunebox/api/` | The HTTP API, one file per area (queue, browse, lists, people, settings, stats, backup, lyrics, pages) |
 | `web/bauhaus/`, `web/wall/` | The two pages (the player, and the wall screen), each an `index.html` with its `css/` and `js/` (ES modules, no build step) |
 | `web/shared/` | JavaScript every page uses: the API, polling and the queue, likes, names, lyrics, queue gestures, theme |
+| `web/manifest.webmanifest`, `web/icons/`, `web/sw.js` | What makes it installable as an app |
 
 Buttons say what they do with `data-act="..."`; the module that owns the action registers it with `on(...)` from `web/shared/actions.js`. Pages and their files are sent with `Cache-Control: no-cache`, so a phone picks up a deploy on the next load.
 
 ## Requirements
 
-- Linux with ALSA (tested on Debian 13 / DietPi, x86_64)
-- Python 3.11+ (tested with 3.13)
-- `mpv` (tested with 0.40)
-- Node.js 22+ for yt-dlp's YouTube challenge solver (Debian's Node 20 is too old)
+What the setup installs or fetches, if you'd rather do it by hand:
 
-## Install
+- Python 3.11+ (tested with 3.13) and the packages in `requirements.txt`
+- `mpv` (tested with 0.40): the `mpv` package on Linux; on Windows `run.py` fetches it into `tools/mpv`
+- Node.js 22+ for yt-dlp's YouTube challenge solver (Debian's Node 20 is too old): `run.py` fetches it into `tools/node` unless it finds one (`../node/bin/node`, or 22+ on the PATH)
 
-The app expects this layout (the Node path is resolved relative to the app folder):
+By hand on Linux: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`, then `.venv/bin/python run.py --lan` (`--no-browser` on a server).
 
-```
-/opt/homeapps/
-├── tunebox/   <- this folder (music/ in the homeapps repository)
-├── node/      <- official Node 22 build (node/bin/node)
-└── venv/      <- Python virtualenv
-```
+Settings through the environment: `TUNEBOX_DATA` (where its files go; default this folder), `TUNEBOX_HOSTS` (more host names), `TUNEBOX_AO` (mpv's audio output; default `alsa` on Linux, WASAPI on Windows), `TUNEBOX_MPV` (the mpv program), `TUNEBOX_PORT`, `TUNEBOX_RUN` (where mpv's socket goes).
 
-```sh
-sudo apt install mpv python3-venv
-sudo mkdir -p /opt/homeapps && sudo chown "$USER" /opt/homeapps
-cd /opt/homeapps
-# copy this folder (music/ in homeapps) to /opt/homeapps/tunebox
-
-# Node 22 (official build; pick the archive for your architecture)
-curl -fsSL https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz | tar -xJ
-ln -s node-v22.23.3-linux-x64 node
-
-python3 -m venv venv
-venv/bin/pip install -r tunebox/requirements.txt
-```
-
-Run it as a service (edit `User=` in the unit file first; the user must be in the `audio` group):
-
-```sh
-sudo cp tunebox/tunebox.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now tunebox
-```
-
-Then open `http://<server>:8888/` (add the name you use to `LOCAL_NAMES` in `tunebox/config.py` first, see above).
-
-For a quick manual run instead: `TUNEBOX_RUN=/tmp/tunebox ../venv/bin/uvicorn app:app --host 0.0.0.0 --port 8888` from the `tunebox` folder.
+The ele server (homeapps) predates the setup: there it lives in `/opt/homeapps/tunebox` with `/opt/homeapps/node` and `/opt/homeapps/venv`, and `tunebox.service` in this folder is its unit (uvicorn directly).
 
 ### Audio output
 
-mpv uses ALSA's default device. Crossfade runs two mpv players at once for a few seconds, so the default device must mix (ALSA's `dmix`; PipeWire or PulseAudio do it too). A raw `hw` device takes one player only: crossfade then gives up after three tries and songs follow gaplessly, and Settings says so. To pick the card and let it mix, in `/etc/asound.conf`:
+On Linux mpv uses ALSA's default device. Crossfade runs two mpv players at once for a few seconds, so the default device must mix (ALSA's `dmix`; PipeWire or PulseAudio do it too). A raw `hw` device takes one player only: crossfade then gives up after three tries and songs follow gaplessly, and Settings says so. `install.sh` sets up mixing on a server that has no `/etc/asound.conf` yet (and no PipeWire or PulseAudio); by hand, to pick the card and let it mix, in `/etc/asound.conf`:
 
 ```
 pcm.!default { type plug slave.pcm "mix" }
@@ -126,9 +122,7 @@ handle_path /music/* {
 
 ## Files it creates
 
-In the app folder, next to `app.py` (all git-ignored):
-
-They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emulator does this).
+In the app folder, next to `app.py`, or in the folder named by `TUNEBOX_DATA` (`run.py --data DIR`) when that's set (all git-ignored). Setup adds `.venv/` (Python packages) and `tools/` (mpv on Windows, Node).
 
 | File | Contents |
 |---|---|
@@ -149,5 +143,8 @@ They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emula
 YouTube changes often; when streams stop resolving, update yt-dlp first:
 
 ```sh
-/opt/homeapps/venv/bin/pip install -U yt-dlp && sudo systemctl restart tunebox
+.venv/bin/pip install -U yt-dlp && sudo systemctl restart tunebox      # Linux server
+.venv\Scripts\pip install -U yt-dlp                                    # Windows, then start it again
 ```
+
+On ele: `/opt/homeapps/venv/bin/pip install -U yt-dlp && sudo systemctl restart tunebox`.

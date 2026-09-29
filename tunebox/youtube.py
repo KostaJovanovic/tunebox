@@ -10,15 +10,17 @@ from fastapi import HTTPException
 from ytmusicapi import YTMusic
 from ytmusicapi.exceptions import YTMusicUserError
 
-from .config import AUTH_FILE, FAIL_TTL, NODE, QUALITY, URL_TTL
+from .config import AUTH_FILE, FAIL_TTL, QUALITY, URL_TTL
 from .settings import settings
+from .tools import node_path
 
 yt = YTMusic(str(AUTH_FILE)) if AUTH_FILE.exists() else YTMusic()
 
+_node = node_path()                            # yt-dlp solves YouTube's challenges with it (Node 22+)
 ydl = yt_dlp.YoutubeDL({
     "format": QUALITY.get(settings["quality"], QUALITY["best"]),
     "quiet": True, "no_warnings": True, "noplaylist": True,
-    "js_runtimes": {"node": {"path": str(NODE)}},
+    **({"js_runtimes": {"node": {"path": _node}}} if _node else {}),
 })
 ydl_lock = threading.Lock()
 
