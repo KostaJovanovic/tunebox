@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Tunebox wall</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%23111'/><circle cx='9' cy='12' r='6' fill='%23E63B2E'/><path d='M14 6l8 12h-8z' fill='%23F2C230'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Jost:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* The wall screen: a tablet or TV showing what plays, with big touch controls.
+     Idle (nothing playing, or paused a while): a dimmed clock; a tap wakes it. */
+  :root {
+    --bg: #000; --text: #F4F1EA; --muted: #B7B2A8; --faint: #6F6B64; --red: #E63B2E; --yellow: #F2C230;
+    --display: "Jost", "Futura", "Century Gothic", sans-serif; --ui: "Inter", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.4 var(--ui); overflow: hidden;
+    -webkit-user-select: none; user-select: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+
+  .bg { position: fixed; inset: -80px; background: center / cover no-repeat; filter: blur(70px) brightness(.38) saturate(1.3); transition: background-image .8s; }
+  .stage { position: fixed; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 5vw; align-items: center;
+    padding: max(5vh, env(safe-area-inset-top)) 5vw max(5vh, env(safe-area-inset-bottom)); transition: opacity .6s; }
+  .stage.nolyrics { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+  .left { display: flex; flex-direction: column; gap: 2.6vh; min-width: 0; align-items: flex-start; }
+  .nolyrics .left { align-items: center; }
+  .cover { width: min(38vw, 44vh); aspect-ratio: 1; object-fit: cover; background: #222; box-shadow: 0 30px 80px #000a; }
+  .nolyrics .cover { width: min(70vw, 44vh); }
+  .title { font: 700 clamp(24px, min(3.6vw, 5.6vh), 50px)/1.08 var(--display); margin: 0; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .artist { font: 500 clamp(16px, min(2vw, 3vh), 26px)/1.2 var(--ui); color: var(--muted); margin-top: .5vh;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .prog { width: 100%; max-width: min(38vw, 44vh); height: 6px; background: #ffffff26; position: relative; }
+  .nolyrics .prog { max-width: min(70vw, 44vh); }
+  .prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--yellow); width: 0; transition: width 1s linear; }
+  .times { display: flex; justify-content: space-between; width: 100%; max-width: min(38vw, 44vh); font: 600 14px var(--display); color: var(--faint);
+    letter-spacing: .06em; margin-top: -2vh; font-variant-numeric: tabular-nums; }
+  .nolyrics .times { max-width: min(70vw, 44vh); }
+  .ctrls { display: flex; align-items: center; gap: clamp(8px, 2vw, 24px); }
+  .ctrls button { width: clamp(52px, 7vw, 76px); height: clamp(52px, 7vw, 76px); display: grid; place-items: center; border-radius: 50%; transition: background .15s, transform .1s; }
+  .ctrls button:active { transform: scale(.92); }
+  .ctrls button:hover { background: #ffffff14; }
+  .ctrls .play { background: var(--red); width: clamp(72px, 9.5vw, 104px); height: clamp(72px, 9.5vw, 104px); }
+  .ctrls .play:hover { background: var(--red); filter: brightness(1.1); }
+  .ctrls svg { width: 46%; height: 46%; }
+  .ctrls .like.on { color: var(--red); }
+  .ctrls .like.on path { fill: currentColor; }
+  .vol { font: 700 13px var(--display); color: var(--muted); min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  .lyr { height: 84vh; overflow: hidden; position: relative; mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent);
+    -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent); }
+  .lyr .in { position: absolute; left: 0; right: 0; top: 0; transition: transform .6s cubic-bezier(.2, 0, 0, 1); }
+  .lyr p { margin: 0; padding: .5vh 0; font: 700 clamp(22px, 3.1vw, 44px)/1.25 var(--display); color: #ffffff4d; transition: color .3s, transform .3s; transform-origin: left center; }
+  .lyr p.past { color: #ffffff2e; }
+  .lyr p.on { color: var(--text); transform: scale(1.04); }
+  .lyr p.gap { height: 3vh; }
+  .lyr.plain p { font-size: clamp(18px, 2.2vw, 30px); color: var(--muted); }
+
+  .clock { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; transition: opacity .8s; }
+  .clock b { font: 600 clamp(90px, 22vw, 300px)/1 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .clock span { font: 500 clamp(18px, 3vw, 36px) var(--display); color: var(--muted); letter-spacing: .14em; text-transform: uppercase; margin-top: 2vh; }
+  .clock small { color: var(--faint); margin-top: 3vh; font-size: clamp(14px, 1.6vw, 20px); }
+  .dim { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.5s; }
+  body.idle .dim { opacity: .55; }
+  body.idle .stage { opacity: 0; pointer-events: none; }
+  body:not(.idle) .clock { opacity: 0; pointer-events: none; }
+  .corner { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 12px; display: flex; gap: 6px; opacity: .35; transition: opacity .3s; z-index: 5; }
+  .corner:hover { opacity: 1; }
+  .corner button, .corner a { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: var(--text); background: #ffffff10; }
+  .msg { position: fixed; left: 50%; bottom: 3vh; transform: translateX(-50%); color: var(--yellow); font: 600 14px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+
+  @media (orientation: portrait) {
+    .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: start; gap: 3vh; padding-top: max(8vh, env(safe-area-inset-top)); }
+    .left { align-items: center; text-align: center; }
+    .cover, .nolyrics .cover { width: min(78vw, 42vh); }
+    .prog, .times, .nolyrics .prog, .nolyrics .times { max-width: min(78vw, 42vh); }
+    .lyr { height: 34vh; text-align: center; }
+    .lyr p { transform-origin: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body class="idle">
+<div class="bg" id="bg"></div>
+<div class="stage nolyrics" id="stage">
+  <div class="left">
+    <img class="cover" id="cover" alt="">
+    <div><h1 class="title" id="title"></h1><div class="artist" id="artist"></div></div>
+    <div class="prog"><i id="fill"></i></div>
+    <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
+    <div class="ctrls">
+      <button onclick="ctl('prev')" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h3v16H5zM20 4v16L9 12z"/></svg></button>
+      <button class="play" id="playBtn" onclick="ctl('toggle')" aria-label="Play or pause"></button>
+      <button onclick="ctl('next')" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 4h3v16h-3zM4 4v16l11-8z"/></svg></button>
+      <button onclick="nudge(-5)" aria-label="Quieter"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l6 5V4L7 9z"/><path d="M16 11h6v2h-6z"/></svg></button>
+      <span class="vol" id="vol"></span>
+      <button onclick="nudge(5)" aria-label="Louder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l6 5V4L7 9z"/><path d="M18 8h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg></button>
+      <button class="like" id="likeBtn" onclick="like()" aria-label="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+    </div>
+  </div>
+  <div class="lyr" id="lyr" hidden><div class="in" id="lyrIn"></div></div>
+</div>
+<div class="clock" id="clock"><b id="time">--:--</b><span id="date"></span><small id="idleNote"></small></div>
+<div class="dim"></div>
+<div class="corner">
+  <a href="./" aria-label="Open Tunebox" title="Open Tunebox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 12h10M4 18h10"/></svg></a>
+  <button onclick="fullscreen()" aria-label="Full screen" title="Full screen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<div class="msg" id="msg"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const api = async (path, body) => {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+const IDLE_AFTER = 120, AWAKE_FOR = 30;       /* paused this long counts as idle; a tap keeps it awake this long */
+
+let state = {}, liked = new Set(), likedRev = null, pausedSince = null, touched = 0, volTouch = 0, msgT;
+function say(t) { $("#msg").textContent = t; clearTimeout(msgT); msgT = setTimeout(() => $("#msg").textContent = "", 2500); }
+async function ctl(action, value) { touch(); try { await api("api/control", { action, value }); } catch (e) { say("Couldn't reach Tunebox"); } poll(); }
+function nudge(d) { touch(); volTouch = Date.now(); const v = Math.max(0, Math.min(100, (state.volume || 0) + d)); state.volume = v; $("#vol").textContent = v; ctl("volume", v); }
+async function like() {
+  const c = state.current; if (!c) return;
+  const on = !liked.has(c.videoId); on ? liked.add(c.videoId) : liked.delete(c.videoId); paintLike();
+  try { await api("api/like", { track: c, liked: on }); say(on ? "Liked" : "Unliked"); } catch { on ? liked.delete(c.videoId) : liked.add(c.videoId); paintLike(); }
+}
+function paintLike() { const on = !!state.current && liked.has(state.current.videoId); $("#likeBtn").classList.toggle("on", on); $("#likeBtn").setAttribute("aria-pressed", on); }
+async function loadLikes(rev) { try { liked = new Set((await api("api/lists/liked")).tracks.map(t => t.videoId)); likedRev = rev; paintLike(); } catch {} }
+function touch() { touched = Date.now(); render(); }
+function fullscreen() { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen?.())?.catch?.(() => {}); }
+
+/* keep the screen on where the browser allows it (needs https or localhost) */
+let lock = null;
+async function keepAwake() { try { if (!lock && document.visibilityState === "visible") { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => lock = null); } } catch {} }
+document.addEventListener("visibilitychange", keepAwake);
+
+/* ---------- lyrics (the same source and timing as the main UI) ---------- */
+let lyr = { vid: null, lines: null }, lyrBase = { pos: 0, at: 0 }, lyrActive = -1;
+async function loadLyrics(c) {
+  lyr = { vid: c.videoId, lines: null }; lyrActive = -1;
+  $("#lyr").hidden = true; $("#stage").classList.add("nolyrics");
+  const q = new URLSearchParams({ videoId: c.videoId, title: c.title, artist: c.artist || "", album: c.album || "", duration: c.duration || "" });
+  let d; try { d = await api(`api/lyrics?${q}`); } catch { return; }
+  if (lyr.vid !== c.videoId || d.none || d.instrumental) return;
+  if (d.synced) {
+    lyr.lines = d.synced;
+    $("#lyrIn").innerHTML = d.synced.map(([t, l], i) => l ? `<p data-i="${i}">${esc(l)}</p>` : `<p class="gap" data-i="${i}"></p>`).join("");
+    $("#lyr").className = "lyr";
+  } else {
+    $("#lyrIn").innerHTML = d.plain.split("\n").map(l => l.trim() ? `<p>${esc(l)}</p>` : '<p class="gap"></p>').join("");
+    $("#lyr").className = "lyr plain";
+  }
+  $("#lyr").hidden = false; $("#stage").classList.remove("nolyrics"); lyrTick(true);
+}
+function lyrTick(force) {
+  if (!lyr.lines) return;
+  const pos = state.paused ? lyrBase.pos : lyrBase.pos + (performance.now() - lyrBase.at) / 1000;
+  let a = -1; for (let i = 0; i < lyr.lines.length; i++) { if (lyr.lines[i][0] <= pos + 0.25) a = i; else break; }
+  if (a === lyrActive && !force) return;
+  lyrActive = a;
+  document.querySelectorAll("#lyrIn p[data-i]").forEach(p => { const i = +p.dataset.i; p.classList.toggle("on", i === a); p.classList.toggle("past", i < a); });
+  const el = document.querySelector(`#lyrIn p[data-i="${Math.max(a, 0)}"]`);
+  if (el) $("#lyrIn").style.transform = `translateY(${$("#lyr").clientHeight * 0.36 - el.offsetTop}px)`;
+}
+setInterval(lyrTick, 200);
+
+/* ---------- state ---------- */
+function isIdle() {
+  if (Date.now() - touched < AWAKE_FOR * 1000 && state.current) return false;
+  if (!state.current || (state.idle && !state.loading && !state.paused)) return true;
+  return state.paused && pausedSince && Date.now() - pausedSince > IDLE_AFTER * 1000;
+}
+function render() {
+  document.body.classList.toggle("idle", isIdle());
+  const now = new Date();
+  $("#time").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("#date").textContent = now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+  $("#idleNote").textContent = state.current && state.paused ? `Paused · ${state.current.title}` : "";
+}
+async function poll() {
+  try { state = await api("api/state"); } catch { render(); return; }
+  lyrBase = { pos: state.position, at: performance.now() };
+  if (state.paused) pausedSince = pausedSince || Date.now(); else pausedSince = null;
+  const c = state.current;
+  if (c) {
+    if ($("#cover").dataset.src !== c.thumb) { $("#cover").src = c.thumb; $("#cover").dataset.src = c.thumb; $("#bg").style.backgroundImage = `url("${c.thumb}")`; }
+    $("#title").textContent = c.title; $("#artist").textContent = [c.artist, c.album].filter(Boolean).join(" · ");
+    if (lyr.vid !== c.videoId) loadLyrics(c);
+  }
+  $("#playBtn").innerHTML = state.paused || !c ? ICON_PLAY : ICON_PAUSE;
+  $("#fill").style.width = state.duration ? `${Math.min(100, state.position / state.duration * 100)}%` : "0";
+  $("#pos").textContent = fmt(state.position); $("#dur").textContent = fmt(state.duration);
+  if (Date.now() - volTouch > 2000) $("#vol").textContent = Math.round(state.volume ?? 0);
+  if (state.listsRev !== likedRev) loadLikes(state.listsRev); else paintLike();
+  render();
+}
+/* a tap on the idle screen only wakes it: the button under the finger must not fire */
+let wokeAt = 0;
+addEventListener("pointerdown", e => { if (document.body.classList.contains("idle")) wokeAt = Date.now(); touch(); keepAwake(); }, true);
+addEventListener("click", e => { if (Date.now() - wokeAt < 800) { e.stopPropagation(); e.preventDefault(); } }, true);
+poll(); setInterval(poll, 1000); keepAwake();
+</script>
+</body>
+</html>

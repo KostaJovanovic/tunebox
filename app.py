@@ -1038,6 +1038,12 @@ def classic():
     return FileResponse(HERE / "classic.html")
 
 
+@app.get("/wall")
+def wall():
+    """The wall screen: a tablet or TV showing what plays."""
+    return FileResponse(HERE / "wall.html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/api/state")
 async def state():
     return player.state()
