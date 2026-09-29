@@ -9,6 +9,7 @@ import { toast, syncScrim, onCloseAll } from "./ui.js";
 
 let waiting = null;                            /* resolves the name asker: true once a name is picked */
 let editing = null, pickColor = COLORS[4], pickEmoji = "", pickSems = new Set(), other = false;
+let fromList = false;                          /* the form was opened from the list: Back returns to it */
 let finishing = false;                         /* editing only because the name has no seminar yet: saving picks it */
 
 export function paintMe() {
@@ -24,7 +25,7 @@ function openWho() {
 }
 function showForm(on) {
   $("#whoPick").hidden = on; $("#whoForm").hidden = !on;
-  $("#whoBack").textContent = editing ? "Cancel" : "Back";
+  $("#whoBack").textContent = editing && !fromList ? "Cancel" : "Back";
   $("#whoBack").hidden = !editing && !sortedPeople().length;
   if (!on) $("#whoTitle").textContent = "Who's listening?";
   else if (!editing) setTimeout(() => $("#whoName").focus(), 50);
@@ -56,6 +57,7 @@ async function choose(id) {
 
 export function renderWho() {
   const cur = me()?.id, ps = sortedPeople();
+  $("#whoEditMe").hidden = !cur;
   $("#whoList").innerHTML = ps.length ? ps.map(p => `<button class="pick${p.id === cur ? " on" : ""}" data-act="who-set" data-id="${esc(p.id)}">${avatar(p)}
     <div class="min0"><div class="t">${esc(p.name)}</div><div class="s">${semTags(p)}</div></div><span class="ok"></span></button>`).join("")
     : '<div class="note tight">No names yet. Add yours below.</div>';
@@ -66,7 +68,7 @@ function resetForm(p = null) {
   editing = p ? p.id : null;
   pickColor = p ? p.color : COLORS[Object.keys(people).length % COLORS.length];
   pickEmoji = p ? p.emoji : "";
-  pickSems = new Set(p?.seminars || []); other = false; $("#whoOther").value = ""; finishing = false;
+  pickSems = new Set(p?.seminars || []); other = false; fromList = false; $("#whoOther").value = ""; finishing = false;
   $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
   $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Add a name";
   $("#whoPhrase").value = ""; $("#whoPhrase").hidden = !!p;    /* editing: the pass phrase has its own button */
@@ -210,8 +212,9 @@ on("who-emoji", el => { pickEmoji = el.dataset.e; paintForm(); });
 on("who-sem", el => { const s = el.dataset.s; pickSems.has(s) ? pickSems.delete(s) : pickSems.add(s); paintForm(); });
 on("who-sem-other", () => { other = !other; paintForm(); if (other) $("#whoOther").focus(); });
 on("person-edit", async el => { const id = el.dataset.id; if (await unlocked(id)) { openWho(); resetForm(people[id]); showForm(true); } });
+on("who-edit-me", () => { if (me()) { resetForm(me()); fromList = true; showForm(true); } });
 on("who-new", () => { resetForm(); showForm(true); });
-on("who-back", () => editing ? closeWho() : (resetForm(), showForm(false)));
+on("who-back", () => editing && !fromList ? closeWho() : (resetForm(), showForm(false)));
 on("person-remove", el => remove(el.dataset.id));
 on("person-phrase", el => editPhrase(el.dataset.id));
 on("who-phrase", () => editPhrase(editing));
