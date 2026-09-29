@@ -2,7 +2,8 @@
    "Add to playlist" pop-up. */
 import { $, esc, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
-import { lists, queueSongs } from "../../shared/playback.js";
+import { lists } from "../../shared/playback.js";
+import { askPlay } from "./ask.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, setNav } from "./nav.js";
@@ -102,7 +103,7 @@ async function deleteList() {
 function shuffleList() {
   const t = [...lists.mine];
   for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
-  queueSongs(t, "replace", `${lists.mineMeta.name} (shuffled)`);
+  askPlay(t, `${lists.mineMeta.name} (shuffled)`);
 }
 
 async function saveAsList(key, name) {

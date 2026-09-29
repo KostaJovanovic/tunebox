@@ -34,7 +34,7 @@ export const spinner = t => `<div class="spinner">${t}…</div>`;
 export const empty = t => `<div class="empty">${t}</div>`;
 export const at = (key, i) => `data-list="${esc(key)}" data-i="${i}"`;
 
-/* A song row: a tap adds it; Play next, Play now and Like on the right */
+/* A song row: a tap or Play asks first while a song is on (ask.js); Play next and Like on the right */
 export function songRow(t, key, i) {
   const cur = state.current && state.current.videoId === t.videoId ? " playing" : "";
   return `<div class="row${cur}">
@@ -45,7 +45,7 @@ export function songRow(t, key, i) {
     <span class="d">${esc(t.duration)}</span>
     <div class="acts">
       <button title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at(key, i)}>${ICON.next}</button>
-      <button title="Play now" aria-label="Play now" data-act="song" data-mode="now" ${at(key, i)}>${ICON.plays}</button>
+      <button title="Play" aria-label="Play" data-act="song" data-mode="now" ${at(key, i)}>${ICON.plays}</button>
       <button class="like${isLiked(t.videoId) ? " on" : ""}" data-act="like" ${at(key, i)} data-like="${esc(t.videoId)}" title="Like">${ICON.heart}</button>
     </div></div>`;
 }

@@ -2,9 +2,9 @@
    Liked songs. `page` says which is on screen, so one that finishes loading late doesn't take over. */
 import { $, $$, esc, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
-import { lists, LINK, queueSongs } from "../../shared/playback.js";
+import { lists, LINK } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
-import { tapSong } from "./ask.js";
+import { askPlay } from "./ask.js";
 import { spinner, empty, songRow, card, songCard } from "./ui.js";
 
 export let page = "home";                      /* home, explore, link, search, item or liked */
@@ -120,7 +120,7 @@ export function likesChanged() { if (page === "liked") showLiked(); }
 function shuffleLiked() {
   const t = [...lists.liked];
   for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
-  queueSongs(t, "replace", "Liked songs (shuffled)");
+  askPlay(t, "Liked songs (shuffled)");
 }
 
 /* ---------- wiring ---------- */
@@ -131,7 +131,7 @@ on("liked-shuffle", shuffleLiked);
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
 on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("back", () => back());
-on("add-track", el => tapSong(JSON.parse(el.dataset.track)));
+on("add-track", el => askPlay([JSON.parse(el.dataset.track)]));
 
 let typing;
 $("#q").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(doSearch, 450); });

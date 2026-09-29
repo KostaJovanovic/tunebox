@@ -14,7 +14,7 @@ import { toggleLyrics, paintLyrics } from "./lyrics.js";
 import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from "./settings.js";
 import { paintMe, renderPeople, renderWho } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
-import { tapSong } from "./ask.js";
+import { askPlay } from "./ask.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
@@ -38,9 +38,17 @@ $("#nav").addEventListener("click", e => { const b = e.target.closest("button");
 
 /* ---------- buttons that belong to no one part ---------- */
 on("nav", el => PAGES[el.dataset.v]());
-/* a tap on a song asks what to do if something plays (ask.js); its buttons say (data-mode) */
-on("song", el => el.dataset.mode ? addSong(el.dataset.list, +el.dataset.i, el.dataset.mode) : tapSong(lists[el.dataset.list][+el.dataset.i]));
-on("play-all", el => playAll(el.dataset.list, el.dataset.label, el.dataset.mode || "replace"));
+/* playing something while a song is on asks first (ask.js); Play next and Add all just do it */
+on("song", el => {
+  const mode = el.dataset.mode || "now";
+  if (mode === "now") askPlay([lists[el.dataset.list][+el.dataset.i]]);
+  else addSong(el.dataset.list, +el.dataset.i, mode);
+});
+on("play-all", el => {
+  const mode = el.dataset.mode || "replace";
+  if (mode === "replace") askPlay(lists[el.dataset.list], el.dataset.label);
+  else playAll(el.dataset.list, el.dataset.label, mode);
+});
 on("like", el => toggleLike(lists[el.dataset.list][+el.dataset.i]));
 on("like-now", likeCurrent);
 on("prev", () => ctl("prev"));

@@ -6,7 +6,7 @@ import { lists, LINK } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, seq, back, setNav, bump, setBack } from "./nav.js";
-import { tapSong } from "./ask.js";
+import { askPlay } from "./ask.js";
 import { loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 
 const main = html => { $("#view").innerHTML = html; };
@@ -138,7 +138,7 @@ on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
 on("back", () => back());
 on("clear-history", clearHistory);
-on("add-track", el => tapSong(JSON.parse(el.dataset.track)));
+on("add-track", el => askPlay([JSON.parse(el.dataset.track)]));
 
 let typing;
 $("#q").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(doSearch, 450); });

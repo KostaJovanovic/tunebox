@@ -53,14 +53,14 @@ export const likeBtn = (key, i, vid) => {
 };
 
 /* A song row. A tap on the title adds the song (o.meta: other attributes for that tap); the buttons on
-   the right are Play next, Play now, Add to playlist and Like unless o.acts says otherwise.
+   the right are Play next, Play (asks first, see ask.js), Add to playlist and Like unless o.acts says otherwise.
    o: num (shown number), playing (false: never marked as playing), by (who added it), d (text in place
    of the length), cls (extra class), extra (HTML after the buttons) */
 export function songRow(t, key, i, o = {}) {
   const cur = (o.playing ?? true) && state.current && state.current.videoId === t.videoId ? " playing" : "";
   const meta = o.meta || `data-act="song" ${at(key, i)}`;
   const acts = o.acts ?? `<button class="wide" title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at(key, i)}>${icon.NEXT}</button>
-      <button title="Play now" aria-label="Play now" data-act="song" data-mode="now" ${at(key, i)}>${icon.PLAYS}</button>
+      <button title="Play" aria-label="Play" data-act="song" data-mode="now" ${at(key, i)}>${icon.PLAYS}</button>
       <button title="Add to playlist" aria-label="Add to playlist" data-act="pick" ${at(key, i)}>${icon.LIST}</button>
       ${likeBtn(key, i, t.videoId)}`;
   return `<div class="row${cur}${o.cls ? " " + o.cls : ""}">
