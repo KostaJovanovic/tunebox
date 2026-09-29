@@ -9,7 +9,7 @@ from .files import read_json, write_json
 
 def load_settings() -> dict:
     s = {"volume": 70, "volume_scale": "db", "eq": {"preset": "flat", "custom": [0] * 10},
-         "normalize": False, "autoplay": True, "quality": "best", "turns": True, "crossfade": 3,
+         "normalize": False, "autoplay": True, "quality": "best", "turns": True,
          "alarm": {"enabled": False, "time": "07:00", "days": [0, 1, 2, 3, 4], "list": None,
                    "level": 45, "ramp": 5, "tz": "Europe/Belgrade", "last": ""}}
     saved = read_json(SETTINGS_FILE, {})

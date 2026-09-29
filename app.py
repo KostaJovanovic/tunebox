@@ -36,7 +36,7 @@ async def lifespan(_app):
     plays.finish()
     plays.flush()
     flush_settings()
-    await player.quit()
+    await player.mpv.quit()
 
 
 app = FastAPI(title="Tunebox", lifespan=lifespan)

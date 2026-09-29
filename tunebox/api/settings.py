@@ -12,7 +12,7 @@ from pydantic import Field
 from ytmusicapi import YTMusic, setup as yt_setup
 
 from .. import data, youtube
-from ..config import AUTH_FILE, CROSSFADE_MAX, DATA, EQ_FREQS, EQ_PRESETS, QUALITY, TEST_RAMP
+from ..config import AUTH_FILE, DATA, EQ_FREQS, EQ_PRESETS, QUALITY, TEST_RAMP
 from ..audio import eq_bands
 from ..mpv import PlayerDown
 from ..player import player
@@ -40,8 +40,7 @@ async def get_settings():
     return {"volume": settings["volume"], "eq": settings["eq"], "bands": eq_bands(),
             "freqs": EQ_FREQS, "presets": EQ_PRESETS, "account": account_status(),
             "normalize": settings["normalize"], "autoplay": settings["autoplay"], "turns": settings["turns"],
-            "quality": settings["quality"], "qualities": list(QUALITY),
-            "crossfade": settings["crossfade"], "crossfadeOk": player.standby_ok and player.xf_fails < 3, "alarm": settings["alarm"],
+            "quality": settings["quality"], "qualities": list(QUALITY), "alarm": settings["alarm"],
             "lists": [data.list_summary(p) for p in data.sorted_lists()]}
 
 
@@ -50,7 +49,6 @@ class OptionsBody(BaseModel):
     autoplay: bool | None = None
     turns: bool | None = None
     quality: str | None = None
-    crossfade: float | None = None
 
 
 @router.post("/api/options")
@@ -67,9 +65,6 @@ async def set_options(body: OptionsBody):
         player.resolver.cache.clear()         # the next tracks resolve at the new quality
     if body.turns is not None:
         settings["turns"] = body.turns
-    if body.crossfade is not None:
-        settings["crossfade"] = max(0, min(CROSSFADE_MAX, round(body.crossfade)))
-        player.xf_fails = 0                   # a new setting gets a fresh try
     if body.normalize is not None:
         settings["normalize"] = body.normalize
         await player.mpv.apply_eq()

@@ -1,10 +1,8 @@
 """The player: the queue (now playing, then the songs people added, then the radio), gapless
-hand-over to mpv or a crossfade to a second mpv, undo snapshots, fades, the sleep timer and the
-wake-up alarm."""
+hand-over to mpv, undo snapshots, fades, the sleep timer and the wake-up alarm."""
 import asyncio
 import datetime
 import json
-import math
 import random
 import secrets
 import time
@@ -13,7 +11,7 @@ from zoneinfo import ZoneInfo
 from . import data, plays
 from .audio import level_to_mpv
 from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_REFILL_AT, SESSION_EVERY,
-                     SESSION_FILE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB, XF_GIVE_UP)
+                     SESSION_FILE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
 from .files import read_json, write_json
 from .mpv import Mpv
 from .settings import save_settings, settings
@@ -22,11 +20,7 @@ from .youtube import Resolver, radio_for
 
 class Player:
     def __init__(self):
-        self.mpv = Mpv("mpv")                 # the one playing; the other waits for the next crossfade
-        self.standby = Mpv("mpv2")
-        self.standby_ok = False               # the second mpv runs (no crossfade without it)
-        self.xf = None                        # {"index", "videoId", "entry", "task"}: the next song, loaded in standby
-        self.xf_fails = 0                     # crossfades that couldn't start (no stream, or no second sound output)
+        self.mpv = Mpv()
         self.resolver = Resolver()
         self.queue: list[dict] = []
         self.index = -1
@@ -55,7 +49,6 @@ class Player:
     async def fade_toggle(self):
         """Play/pause with a short fade: out, then pause; or unpause silent, then in. Pressing again
         mid-fade turns it around from wherever the volume is."""
-        await self.cancel_xf()                # pausing in a crossfade: the next song starts again later
         self.pp_gen += 1
         gen = self.pp_gen
         play = (not self.pp_want) if self.pp_want is not None else bool(self.mpv.props.get("pause"))
@@ -135,24 +128,13 @@ class Player:
     def current(self):
         return self.queue[self.index] if 0 <= self.index < len(self.queue) else None
 
-    def _hook(self, m: Mpv):
-        """Events count only from the mpv that is playing; the standby one's are its own business."""
-        def active(fn):
-            async def call(*args):
-                if m is self.mpv:
-                    await fn(*args)
-            return call
-
-        async def lost():
-            await (self._mpv_lost() if m is self.mpv else self._standby_lost(m))
-        m.on_end, m.on_start, m.on_loaded, m.on_exit = active(self._ended), active(self._started), active(self._loaded), lost
-
     async def start(self):
-        self._hook(self.mpv)
-        self._hook(self.standby)
+        self.mpv.on_end = self._ended
+        self.mpv.on_start = self._started
+        self.mpv.on_loaded = self._loaded
+        self.mpv.on_exit = self._mpv_lost
         plays.seed()
         await self.mpv.start()
-        asyncio.get_running_loop().create_task(self._start_standby())
         loop = asyncio.get_running_loop()
         loop.create_task(self._preload_loop())
         loop.create_task(self._volume_loop())
@@ -170,7 +152,6 @@ class Player:
         if self.current and not p.get("idle-active") and p.get("time-pos"):
             self.resume_at = p["time-pos"]
         self.armed, self.cur_entry = None, None
-        await self.cancel_xf()
         self.pp_gen += 1                      # a play/pause fade cut short must not leave the volume down
         self.pp_db, self.pp_want = 0.0, None
         self.save_session()
@@ -192,9 +173,6 @@ class Player:
     async def _ended(self, reason, entry=None):
         if entry is not None and entry != self.cur_entry:
             return                            # an old or dropped playlist entry
-        if reason == "eof" and self.xf:
-            await self._swap(self.xf)         # the song ran out before (or without) its crossfade: cut over now
-            return
         if reason == "eof" and self.armed:
             return                            # mpv moves on to the preloaded track by itself
         if reason == "eof" and self.sleep and self.sleep.get("mode") == "track":
@@ -246,7 +224,6 @@ class Player:
 
     async def disarm(self):
         """Forgets the preloaded next track after the queue changed."""
-        await self.cancel_xf()
         if self.armed:
             self.armed = None
             try:
@@ -269,7 +246,6 @@ class Player:
                 pass
             try:
                 await self._arm_next()
-                self._xf_tick()
             except Exception:
                 pass
 
@@ -277,14 +253,11 @@ class Player:
         p = self.mpv.props
         dur, pos = p.get("duration") or 0, p.get("time-pos") or 0
         i, entry0 = self.index + 1, self.cur_entry
-        if (self.armed or self.xf or self.loading or p.get("idle-active") or not dur or dur - pos > PRELOAD_AT
-                or i >= len(self.queue)):
+        if self.armed or self.loading or p.get("idle-active") or not dur or dur - pos > PRELOAD_AT or i >= len(self.queue):
             return
         if self.sleep and self.sleep.get("mode") == "track":
             return                            # the sleep timer stops at the end of this track
         track = self.queue[i]
-        if self.xf_seconds() and not self._album_run(self.current, track):
-            return await self._arm_xf(i, track, entry0)
         url = await self.resolver.get(track["videoId"], retry=False)
         if (self.armed or self.loading or self.cur_entry != entry0 or self.index + 1 != i or i >= len(self.queue)
                 or self.queue[i]["videoId"] != track["videoId"]):
@@ -297,7 +270,6 @@ class Player:
     async def play_index(self, i: int = 0, start: float = 0, step: int = 0, vid: str | None = None):
         """Plays queue[i], or the track `step` places from the current one (worked out when the request
         runs, so quick skips add up). Resolving happens outside the lock; only the newest request loads."""
-        await self.cancel_xf()
         async with self.play_lock:
             if step:
                 i = self.index + step
@@ -334,133 +306,9 @@ class Player:
     async def stop(self):
         self.gen += 1                         # cancels a play request still resolving
         self.armed, self.cur_entry, self.loading = None, None, False
-        await self.cancel_xf()
         plays.finish()
         await self.mpv.send("stop")
         self.queue, self.index = [], -1
-
-    # ---------- crossfade: the next song starts on the standby mpv while this one fades out ----------
-    def xf_seconds(self) -> float:
-        if not self.standby_ok or self.xf_fails >= XF_GIVE_UP or (self.sleep and self.sleep.get("mode") == "track"):
-            return 0
-        return float(settings.get("crossfade") or 0)
-
-    @staticmethod
-    def _album_run(a: dict | None, b: dict) -> bool:
-        """Two songs of one album in a row may run into each other (live albums, DJ mixes): keep them gapless."""
-        return bool(a and a.get("albumId")) and a.get("albumId") == b.get("albumId")
-
-    async def _start_standby(self):
-        try:
-            await self.standby.start()
-            self.standby_ok = True
-        except Exception as exc:
-            self.standby_ok = False
-            print(f"tunebox: no second mpv, so no crossfade: {exc}")
-
-    async def _standby_lost(self, m: Mpv):
-        self.standby_ok = False
-        await self.cancel_xf()
-        await asyncio.sleep(5)
-        if m is self.standby:
-            await self._start_standby()
-
-    async def _arm_xf(self, i: int, track: dict, entry0):
-        """Loads the next song into the standby mpv, paused and silent, so it can start at once."""
-        url = await self.resolver.get(track["videoId"], retry=False)
-        if (self.armed or self.xf or self.loading or self.cur_entry != entry0 or self.index + 1 != i
-                or i >= len(self.queue) or self.queue[i]["videoId"] != track["videoId"]):
-            return
-        sb = self.standby
-        await sb.send("set_property", "pause", True)
-        await sb.send("set_property", "volume", 0)
-        await sb.apply_eq(rebuild=True)
-        res = await sb.send("loadfile", url, "replace")
-        entry = (res.get("data") or {}).get("playlist_entry_id")
-        if entry is not None:
-            self.xf = {"index": i, "videoId": track["videoId"], "entry": entry, "task": None}
-
-    def _xf_tick(self):
-        """Every second: close to the end, start the crossfade on time."""
-        x, p = self.xf, self.mpv.props
-        if not x or x["task"] or p.get("pause"):
-            return
-        secs, left = self.xf_seconds(), (p.get("duration") or 0) - (p.get("time-pos") or 0)
-        if secs and left <= secs + 2:         # streams often end half a second before their stated length
-            x["task"] = asyncio.get_running_loop().create_task(self._cross(x, max(0.0, left - secs - 0.5), secs))
-
-    async def _cross(self, x: dict, delay: float, secs: float):
-        await asyncio.sleep(delay)
-        if self.xf is not x:
-            return
-        old, new = self.mpv, self.standby
-        if new.props.get("idle-active"):      # its stream didn't open, or there's no second sound output
-            self.xf_fails += 1
-            await self.cancel_xf()
-            return
-        await new.send("set_property", "pause", False)
-        t0 = time.monotonic()
-        while True:                           # equal power: the sum sounds as loud as one song all the way
-            frac = min(1.0, (time.monotonic() - t0) / secs)
-            await old.send("set_property", "volume", level_to_mpv(settings["volume"], self.fade_db + self.pp_db + gain_db(math.cos(frac * math.pi / 2))))
-            await new.send("set_property", "volume", level_to_mpv(settings["volume"], self.fade_db + gain_db(math.sin(frac * math.pi / 2))))
-            if frac >= 1:
-                break
-            await asyncio.sleep(0.05)
-            if self.xf is not x:
-                return
-        self.xf_fails = 0
-        await self._swap(x)
-
-    async def _swap(self, x: dict):
-        """The standby mpv becomes the one playing; the old one stops and waits for the next crossfade."""
-        if self.xf is not x:
-            return
-        self.xf = None
-        old, new = self.mpv, self.standby
-        if new.props.get("idle-active"):      # nothing to cut over to: go on the usual way
-            self.xf_fails += 1
-            if self.index + 1 < len(self.queue):
-                await self.play_index(step=1)
-            return
-        self.mpv, self.standby = new, old
-        self.cur_entry = x["entry"]
-        if 0 <= x["index"] < len(self.queue) and self.queue[x["index"]]["videoId"] == x["videoId"]:
-            self.index = x["index"]
-        self.error, self.resume_at, self.fails = "", 0, 0
-        try:
-            await new.send("set_property", "pause", False)
-            await self.apply_volume()
-        except Exception:
-            pass
-        try:
-            await old.send("stop")
-        except Exception:
-            pass
-        data.add_history(self.current)
-        plays.begin(self.current)
-        for nxt in self.queue[self.index + 1:self.index + 3]:
-            self.resolver.prefetch(nxt["videoId"])
-        await self.refill()
-
-    async def cancel_xf(self):
-        """The queue or playback changed: the standby song is no longer next (or can't start now)."""
-        x = self.xf
-        if not x:
-            return
-        self.xf = None
-        if x["task"]:
-            x["task"].cancel()
-        try:
-            await self.standby.send("stop")
-            if x["task"]:
-                await self.apply_volume()     # the song playing may be part way faded out
-        except Exception:
-            pass
-
-    async def quit(self):
-        await self.mpv.quit()
-        await self.standby.quit()
 
     # ---------- the two-part queue: now playing → songs people added (src "user") → radio (src "auto") ----------
     def user_end(self) -> int:
@@ -494,10 +342,10 @@ class Player:
 
     async def sync_armed(self):
         """Drops the preloaded next track if the queue changed so that it isn't next any more."""
-        for a in (self.armed, self.xf):
-            if a and (a["index"] != self.index + 1 or a["index"] >= len(self.queue)
-                      or self.queue[a["index"]]["videoId"] != a["videoId"]):
-                await (self.disarm() if a is self.armed else self.cancel_xf())
+        a = self.armed
+        if a and (a["index"] != self.index + 1 or a["index"] >= len(self.queue)
+                  or self.queue[a["index"]]["videoId"] != a["videoId"]):
+            await self.disarm()
 
     async def add(self, tracks: list[dict], by: str, mode: str = "add", label: str = "") -> int:
         """add: each song at its turn at the end of the added songs; next: in front of them, in order;
@@ -726,11 +574,6 @@ class Player:
             "undo": {"n": len(self.undo), "label": self.undo[-1]["label"]} if self.undo else None,
             **({"paused": True, "position": self.resume_at} if p.get("idle-active") and not self.loading else {}),
         }
-
-
-def gain_db(g: float) -> float:
-    """An amplitude (0..1) in dB, as extra attenuation for level_to_mpv."""
-    return max(-120.0, 20 * math.log10(g)) if g > 1e-6 else -120.0
 
 
 player = Player()

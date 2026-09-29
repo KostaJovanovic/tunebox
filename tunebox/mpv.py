@@ -17,7 +17,7 @@ class Mpv:
     """Minimal async client for mpv's JSON IPC."""
 
     def __init__(self, name: str = "mpv"):
-        self.sock = RUN_DIR / f"{name}.sock"   # two players (crossfade): one socket (Windows: pipe) each
+        self.sock = RUN_DIR / f"{name}.sock"   # its control socket (Windows: the pipe below)
         self.pipe = rf"\\.\pipe\tunebox-{os.getpid()}-{name}"
         self.proc = None
         self.writer = None

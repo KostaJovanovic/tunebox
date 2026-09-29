@@ -6,26 +6,19 @@
 #   ./install.sh --desktop    this computer only: start it with ./start.sh or from the app menu
 #
 #   --port N      another port (default 8888)
-#   --no-dmix     don't set up ALSA mixing (see "Sound" below)
 #
 # It installs mpv and Python's venv with apt (asks for sudo), puts the Python packages in .venv and
 # Node 22 in tools/node, and for a server writes /etc/systemd/system/tunebox.service.
-#
-# Sound: Tunebox plays through ALSA's default device. Crossfade plays two songs at once for a few
-# seconds, which a raw sound card can't do; on a server without PipeWire or PulseAudio, and with no
-# /etc/asound.conf yet, this sets ALSA's default to mix (dmix) on the first card.
 set -eu
 
 cd "$(dirname "$0")"
 APP=$(pwd)
 MODE=server
 PORT=8888
-DMIX=yes
 while [ $# -gt 0 ]; do
   case "$1" in
     --desktop) MODE=desktop ;;
     --port) PORT=$2; shift ;;
-    --no-dmix) DMIX=no ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "unknown option: $1 (see ./install.sh --help)"; exit 1 ;;
   esac
@@ -68,16 +61,7 @@ EOF
   exit 0
 fi
 
-# ---------- server: ALSA mixing, the audio group, the service ----------
-if [ "$DMIX" = yes ] && [ ! -e /etc/asound.conf ] && ! pgrep -x pipewire >/dev/null 2>&1 && ! pgrep -x pulseaudio >/dev/null 2>&1; then
-  say "setting ALSA's default device to mix on the first card (for crossfade): /etc/asound.conf"
-  $SUDO tee /etc/asound.conf >/dev/null <<'EOF'
-# Written by Tunebox's install.sh: the first sound card, mixed (dmix) so two players can play at once.
-pcm.!default { type plug slave.pcm "mix" }
-pcm.mix { type dmix ipc_key 1024 ipc_perm 0660 slave { pcm "hw:0,0" rate 48000 } }
-ctl.!default { type hw card 0 }
-EOF
-fi
+# ---------- server: the audio group and the service ----------
 $SUDO usermod -aG audio "$ME"
 
 say "writing /etc/systemd/system/tunebox.service"

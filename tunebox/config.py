@@ -36,8 +36,6 @@ RADIO_REFILL_AT = 3                         # refill when this few tracks remain
 UNDO_KEEP = 15                              # queue snapshots kept for undo (saved with the session)
 UNDO_TRACKS = 200                           # songs kept per snapshot (the current one and what's up next)
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
-CROSSFADE_MAX = 12                          # the crossfade setting goes up to this many seconds
-XF_GIVE_UP = 3                              # after this many crossfades that couldn't start, stop trying until a restart
 HISTORY_MAX = 300
 STATS_DAYS = 30
 
