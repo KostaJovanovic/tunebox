@@ -47,6 +47,7 @@
 .cctrls .play { width: 76px; height: 76px; margin: 0; }
 .cctrls .play svg { width: 32px; height: 32px; }
 .cfoot { display: flex; align-items: center; gap: 8px; width: 100%; }
+.cfoot .cvolicon { color: #EDEAE3a0; margin: 0 4px 0 12px; }
 .cfoot input { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 44px; background: none; margin: 0; }
 .cfoot input::-webkit-slider-runnable-track { height: 3px; background: #ffffff33; }
 .cfoot input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: #fff; }

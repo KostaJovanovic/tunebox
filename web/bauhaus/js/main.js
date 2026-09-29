@@ -14,6 +14,7 @@ import { toggleLyrics, paintLyrics } from "./lyrics.js";
 import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from "./settings.js";
 import { paintMe, renderPeople, renderWho } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
+import { tapSong } from "./ask.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
@@ -37,7 +38,8 @@ $("#nav").addEventListener("click", e => { const b = e.target.closest("button");
 
 /* ---------- buttons that belong to no one part ---------- */
 on("nav", el => PAGES[el.dataset.v]());
-on("song", el => addSong(el.dataset.list, +el.dataset.i, el.dataset.mode || "add"));
+/* a tap on a song asks what to do if something plays (ask.js); its buttons say (data-mode) */
+on("song", el => el.dataset.mode ? addSong(el.dataset.list, +el.dataset.i, el.dataset.mode) : tapSong(lists[el.dataset.list][+el.dataset.i]));
 on("play-all", el => playAll(el.dataset.list, el.dataset.label, el.dataset.mode || "replace"));
 on("like", el => toggleLike(lists[el.dataset.list][+el.dataset.i]));
 on("like-now", likeCurrent);

@@ -2,10 +2,11 @@
    playlist / artist page, and History. */
 import { $, $$, esc, ago } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
-import { lists, LINK, queueSongs } from "../../shared/playback.js";
+import { lists, LINK } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, seq, back, setNav, bump, setBack } from "./nav.js";
+import { tapSong } from "./ask.js";
 import { loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 
 const main = html => { $("#view").innerHTML = html; };
@@ -137,7 +138,7 @@ on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
 on("back", () => back());
 on("clear-history", clearHistory);
-on("add-track", el => queueSongs([JSON.parse(el.dataset.track)], "add"));
+on("add-track", el => tapSong(JSON.parse(el.dataset.track)));
 
 let typing;
 $("#q").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(doSearch, 450); });

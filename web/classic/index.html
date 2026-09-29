@@ -118,6 +118,16 @@
   </div>
 </aside>
 
+<div class="modal" id="askPlay" role="dialog" aria-label="Something is playing">
+  <header><strong>Something is playing</strong><button class="icon-btn" data-act="ask-close" aria-label="Close">✕</button></header>
+  <div class="mbody">
+    <div class="asksong" id="askSong"></div>
+    <button class="pick" data-act="ask" data-mode="now"><b>▶ Play now</b><span class="ok">Stops the song that's playing</span></button>
+    <button class="pick" data-act="ask" data-mode="next"><b>Play next</b><span class="ok">Right after this song</span></button>
+    <button class="pick" data-act="ask" data-mode="add"><b>Add to queue</b><span class="ok">Takes turns with everyone's songs</span></button>
+  </div>
+</div>
+
 <div class="modal" id="who" role="dialog" aria-label="Who's listening">
   <header><strong id="whoTitle">Who's listening?</strong><button class="icon-btn" data-act="who-close" aria-label="Close">✕</button></header>
   <div class="mbody" id="whoList"></div>

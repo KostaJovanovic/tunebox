@@ -31,3 +31,11 @@
 .whoform .btn2 { margin: 0; }
 .whoform .note2 { width: 100%; margin: 0; }
 .prow .me-tag { color: var(--muted); font-weight: 500; }
+/* "Something is playing": the tapped song, then Play now / Play next / Add to queue */
+#askPlay .mbody { padding-bottom: 8px; }
+.asksong { display: flex; align-items: center; gap: 12px; padding: 4px 8px 10px; }
+.asksong img { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; background: var(--panel-2); flex: none; }
+.asksong .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asksong .s { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#askPlay .pick { min-height: 48px; }
+#askPlay .pick .ok { color: var(--muted); }

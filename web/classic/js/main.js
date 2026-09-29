@@ -12,6 +12,7 @@ import { showHome, likesChanged } from "./library.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleSettings, paintVolume, paintSleep } from "./settings.js";
 import { paintMe, renderPeople, renderWho, closeWho } from "./who.js";
+import { tapSong, closeAsk } from "./ask.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
@@ -40,10 +41,11 @@ onState(async s => {
 $("#seek").addEventListener("input", () => { seeking = true; $("#tPos").textContent = fmt($("#seek").value); });
 $("#seek").addEventListener("change", async () => { await ctl("seek", +$("#seek").value); seeking = false; });
 
-function closeAll() { toggleQueue(false); toggleSettings(false); closeWho(); }
+function closeAll() { toggleQueue(false); toggleSettings(false); closeWho(); closeAsk(); }
 
 /* ---------- buttons that belong to no one part ---------- */
-on("song", el => addSong(el.dataset.list, +el.dataset.i, el.dataset.mode || "add"));
+/* a tap on a song asks what to do if something plays (ask.js); its buttons say (data-mode) */
+on("song", el => el.dataset.mode ? addSong(el.dataset.list, +el.dataset.i, el.dataset.mode) : tapSong(lists[el.dataset.list][+el.dataset.i]));
 on("play-all", el => playAll(el.dataset.list, el.dataset.label, el.dataset.mode || "replace"));
 on("like", el => toggleLike(lists[el.dataset.list][+el.dataset.i]));
 on("like-now", likeCurrent);

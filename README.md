@@ -13,14 +13,14 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - Search, Home, albums, artists and playlists; Explore has new releases and moods & genres
 - Pasting a YouTube or YouTube Music link into the search box opens its song, album, playlist or artist
 - Home starts with the house's own shelves: Most played (last 30 days), Liked mix and House mix
-- A two-part queue, like Spotify: the song playing, then the songs people added, then radio. Tapping a song adds it to the end of the added songs; Play next puts it in front, Play now plays it at once. The radio always follows the last song someone added and stays after the added songs
+- A two-part queue, like Spotify: the song playing, then the songs people added, then radio. Tapping a song while another plays asks whether to play it now, play it next or add it to the queue (the end of the added songs); the Play next and Play now buttons skip the question. The radio always follows the last song someone added and stays after the added songs
 - Take turns (on by default): songs from different people alternate, so nobody takes over the queue
 - Undo for every queue change (the toast, the Up next drawer, or Z), and an Earlier queues list to restore from
 - People: everyone picks a name (with colour and emoji) once per device; the queue and history show who added each song, and likes remember who liked them. Adding songs asks for a name first
 - On touch screens, swipe a queued song left to remove it or right to play it next; the grip drags it
 - A wall screen at `/wall` for a tablet or TV: cover, synced lyrics and big controls; a dimmed clock when nothing plays. It keeps the screen on only over HTTPS (or localhost), since browsers allow wake locks only there
 - Gapless hand-over: the next track is preloaded 20 s before the current one ends
-- 10-band equaliser with presets and optional loudness normalisation, changed live without gaps
+- 10-band equaliser with presets and optional loudness normalisation; EQ changes are heard at once, without gaps (the normaliser sits before the EQ, since it looks seconds ahead)
 - Volume slider linear in dB; audio quality setting (best / balanced / low)
 - Sleep timer (minutes or end of track) with fade-out; wake-up alarm with volume ramp
 - Shared playlists and play history for the whole house

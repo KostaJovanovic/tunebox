@@ -4,6 +4,7 @@ import { $, $$, esc, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists, LINK, queueSongs } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
+import { tapSong } from "./ask.js";
 import { spinner, empty, songRow, card, songCard } from "./ui.js";
 
 export let page = "home";                      /* home, explore, link, search, item or liked */
@@ -130,7 +131,7 @@ on("liked-shuffle", shuffleLiked);
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
 on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("back", () => back());
-on("add-track", el => queueSongs([JSON.parse(el.dataset.track)], "add"));
+on("add-track", el => tapSong(JSON.parse(el.dataset.track)));
 
 let typing;
 $("#q").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(doSearch, 450); });

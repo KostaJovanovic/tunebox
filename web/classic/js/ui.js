@@ -27,7 +27,7 @@ export const hideToast = () => $("#toast").classList.remove("open");
 
 /* ---------- drawers (Up next, Settings) and the name pop-up ---------- */
 export const isOpen = id => $("#" + id).classList.contains("open");
-export function syncScrim() { $("#scrim").classList.toggle("open", isOpen("drawer") || isOpen("settings") || isOpen("who")); }
+export function syncScrim() { $("#scrim").classList.toggle("open", ["drawer", "settings", "who", "askPlay"].some(isOpen)); }
 
 /* ---------- HTML pieces ---------- */
 export const spinner = t => `<div class="spinner">${t}…</div>`;

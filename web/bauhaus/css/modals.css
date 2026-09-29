@@ -12,6 +12,12 @@
 .pick .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pick .s { color: var(--muted); font-size: 12px; }
 .pick .ok { color: var(--yellow); font: 700 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+/* "Something is playing": the tapped song, then Play now / Play next / Add to queue */
+.asksong { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid var(--line); background: var(--s1); }
+.asksong img { width: 44px; height: 44px; object-fit: cover; background: var(--s2); }
+.asksong .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asksong .s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ask .pick .blank { display: grid; place-items: center; }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; padding: 16px; align-items: center; }
 kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border: 1px solid var(--line-2); border-bottom-width: 3px;
   font: 700 12px var(--display); background: var(--s1); color: var(--text); }
