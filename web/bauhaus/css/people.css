@@ -1,0 +1,24 @@
+/* ---------- people ---------- */
+.av { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--faint); color: #fff;
+  font: 700 14px/1 var(--display); flex: none; text-transform: uppercase; }
+.av.sm { width: 16px; height: 16px; font-size: 9px; margin-right: 6px; vertical-align: -3px; }
+.av.dark { color: #111; }
+.top .me { width: 56px; display: grid; place-items: center; border-left: 1px solid var(--line); transition: background .15s var(--ease); }
+.top .me:hover { background: var(--s1); }
+.top .me .av { width: 28px; height: 28px; font-size: 13px; }
+.top .me .av.none { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
+.pick .av { width: 44px; height: 44px; font-size: 18px; }
+.pick.on .ok::before { content: "This device"; }
+.whoform { border-top: 1px solid var(--line); border-bottom: 0; }
+.swatches, .emojis { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
+.swatches button.on { border-color: var(--text); }
+.emojis button { width: 36px; height: 36px; font-size: 18px; display: grid; place-items: center; border: 1px solid var(--line-2); }
+.emojis button.on { background: var(--s2); border-color: var(--text); }
+.prow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.prow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .acts button { width: auto; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.av.radio { background: var(--line-2); }
+.prow .me-tag { color: var(--muted); font-weight: 500; }
+.whoform .msg { width: 100%; margin: 0; }
+.note.tight { padding: 24px 16px; }

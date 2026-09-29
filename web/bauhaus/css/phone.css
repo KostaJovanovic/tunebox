@@ -1,0 +1,49 @@
+/* Phones and narrow windows (and reduced motion). Loaded last, so these win. */
+@media (max-width: 760px) {
+  .volbtn { display: grid !important; }
+  :root { --player-h: 72px; }
+  .brand span { display: none; }
+  .brand { padding: 0 12px; }
+  .top .home.kb { display: none; }
+  .nav button { padding: 0 14px; }
+  .nav button b { display: none; }
+  /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
+  .player .in { grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; padding: 6px 8px 6px 6px; touch-action: none; }
+  .now { grid-column: 1; grid-row: 1; gap: 10px; transition: transform .2s var(--ease); }
+  .now.swiping { transition: none; }
+  .now img { width: 48px; height: 48px; }
+  .now .time > span:not(.st) { display: none; }
+  .now .time { font-size: 0; }
+  .now .time .st { margin-left: 0; font-size: 11px; }
+  .right { grid-column: 2; grid-row: 1; gap: 0; }
+  .right #lyrBtn, .right .qopen { display: none; }
+  .ctrls { grid-column: 3; grid-row: 1; }
+  .ctrls .sq { display: none; }
+  .ctrls .play { width: 48px; height: 48px; margin: 0 0 0 4px; }
+  .prog { height: 2px; margin-top: 0; pointer-events: none; }
+  .prog .rail { top: 0; }
+  .prog .fill { top: 0; height: 2px; }
+  .prog input { display: none; }
+  .vol { display: none; }
+  .canvas { bottom: 0 !important; z-index: 12; }
+  .chead #cLyrToggle { display: none; }
+  .cbody { display: flex; flex-direction: column; justify-content: center; padding: 0 24px calc(12px + env(safe-area-inset-bottom)); gap: 0; }
+  .cmain { max-width: 480px; gap: 14px; }
+  #cImg { width: min(100%, 44vh); }
+  .cmain > .cph { display: block; width: 100%; }
+  .cmain > .cctrls.cph, .cmain > .cfoot.cph { display: flex; }
+  .clyr, .canvas.lyr-on .clyr { display: none; }
+  .row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; }
+  .row .n, .row .d { display: none; }
+  .acts button { width: 38px; }
+  .hero { grid-template-columns: 96px minmax(0, 1fr); align-items: start; }
+  .hide-sm { display: none; }
+  .hero > img, .hero > .mosaic, .hero > .blank { width: 96px; height: 96px; }
+  .daygroup { top: 56px; }
+  .modal { top: auto; bottom: 0; left: 0; width: 100%; transform: translateY(24px); max-height: 80vh; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .modal.open { transform: none; }
+  .eqplot { height: 176px; }
+  .eqfoot b { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@media (max-width: 600px) { #queue .row { min-height: 68px; } }

@@ -1,0 +1,165 @@
+/* The player bar at the bottom, and the now playing canvas (big cover). On a phone the bar is a mini
+   bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
+   On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
+import { $, fmt, secs, cssUrl } from "../../shared/dom.js";
+import { state, ctl } from "../../shared/playback.js";
+import { fetchLyrics } from "../../shared/lyrics.js";
+import { store } from "../../shared/device.js";
+import { on } from "../../shared/actions.js";
+import * as icon from "./icons.js";
+import { syncedHtml, plainHtml, follower } from "./lyrics.js";
+import { setVol, volumeTouched } from "./settings.js";
+
+const phone = () => innerWidth <= 760;
+const playIcon = s => s.paused || !s.current ? icon.PLAY : icon.PAUSE;
+const subtitle = c => c ? [c.artist, c.album].filter(Boolean).join(" · ") : "Search for something to play";
+const upcoming = s => Math.max(0, (s.queue || []).length - 1);
+const countBadge = (el, n) => { el.hidden = !n; el.textContent = n > 99 ? "99+" : n; };
+
+/* ---------- the bar ---------- */
+let seeking = false;
+export function paintBar(s) {
+  const c = s.current;
+  $("#pTitle").textContent = c ? c.title : "Nothing playing";
+  $("#pSub").textContent = subtitle(c);
+  if (c && $("#pImg").dataset.src !== c.thumb) { $("#pImg").src = c.thumb; $("#pImg").dataset.src = c.thumb; }
+  $("#pBtn").innerHTML = playIcon(s);
+  $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : ""));
+  $("#prog").classList.toggle("loading", !!s.loading);
+  const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
+  $("#tPos").textContent = fmt(s.position); $("#tDur").textContent = fmt(dur);
+  if (!seeking) {
+    $("#seek").max = Math.max(1, dur); $("#seek").value = s.position;
+    $("#fill").style.width = dur ? `${Math.min(100, (s.position / dur) * 100)}%` : "0";
+  }
+  countBadge($("#qCount"), upcoming(s));
+  document.title = c ? `${s.paused ? "❚❚" : "▶"} ${c.title} · Tunebox` : "Tunebox";
+}
+
+$("#seek").addEventListener("input", () => {
+  seeking = true; $("#tPos").textContent = fmt($("#seek").value);
+  $("#fill").style.width = `${($("#seek").value / $("#seek").max) * 100}%`;
+});
+$("#seek").addEventListener("change", async () => { await ctl("seek", +$("#seek").value); seeking = false; });
+
+/* the song opens the canvas; on a phone the whole bar does, a sideways swipe skips and a swipe up opens it */
+let barSwipe = null, barSwiped = 0;
+const bar = $(".player .in"), now = $(".player .now");
+bar.addEventListener("click", e => {
+  if (Date.now() - barSwiped < 400) return;
+  if (e.target.closest(".now") || (phone() && !e.target.closest("button, input"))) toggleCanvas(phone() ? true : undefined);
+});
+bar.addEventListener("pointerdown", e => {
+  if (!phone() || e.button > 0 || (e.target.closest("button, input") && !e.target.closest(".now"))) return;
+  barSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, dy: 0 };
+});
+addEventListener("pointermove", e => {
+  if (!barSwipe || e.pointerId !== barSwipe.id) return;
+  barSwipe.dx = e.clientX - barSwipe.x; barSwipe.dy = e.clientY - barSwipe.y;
+  if (Math.abs(barSwipe.dx) > 8 && Math.abs(barSwipe.dx) > Math.abs(barSwipe.dy)) {
+    now.classList.add("swiping"); now.style.transform = `translateX(${barSwipe.dx * .6}px)`;
+  }
+});
+function endBarSwipe(e, cancel) {
+  if (!barSwipe || e.pointerId !== barSwipe.id) return;
+  const { dx, dy } = barSwipe; barSwipe = null;
+  now.classList.remove("swiping"); now.style.transform = "";
+  if (cancel) return;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy)) { barSwiped = Date.now(); if (navigator.vibrate) navigator.vibrate(10); ctl(dx < 0 ? "next" : "prev"); }
+  else if (dy < -40 && Math.abs(dy) > Math.abs(dx)) { barSwiped = Date.now(); toggleCanvas(true); }
+}
+addEventListener("pointerup", e => endBarSwipe(e));
+addEventListener("pointercancel", e => endBarSwipe(e, true));
+
+/* ---------- the canvas ---------- */
+const cv = $("#canvas");
+export const canvasOpen = () => cv.classList.contains("open");
+
+/* on a desktop it sits above the bar */
+function placeCanvas() { cv.style.bottom = innerWidth > 760 ? $(".player").offsetHeight + "px" : ""; }
+addEventListener("resize", placeCanvas);
+
+export function toggleCanvas(open = !canvasOpen()) {
+  if (open === canvasOpen()) return;
+  cv.classList.toggle("open", open); cv.setAttribute("aria-hidden", !open);
+  document.body.classList.toggle("canvas-open", open);
+  if (open) { placeCanvas(); paintCanvas(true); history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
+  else if (history.state?.canvas) history.back();
+}
+addEventListener("popstate", () => { if (canvasOpen()) { cv.classList.remove("open"); document.body.classList.remove("canvas-open"); } });
+
+let lyrOn = store.get("tb_clyr", "0") === "1", cSeeking = false, lyrVid = null;
+const lyrBox = $("#cLyr"), follow = follower(lyrBox, 0.4, true);
+
+function toggleCanvasLyrics() { lyrOn = !lyrOn; store.set("tb_clyr", lyrOn ? "1" : "0"); paintCanvas(true); }
+
+export function paintCanvas(force) {
+  if (!canvasOpen()) return;
+  const s = state, c = s.current;
+  if ((c?.thumb || "") !== $("#cImg").dataset.src) {
+    $("#cImg").dataset.src = c?.thumb || "";
+    if (c?.thumb) $("#cImg").src = c.thumb; else $("#cImg").removeAttribute("src");
+    $("#cBg").style.backgroundImage = c?.thumb ? cssUrl(c.thumb) : "";
+  }
+  $("#cTitle").textContent = c ? c.title : "Nothing playing";
+  $("#cSub").textContent = subtitle(c);
+  const dur = s.duration || secs(c?.duration);
+  $("#cPos").textContent = fmt(s.position); $("#cDur").textContent = fmt(dur);
+  if (!cSeeking) {
+    $("#cSeek").max = Math.max(1, dur); $("#cSeek").value = s.position || 0;
+    $("#cSeek").style.setProperty("--p", dur ? `${Math.min(100, (s.position || 0) / dur * 100)}%` : "0%");
+  }
+  $("#cBtn").innerHTML = playIcon(s);
+  if (!volumeTouched()) $("#cVol").value = s.volume ?? 0;
+  countBadge($("#cCount"), upcoming(s));
+  cv.classList.toggle("lyr-on", lyrOn); $("#cLyrToggle").classList.toggle("on", lyrOn);
+  if (lyrOn && !phone() && (c?.videoId || null) !== lyrVid) loadCanvasLyrics();
+  if (force) follow.tick(true);
+}
+
+async function loadCanvasLyrics() {
+  const c = state.current;
+  lyrVid = c?.videoId || null; follow.set(null);
+  lyrBox.className = "clyr";
+  if (!c) { lyrBox.innerHTML = '<p class="note">Nothing playing</p>'; return; }
+  lyrBox.innerHTML = '<p class="note">Finding lyrics…</p>';
+  const d = await fetchLyrics(c);
+  if (lyrVid !== c.videoId) return;
+  if (d.instrumental) lyrBox.innerHTML = '<p class="note">Instrumental</p>';
+  else if (d.none) lyrBox.innerHTML = '<p class="note">No lyrics found for this song.</p>';
+  else if (d.synced) { follow.set(d.synced); lyrBox.innerHTML = syncedHtml(d.synced); follow.tick(true); }
+  else { lyrBox.className = "clyr plain"; lyrBox.innerHTML = plainHtml(d.plain); }
+}
+setInterval(() => { if (canvasOpen() && lyrOn) follow.tick(); }, 200);
+
+$("#cSeek").addEventListener("input", () => {
+  cSeeking = true; $("#cPos").textContent = fmt($("#cSeek").value);
+  $("#cSeek").style.setProperty("--p", `${$("#cSeek").value / $("#cSeek").max * 100}%`);
+});
+$("#cSeek").addEventListener("change", async () => { await ctl("seek", +$("#cSeek").value); cSeeking = false; });
+$("#cVol").addEventListener("input", () => setVol(+$("#cVol").value));
+
+/* a swipe down closes it (touch) */
+let cDrag = null;
+cv.addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" || e.target.closest("input, .clyr")) return;
+  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dy: 0, on: false };
+});
+addEventListener("pointermove", e => {
+  if (!cDrag || e.pointerId !== cDrag.id) return;
+  const dy = e.clientY - cDrag.y, dx = e.clientX - cDrag.x;
+  if (!cDrag.on && dy > 10 && dy > Math.abs(dx)) { cDrag.on = true; cv.classList.add("dragging"); }
+  if (cDrag.on) { cDrag.dy = Math.max(0, dy); cv.style.transform = `translateY(${cDrag.dy}px)`; }
+});
+function endCanvasDrag(e) {
+  if (!cDrag || e.pointerId !== cDrag.id) return;
+  const d = cDrag; cDrag = null;
+  if (!d.on) return;
+  cv.classList.remove("dragging"); cv.style.transform = "";
+  if (d.dy > 110) toggleCanvas(false);
+}
+addEventListener("pointerup", endCanvasDrag);
+addEventListener("pointercancel", endCanvasDrag);
+
+on("canvas-close", () => toggleCanvas(false));
+on("canvas-lyrics", toggleCanvasLyrics);

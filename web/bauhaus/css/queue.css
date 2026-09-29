@@ -1,0 +1,29 @@
+/* ---------- queue: now playing, songs people added, radio ---------- */
+.qscroll { overflow-y: auto; flex: 1; }
+.drawer .qscroll .list { overflow: visible; flex: none; }
+.qhead { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 4px 4px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.qhead h3 { margin: 0; font: 700 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qhead span { color: var(--faint); font-size: 12px; white-space: nowrap; }
+.qtools { margin-left: auto; display: flex; flex: none; }
+.qtools button { height: 32px; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.qtools button:hover { color: var(--text); background: var(--s1); }
+.qempty { padding: 14px 16px; color: var(--faint); font-size: 12.5px; border-bottom: 1px solid var(--line); }
+#queue .row.auto { opacity: .72; }
+#queue .row.auto:hover { opacity: 1; }
+.grip { width: 32px; height: var(--hit); display: grid; place-items: center; color: var(--faint); cursor: grab; touch-action: none; }
+.grip:hover { color: var(--text); }
+#queue .row { touch-action: pan-y; }
+#queue .row[data-swipe=left] { background: color-mix(in srgb, var(--red) 18%, var(--bg)); }
+#queue .row[data-swipe=remove] { background: color-mix(in srgb, var(--red) 45%, var(--bg)); }
+#queue .row[data-swipe=right] { background: color-mix(in srgb, var(--yellow) 18%, var(--bg)); }
+#queue .row[data-swipe=next] { background: color-mix(in srgb, var(--yellow) 45%, var(--bg)); }
+.erow { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); }
+.erow img, .erow .blank { width: 44px; height: 44px; object-fit: cover; background: var(--s2); }
+.erow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow .s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow .btn { height: 36px; padding: 0 12px; }
+.dtools button.on { color: var(--text); background: var(--s1); }
+.dtools button:disabled { opacity: .35; pointer-events: none; }
+#queue .row { transition: transform .15s var(--ease), background .12s var(--ease); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#queue .row + .row { cursor: grab; }
+#queue .row.dragging { transition: none; z-index: 3; background: var(--s2); box-shadow: 0 8px 24px #0006; cursor: grabbing; }
