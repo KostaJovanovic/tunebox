@@ -7,7 +7,6 @@ import asyncio
 import time
 
 
-
 def _seconds(duration: str, default: float = 200.0) -> float:
     """"3:45" or "1:02:03" -> seconds."""
     try:

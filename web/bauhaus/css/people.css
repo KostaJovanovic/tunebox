@@ -56,3 +56,6 @@
 .whofoot .msg:empty { display: none; }
 .whoview .mbody { flex: 1; min-height: 0; }
 .whoform .mbody > * { flex: none; }
+/* the pass phrase pop-up: one row for field and button, the message and link under them */
+#phraseForm { border-bottom: 0; }
+#phraseForm .msg { width: 100%; margin: 0; }

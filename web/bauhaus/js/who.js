@@ -11,6 +11,8 @@ let waiting = null;                            /* resolves the name asker: true 
 let editing = null, pickColor = COLORS[4], pickEmoji = "", pickSems = new Set(), other = false;
 let fromList = false;                          /* the form was opened from the list: Back returns to it */
 let finishing = false;                         /* editing only because the name has no seminar yet: saving picks it */
+let typedNow = null;                           /* the name whose pass phrase was just typed to unlock it */
+let justTyped = null;                          /* ...and opened for editing: its Phrase button needn't ask again */
 
 export function paintMe() {
   const p = me();
@@ -32,6 +34,7 @@ function showForm(on) {
 }
 function closeWho(chosen = false) {
   $("#who").classList.remove("open"); syncScrim();
+  justTyped = null;
   if (waiting) { waiting(chosen); waiting = null; }
 }
 onCloseAll(() => { if (waiting) { waiting(false); waiting = null; } });
@@ -43,7 +46,7 @@ async function unlocked(id) {
   if (!p.locked || p.mine) return true;
   const ok = await askPhrase({ title: `${p.name}'s pass phrase`, hint: "This name has a pass phrase. Type it once on this device.",
     button: "Unlock", check: ph => unlockPerson(id, ph) }) !== null;
-  if (ok) justTyped.add(id);
+  if (ok) typedNow = id;
   return ok;
 }
 
@@ -155,9 +158,9 @@ async function resetPhrase(id) {
 
 /* Adds, changes or removes a name's pass phrase. A name that has one asks for it first (even on a
    device that holds its key), unless it was typed a moment ago to open the name for editing. */
-const justTyped = new Set();                     /* names unlocked on this page just now */
 async function editPhrase(id) {
-  const p = people[id], fresh = justTyped.delete(id);
+  const p = people[id], fresh = justTyped === id;
+  justTyped = null;
   if (p.locked && !fresh && await askPhrase({ title: `${p.name}'s current pass phrase`, button: "Next",
     hint: "Type the pass phrase this name has now.", check: ph => unlockPerson(id, ph),
     other: { label: "Forgot it?", run: () => resetPhrase(id) } }) === null) return;
@@ -211,7 +214,13 @@ on("who-color", el => { pickColor = el.dataset.c; paintForm(); });
 on("who-emoji", el => { pickEmoji = el.dataset.e; paintForm(); });
 on("who-sem", el => { const s = el.dataset.s; pickSems.has(s) ? pickSems.delete(s) : pickSems.add(s); paintForm(); });
 on("who-sem-other", () => { other = !other; paintForm(); if (other) $("#whoOther").focus(); });
-on("person-edit", async el => { const id = el.dataset.id; if (await unlocked(id)) { openWho(); resetForm(people[id]); showForm(true); } });
+on("person-edit", async el => {
+  const id = el.dataset.id;
+  typedNow = null;
+  if (!await unlocked(id)) return;
+  openWho(); resetForm(people[id]); showForm(true);
+  justTyped = typedNow;
+});
 on("who-edit-me", () => { if (me()) { resetForm(me()); fromList = true; showForm(true); } });
 on("who-new", () => { resetForm(); showForm(true); });
 on("who-back", () => editing && !fromList ? closeWho() : (resetForm(), showForm(false)));
