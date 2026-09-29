@@ -1,0 +1,18 @@
+[Unit]
+Description=Tunebox - YouTube Music player for the local speakers
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+User=dietpi
+Group=audio
+WorkingDirectory=/opt/homeapps/tunebox
+RuntimeDirectory=tunebox
+Environment=TUNEBOX_RUN=/run/tunebox
+ExecStart=/opt/homeapps/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8888 --no-access-log
+Restart=always
+RestartSec=5
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
