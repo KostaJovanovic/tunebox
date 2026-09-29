@@ -13,7 +13,7 @@ import { showLists, likesChanged } from "./playlists.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleLyrics, paintLyrics } from "./lyrics.js";
 import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from "./settings.js";
-import { paintMe, renderPeople, renderWho } from "./who.js";
+import { paintMe, renderPeople, renderWho, checkSeminar } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
 import { askPlay } from "./ask.js";
 import "./menu.js";
@@ -33,7 +33,7 @@ onState(async s => {
   $("#undoBtn").title = s.undo ? `Undo: ${s.undo.label} (Z)` : "Nothing to undo";
   paintLyrics();
   paintCanvas();
-  if (await syncPeople(s.peopleRev)) { paintMe(); renderPeople(); if (isOpen("who")) renderWho(); renderQueue(); }
+  if (await syncPeople(s.peopleRev)) { paintMe(); renderPeople(); if (isOpen("who")) renderWho(); renderQueue(); checkSeminar(); }
 });
 
 /* ---------- pages ---------- */

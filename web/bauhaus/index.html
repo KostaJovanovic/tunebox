@@ -209,7 +209,7 @@
 
     <div class="sec"><b>07</b><h2>People</h2></div>
     <div class="body">
-      <p>Everyone picks their name once per device, so the queue shows who added what.</p>
+      <p>Everyone picks their name and seminar once per device, so the queue shows who added what.</p>
       <div id="peopleList"></div>
       <div class="eqtools"><button class="btn" data-act="who-open">Switch or add a name</button></div>
     </div>
@@ -256,6 +256,9 @@
   <div class="mbody" id="whoList"></div>
   <form class="newform whoform" id="whoForm">
     <input class="field" id="whoName" placeholder="Add a name" maxlength="24" autocomplete="off"><button class="btn red" id="whoSave">Add</button>
+    <div class="lbl">Seminar <span>pick one or more</span></div>
+    <div class="sems" id="whoSems"></div>
+    <input class="field other" id="whoOther" placeholder="3 letters" maxlength="3" autocomplete="off" hidden>
     <div class="swatches" id="whoColors"></div>
     <div class="emojis" id="whoEmoji"></div>
     <div class="msg" id="whoMsg"></div>

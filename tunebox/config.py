@@ -17,6 +17,7 @@ HISTORY_FILE = DATA / "history.json"       # recently played, newest first (shar
 LISTS_FILE = DATA / "playlists.json"       # Tunebox playlists (shared, editable by anyone)
 PEOPLE_FILE = DATA / "people.json"         # who's listening: names picked per device (cookie tb_who)
 STATS_FILE = DATA / "stats.json"           # when each song played, last STATS_DAYS days (for "Most played")
+SEMINARS_FILE = DATA / "seminars.json"     # seminars people added themselves (the built-in ones are below)
 
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted
 URL_TTL = 4 * 3600                          # stream URLs expire after ~6 h; re-resolve well before that
@@ -30,6 +31,13 @@ UNDO_TRACKS = 200                           # songs kept per snapshot (the curre
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
 HISTORY_MAX = 300
 STATS_DAYS = 30
+
+SEMINARS = {                                # built in; people can add their own 3-letter ones
+    "ele": {"id": "ele", "name": "Ele", "color": "#1F5FBF"},
+    "fiz": {"id": "fiz", "name": "Fiz", "color": "#E63B2E"},
+    "teh": {"id": "teh", "name": "Teh", "color": "#1E8F5A"},
+}
+SEMINAR_COLORS = ["#6A4BC4", "#EE6A1F", "#C8327A", "#F2C230", "#0E8C8C", "#8A5A2B", "#5C5953"]   # for added ones, in turn
 
 VOL_RANGE_DB = 50                           # the volume slider spans -50 dB .. 0 dB (0 = mute)
 PAUSE_FADE = 0.5                            # play/pause fades in or out over half a second

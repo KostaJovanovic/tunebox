@@ -18,7 +18,7 @@ A lean YouTube Music player for a home server's own speakers. Everyone on the lo
 - A two-part queue, like Spotify: the song playing, then the songs people added, then radio. Playing anything while a song is on (tapping a song, its play button, or Play on an album, playlist or history) asks first: Interrupt, Play next, or Add to the end of the queue (the end of the added songs). The Play next and Add all buttons skip the question. The radio always follows the last song someone added and stays after the added songs
 - Take turns (on by default): songs from different people alternate, so nobody takes over the queue
 - Undo for every queue change (the toast, the Up next drawer, or Z), and an Earlier queues list to restore from
-- People: everyone picks a name (with colour and emoji) once per device; the queue and history show who added each song, and likes remember who liked them. Adding songs asks for a name first
+- People: everyone picks a name (with colour and emoji) and one or more seminars (Ele, Fiz, Teh, or any 3-letter one typed under Other) once per device; the queue and history show who added each song, with their seminars, and likes remember who liked them. Adding songs asks for a name first
 - On touch screens, swipe a queued song left to remove it or right to play it next; the grip drags it
 - A wall screen at `/wall` for a tablet or TV: cover, synced lyrics and big controls; a dimmed clock when nothing plays. It keeps the screen on only over HTTPS (or localhost), since browsers allow wake locks only there
 - Gapless hand-over: the next track is preloaded 20 s before the current one ends
@@ -129,7 +129,8 @@ They go in the folder named by `TUNEBOX_DATA` instead when that's set (the emula
 | `session.json` | queue, position and the last 15 queue snapshots (undo), saved at most every 60 s when changed (spares an SD card) and on shutdown |
 | `history.json` | recently played (last 300) |
 | `playlists.json` | Tunebox playlists |
-| `people.json` | names picked on devices (name, colour, emoji) |
+| `people.json` | names picked on devices (name, colour, emoji, seminars) |
+| `seminars.json` | seminars added under Other (Ele, Fiz and Teh are built in) |
 | `stats.json` | when each song played, last 30 days (for Most played), saved at most every minute |
 | `browser.json` | YouTube Music sign-in headers, only if you sign in (contains your cookies) |
 

@@ -7,7 +7,8 @@ export const COLORS = ["#E63B2E", "#EE6A1F", "#F2C230", "#1E8F5A", "#1F5FBF", "#
 export const EMOJIS = ["", "🎸", "🎧", "🎹", "🥁", "🐱", "🐶", "🦊", "🐻", "🌻", "🚀", "⭐", "🍕", "⚽"];
 const DARK_ON = new Set(["#EE6A1F", "#F2C230"]);   /* light colours get dark text */
 
-export let people = {};                        /* {id: {id, name, color, emoji}} */
+export let people = {};                        /* {id: {id, name, color, emoji, seminars: [seminar id]}} */
+export let seminars = {};                      /* {id: {id, name, color}}: Ele, Fiz, Teh, then any added under Other */
 let peopleRev = null;
 
 export const myId = () => cookie("tb_who");
@@ -17,8 +18,11 @@ export const sortedPeople = () => Object.values(people).sort((a, b) => a.name.lo
 /* Reloads the names when the server says they changed (state.peopleRev); true if they did */
 export async function syncPeople(rev) {
   if (rev === peopleRev) return false;
-  try { people = Object.fromEntries((await api("api/people")).map(p => [p.id, p])); peopleRev = rev; return true; }
-  catch { return false; }
+  try {
+    const [ps, ss] = await Promise.all([api("api/people"), api("api/seminars")]);
+    people = Object.fromEntries(ps.map(p => [p.id, p])); seminars = Object.fromEntries(ss.map(x => [x.id, x]));
+    peopleRev = rev; return true;
+  } catch { return false; }
 }
 
 export function setMe(id) { setCookie("tb_who", id); }
@@ -41,5 +45,12 @@ export function avatar(p, cls = "") {
   return `<i class="av ${cls}${DARK_ON.has(p.color) ? " dark" : ""}" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.emoji || p.name.slice(0, 1))}</i>`;
 }
 
-/* The small badge on a queued song: who added it, or a dot for the radio */
-export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>` : people[id] ? avatar(people[id], "sm") : "";
+/* A seminar's tag, in its colour */
+export function semTag(sid, cls = "") {
+  const x = seminars[sid];
+  return x ? `<i class="sem ${cls}${DARK_ON.has(x.color) ? " dark" : ""}" style="background:${esc(x.color)}">${esc(x.name)}</i>` : "";
+}
+export const semTags = (p, cls = "") => (p?.seminars || []).map(sid => semTag(sid, cls)).join("");
+
+/* The small badge on a queued song: who added it (and their seminars), or a dot for the radio */
+export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>` : people[id] ? avatar(people[id], "sm") + semTags(people[id], "sm") : "";

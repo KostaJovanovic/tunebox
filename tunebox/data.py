@@ -6,8 +6,8 @@ import re
 import sys
 import time
 
-from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FILE, STATS_DAYS,
-                     STATS_FILE)
+from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FILE, SEMINAR_COLORS, SEMINARS,
+                     SEMINARS_FILE, STATS_DAYS, STATS_FILE)
 from .files import read_json, write_json
 
 VIDEO_ID = re.compile(r"[\w-]{11}")          # YouTube's video IDs: always 11 of these
@@ -74,6 +74,26 @@ def save_people():
     global people_rev
     people_rev += 1
     write_json(PEOPLE_FILE, people)
+
+
+# ---------- seminars: every person is in at least one ----------
+seminars: dict[str, dict] = {**SEMINARS, **read_json(SEMINARS_FILE, {})}   # {id: {id, name, color}}; id = name.lower()
+
+
+def add_seminar(name: str) -> dict:
+    """A seminar someone typed under Other (3 letters or digits); the next free colour."""
+    sid = name.lower()
+    if sid not in seminars:
+        custom = {k: v for k, v in seminars.items() if k not in SEMINARS}
+        seminars[sid] = {"id": sid, "name": name[:1].upper() + name[1:].lower(),
+                         "color": SEMINAR_COLORS[len(custom) % len(SEMINAR_COLORS)]}
+        write_json(SEMINARS_FILE, {k: v for k, v in seminars.items() if k not in SEMINARS})
+        save_people()                         # bumps people_rev: clients reload names and seminars together
+    return seminars[sid]
+
+
+def seminars_of(pid: str) -> list[str]:
+    return list((people.get(pid) or {}).get("seminars") or [])
 
 
 # ---------- play counts for "Most played", last STATS_DAYS days ----------
