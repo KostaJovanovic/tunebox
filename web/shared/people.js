@@ -3,13 +3,14 @@
    picked or changed on a device that typed it. Removing a name is the admin's. */
 import { cookie, esc, setCookie } from "./dom.js";
 import { api } from "./api.js";
+import { feat } from "./house.js";
 
 export const COLORS = ["#E63B2E", "#EE6A1F", "#F2C230", "#1E8F5A", "#1F5FBF", "#6A4BC4", "#C8327A", "#5C5953"];
 export const EMOJIS = ["", "🎸", "🎧", "🎹", "🥁", "🐱", "🐶", "🦊", "🐻", "🌻", "🚀", "⭐", "🍕", "⚽"];
 const DARK_ON = new Set(["#EE6A1F", "#F2C230"]);   /* light colours get dark text */
 
 export let people = {};                        /* {id: {id, name, color, emoji, seminars: [seminar id]}} */
-export let seminars = {};                      /* {id: {id, name, color}}: Ele, Fiz, Teh, then any added under Other */
+export let seminars = {};                      /* {id: {id, name, color}}: the house's groups ("seminars" in the code) */
 let peopleRev = null;
 
 export const myId = () => cookie("tb_who");
@@ -53,12 +54,12 @@ export function avatar(p, cls = "") {
   return `<i class="av ${cls}${DARK_ON.has(p.color) ? " dark" : ""}" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.emoji || p.name.slice(0, 1))}</i>`;
 }
 
-/* A seminar's tag, in its colour */
+/* A group's tag, in its colour */
 export function semTag(sid, cls = "") {
-  const x = seminars[sid];
+  const x = feat("groups") && seminars[sid];
   return x ? `<i class="sem ${cls}${DARK_ON.has(x.color) ? " dark" : ""}" style="background:${esc(x.color)}">${esc(x.name)}</i>` : "";
 }
 export const semTags = (p, cls = "") => (p?.seminars || []).map(sid => semTag(sid, cls)).join("");
 
-/* The small badge on a queued song: who added it (and their seminars), or a dot for the radio */
-export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>` : people[id] ? avatar(people[id], "sm") + semTags(people[id], "sm") : "";
+/* The small badge on a queued song: who added it (and their groups), or a dot for the radio */
+export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>` : people[id] && feat("people") ? avatar(people[id], "sm") + semTags(people[id], "sm") : "";

@@ -5,7 +5,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from .. import admin, audit, auth, data, house, plays
+from .. import admin, audit, auth, data, plays
 from ..config import HISTORY_FILE, LIKED_ID
 from ..data import list_summary, people, playlists, save_lists, save_people
 from ..files import write_json
@@ -32,8 +32,7 @@ class PasswordBody(BaseModel):
 
 @router.get("/api/admin")
 async def admin_state(request: Request):
-    return {"set": auth.admin_set(), "admin": admin.is_admin(request, touch=False), "lockedFor": admin.locked_for(),
-            "signups": house.house["signups"]}
+    return {"set": auth.admin_set(), "admin": admin.is_admin(request, touch=False), "lockedFor": admin.locked_for()}
 
 
 @router.post("/api/admin/login")
@@ -65,18 +64,6 @@ async def reset(request: Request):
 @router.get("/api/admin/audit", dependencies=ADMIN)
 async def audit_log(limit: int = 300):
     return audit.entries[-max(1, min(limit, 300)):][::-1]
-
-
-class SignupsBody(BaseModel):
-    open: bool
-
-
-@router.patch("/api/admin/signups", dependencies=ADMIN)
-async def signups(body: SignupsBody, request: Request):
-    house.house["signups"] = "open" if body.open else "closed"
-    house.save_house()
-    audit.log("signups", "Anyone can add a name" if body.open else "Only the admin adds names", request)
-    return {"signups": house.house["signups"]}
 
 
 # ---------- people ----------
@@ -135,7 +122,7 @@ def admin_view(p: dict, heard: dict | None) -> dict:
 
 
 def admin_fields(p: dict, body: AdminPersonBody):
-    person_fields(p, body)
+    person_fields(p, body, may_create=True)
     set_phrase(p, body.phrase)
     if body.noAdd is not None:
         p["noAdd"] = body.noAdd
@@ -156,7 +143,7 @@ async def all_people():
 @router.post("/api/admin/people", dependencies=ADMIN)
 async def add_person(body: AdminPersonBody, request: Request):
     async with people_lock:
-        p = new_person(body)
+        p = new_person(body, may_create=True)
         admin_fields(p, AdminPersonBody(noAdd=body.noAdd, cap=body.cap))
         save_people()
     audit.log("person.add", f'Added {p["name"]}', request)

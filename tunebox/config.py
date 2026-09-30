@@ -24,8 +24,9 @@ PEOPLE_FILE = DATA / "people.json"         # who's listening: names picked per d
 STATS_FILE = DATA / "stats.json"           # when each song played, last STATS_DAYS days (for "Most played")
 KEYS_FILE = DATA / "keys.json"             # the admin password's hash and the secret that signs device cookies
 PLAYS_DIR = DATA / "plays"                 # the play log, a file per month, kept for good (Stats, recap)
-SEMINARS_FILE = DATA / "seminars.json"     # seminars people added themselves (the built-in ones are below)
+SEMINARS_FILE = DATA / "seminars.json"     # the groups people are in (a house calls them what it likes; here they began as seminars)
 HOUSE_FILE = DATA / "house.json"           # what the admin set for the whole house
+BLOCK_FILE = DATA / "blocklist.json"       # songs and artists the admin blocked
 AUDIT_FILE = DATA / "audit.json"           # what the admin did, and who tried to get in
 TOKEN_FILE = DATA / "cli.token"            # written at every start: reading it proves you are on the server (admin.py)
 
@@ -46,7 +47,7 @@ LOCK_FOR = 5 * 60                           # how long nobody can try again
 AUDIT_KEEP = 300                            # entries kept in the audit log
 STATS_DAYS = 30
 
-SEMINARS = {                                # built in; people can add their own 3-letter ones
+SEMINARS = {                                # the groups a new Tunebox starts with; the admin changes them
     "ele": {"id": "ele", "name": "Ele", "color": "#1F5FBF"},
     "fiz": {"id": "fiz", "name": "Fiz", "color": "#E63B2E"},
     "teh": {"id": "teh", "name": "Teh", "color": "#1E8F5A"},

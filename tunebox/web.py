@@ -2,12 +2,12 @@
 import ipaddress
 import urllib.parse
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel as PydanticModel, ConfigDict
 
-from . import auth, data
+from . import admin, auth, data, house
 from .config import CGNAT, LOCAL_NAMES
 from .mpv import PlayerDown
 
@@ -71,16 +71,33 @@ def install(app: FastAPI):
     app.add_exception_handler(PlayerDown, player_down)
 
 
+def need_feature(request: Request, *names: str):
+    """403 unless one of these features is on, or the admin is asking (a switched-off feature is the
+    admin's alone)."""
+    if not any(house.on(n) for n in names) and not admin.is_admin(request):
+        raise HTTPException(403, f"The admin switched off {house.label(names[0])}")
+
+
+def feature(*names: str):
+    """For routes that belong to a feature the admin can switch off."""
+    def check(request: Request):
+        need_feature(request, *names)
+    return Depends(check)
+
+
 def who(request: Request) -> str:
     """The person this device picked (cookie tb_who), or "" for nobody, a removed name, or a protected
-    name this device hasn't unlocked."""
+    name this device hasn't unlocked. With names switched off, everyone but the admin is nobody."""
+    if not house.on("people") and not admin.is_admin(request, touch=False):
+        return ""
     pid = request.cookies.get("tb_who") or ""
     return pid if pid in data.people and auth.holds_key(request, pid) else ""   # a protected name needs its key
 
 
 def need_who(request: Request) -> str:
-    """Adding songs needs a name; the UI answers this 401 by showing its picker."""
+    """Adding songs needs a name; the UI answers this 401 by showing its picker. With names switched
+    off nobody has one: songs are added by "" and simply queue in order."""
     pid = who(request)
-    if not pid:
+    if not pid and house.on("people"):
         raise HTTPException(401, "pick")
     return pid

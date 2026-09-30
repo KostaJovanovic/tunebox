@@ -49,9 +49,9 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 👥 **Share the queue fairly.** Songs from different people take turns, so no one person controls the music. Radio plays when the queue is empty. You can undo every change.
 
-🙋 **Know who's who.** Everyone picks a name, colour, emoji and seminar. You can see who queued each song and who liked it. Names can have an optional pass phrase.
+🙋 **Know who's who.** Everyone picks a name, colour, emoji and group (call them seminars, teams, rooms: your word). You can see who queued each song and who liked it. Names can have an optional pass phrase.
 
-📊 **Stats and a Wrapped-style recap.** See the top songs, artists and people for any period. Look at the whole house, one person or one seminar. The recap shows it as full-screen story slides.
+📊 **Stats and a Wrapped-style recap.** See the top songs, artists and people for any period. Look at the whole house, one person or one group. The recap shows it as full-screen story slides.
 
 🎛️ **Sound right.** Gapless playback, a 10-band EQ with presets, loudness normalisation, and a volume slider that feels even.
 
@@ -67,11 +67,15 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 🔑 **One admin for the house.** Type the Konami code (↑ ↑ ↓ ↓ ← → ← → B A), or tap the word *Settings* ten times on a phone. The first time, you choose the admin password. The admin can edit, merge, block and remove people, see what each person played, and clean up plays, likes and playlists.
 
+🧩 **Only what you need.** The admin can switch off any part: names, groups, playlists, likes, Home and Explore, pasted links, radio, lyrics, stats, the recap, the wall screen, the alarm, the sleep timer, the equaliser. What is off is hidden for everyone and nothing is deleted. Four presets (Home, Office, Party, Solo) set all the switches at once, and a setup can be copied to another Tunebox as a file.
+
+🏠 **Make it yours.** Give the house its own name and accent colour, set its time zone, decide who may add names and groups, choose what the wall screen shows, and block songs or artists nobody wants to hear again.
+
 ---
 
 ## Good to know
 
-**It's for a home network.** There are no logins. It trusts the devices on the local network. It refuses requests from other addresses, so a website can't control your speakers. Only a few things need the admin password: managing people, clearing the history, the YouTube sign-in and restoring a backup.
+**It's for a home network.** There are no logins. It trusts the devices on the local network. It refuses requests from other addresses, so a website can't control your speakers. Only a few things need the admin password: managing people, the house's setup, clearing the history, the YouTube sign-in and restoring a backup.
 
 **Forgot the admin password?** Run this on the server, in the Tunebox folder (add `--port N` if it isn't 8888). The music keeps playing, and the next person to open the admin panel chooses a new password:
 
@@ -127,11 +131,12 @@ Everything lives in the app folder (or `TUNEBOX_DATA`). Git ignores all of it.
 | `session.json` | the queue and undo history |
 | `history.json` | the last 300 songs played |
 | `playlists.json` | playlists (with who made each) and likes |
-| `people.json`, `seminars.json` | names and seminars |
+| `people.json`, `seminars.json` | names and groups |
 | `plays/` | the play log behind Stats and the recap, one file per month |
 | `stats.json` | the last 30 days of plays, for *Most played* |
 | `keys.json` | the admin password (hashed) and the device-key secret |
-| `house.json` | what the admin set for the house |
+| `house.json` | what the admin set for the house: name, accent, time zone, feature switches, group rules, wall options |
+| `blocklist.json` | the songs and artists the admin blocked |
 | `audit.json` | the admin's log: unlocks, wrong passwords, changes |
 | `cli.token` | a token written at every start; it lets `run.py --reset-admin` talk to the running Tunebox |
 | `backups/` | the copy a restore saves before it replaces anything |

@@ -4,6 +4,7 @@
 import { $$ } from "./dom.js";
 import { api, errText } from "./api.js";
 import { state } from "./playback.js";
+import { feat } from "./house.js";
 
 let liked = new Set(), likedRev = null, toast = () => {}, changed = () => {};
 
@@ -23,6 +24,7 @@ function paintLikes() {
 
 /* Reloads the liked list when the server says playlists changed (state.listsRev) */
 export async function syncLikes(rev) {
+  if (!feat("likes")) { liked = new Set(); likedRev = null; return paintLikes(); }   /* switched off: no hearts */
   if (rev === likedRev) return paintLikes();
   try {
     const p = await api("api/lists/liked");

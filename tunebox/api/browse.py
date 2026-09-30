@@ -6,10 +6,11 @@ import re
 import time
 import urllib.parse
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from .. import data, youtube
+from .. import admin, data, house, youtube
 from ..config import LIKED_ID, STATS_DAYS
+from ..web import feature
 from ..youtube import album_card, cached, radio_for, thumb_of, track_from, yt_get
 
 router = APIRouter()
@@ -40,7 +41,7 @@ async def search(q: str, kind: str = "songs"):
     return [o for o in out if o.get("videoId") or o.get("id")]
 
 
-@router.get("/api/home")
+@router.get("/api/home", dependencies=[feature("browse")])
 async def home():
     shelves = await yt_get("home page", youtube.yt.get_home, limit=6)
     out = []
@@ -117,7 +118,7 @@ async def where(video_id: str):
 YT_ID = re.compile(r"[\w-]{2,80}")
 
 
-@router.get("/api/resolve")
+@router.get("/api/resolve", dependencies=[feature("links")])
 async def resolve(url: str):
     """A pasted YouTube / YouTube Music link: which album, playlist, artist or song it points to."""
     raw = url.strip()
@@ -167,7 +168,7 @@ async def resolve(url: str):
     return {"type": "song", "track": t}
 
 
-@router.get("/api/explore")
+@router.get("/api/explore", dependencies=[feature("browse")])
 async def explore():
     """New releases (albums) and the moods & genres to browse."""
     async def fetch():
@@ -180,7 +181,7 @@ async def explore():
     return await cached("explore", fetch)
 
 
-@router.get("/api/mood")
+@router.get("/api/mood", dependencies=[feature("browse")])
 async def mood(params: str):
     if not re.fullmatch(r"[\w=%-]{4,200}", params):
         raise HTTPException(400, "bad mood")
@@ -197,8 +198,8 @@ async def mood(params: str):
 
 
 # ---------- for you: shelves from what the house plays and likes ----------
-@router.get("/api/forme")
-async def for_me():
+@router.get("/api/forme", dependencies=[feature("browse")])
+async def for_me(request: Request):
     now = time.time()
     counts = []
     for vid, s in data.stats.items():
@@ -213,7 +214,7 @@ async def for_me():
     shelves = []
     if most:
         shelves.append({"key": "most", "title": "Most played", "subtitle": f"The house, last {STATS_DAYS} days", "items": most})
-    if likes:
+    if likes and (house.on("likes") or admin.is_admin(request, touch=False)):
         shelves.append({"key": "likedmix", "title": "Liked mix", "subtitle": "Everyone's likes, shuffled", "items": likes[:30]})
     seeds = [c[2]["videoId"] for c in counts[:5]] or [t["videoId"] for t in likes[:5]]
     if seeds:

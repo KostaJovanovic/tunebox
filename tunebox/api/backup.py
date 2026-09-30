@@ -1,5 +1,5 @@
-"""Backup and restore: everything the house made (people, seminars, pass phrases, playlists and likes,
-history, play counts, the play log, settings, the house setup) in one JSON file. The YouTube sign-in
+"""Backup and restore: everything the house made (people, groups, pass phrases, playlists and likes,
+history, play counts, the play log, settings, the house setup, the blocklist) in one JSON file. The YouTube sign-in
 (browser.json) and the audit log are never in it. A restore first saves what it replaces in backups/,
 so it can be undone.
 
@@ -12,8 +12,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
-from .. import admin, audit, auth, data, house, plays
-from ..config import (DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, PEOPLE_FILE, PLAYS_DIR, SEMINARS,
+from .. import admin, audit, auth, blocklist, data, house, plays
+from ..config import (BLOCK_FILE, DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, PEOPLE_FILE, PLAYS_DIR,
                       SEMINARS_FILE, SETTINGS_FILE, STATS_FILE)
 from ..files import read_json, write_json
 from ..player import player
@@ -23,7 +23,8 @@ from ..web import BaseModel
 router = APIRouter()
 BACKUPS = DATA / "backups"
 FILES = {"settings": SETTINGS_FILE, "history": HISTORY_FILE, "playlists": LISTS_FILE, "people": PEOPLE_FILE,
-         "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE}
+         "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE,
+         "blocklist": BLOCK_FILE}
 
 
 def snapshot(secrets: bool = True) -> dict:
@@ -99,13 +100,14 @@ async def restore(body: RestoreBody, request: Request):
     replace_in_place(data.playlists, read_json(LISTS_FILE, {}))
     data.ensure_liked()
     replace_in_place(data.people, read_json(PEOPLE_FILE, {}))
-    replace_in_place(data.seminars, {**SEMINARS, **read_json(SEMINARS_FILE, {})})
+    replace_in_place(data.seminars, data.load_seminars())
     replace_in_place(data.stats, read_json(STATS_FILE, {}))
     replace_in_place(auth.keys, read_json(KEYS_FILE, {}))
     auth.ensure_secret()
     replace_in_place(settings, load_settings())
-    replace_in_place(house.house, {**house.DEFAULTS, **(read_json(HOUSE_FILE, {}) or {})})
-    house.save_house()
+    house.load()
+    house.save_house()                        # bumps its revision: every page reads the setup again
+    blocklist.load()
     data.save_lists()                         # bumps the revisions: every page reloads names and likes
     data.save_people()
     await player.apply_volume()

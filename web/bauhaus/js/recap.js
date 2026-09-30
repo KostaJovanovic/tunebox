@@ -1,10 +1,11 @@
-/* The recap: Stats told as full-screen story slides, for the period and the person or seminar picked
+/* The recap: Stats told as full-screen story slides, for the period and the person or group picked
    on the Stats page. Tap the right side (or →) for the next slide, the left side (or ←) to go back,
    hold to pause; each slide moves on by itself after a few seconds. */
 import { $, esc } from "../../shared/dom.js";
 import { errText } from "../../shared/api.js";
 import { lists, queueSongs } from "../../shared/playback.js";
 import { people, seminars, avatar, semTag } from "../../shared/people.js";
+import { house, feat, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast } from "./ui.js";
 import { range, whoName, fetchStats, statsView } from "./stats.js";
@@ -21,8 +22,8 @@ const img = u => u ? `<img src="${esc(u)}" alt="">` : `<div class="blank"></div>
 function build(d, who, label) {
   const name = whoName(who), you = who && !who.startsWith("sem:");
   const s = [];
-  s.push({ cls: "red", html: `<div class="k">Tunebox recap</div><h1>${esc(label)}</h1>
-    <p class="lead">${esc(name)}${who.startsWith("sem:") ? " seminar" : ""}</p><p>Tap to go on.</p>` });
+  s.push({ cls: "red", html: `<div class="k">${esc(house.name)} recap</div><h1>${esc(label)}</h1>
+    <p class="lead">${esc(name)}${who.startsWith("sem:") ? " " + esc(G().a) : ""}</p><p>Tap to go on.</p>` });
   if (!d.plays) return [...s, { cls: "black", html: `<h1>Nothing yet</h1><p class="lead">No plays in this period. Put some music on.</p>` }];
   s.push({ cls: "black", html: `<div class="k">Time together</div><div class="huge">${num(d.minutes)}</div><p class="lead">minutes of music</p>
     <p>${d.minutes >= 120 ? `That's ${hm(d.minutes)}` : "Every minute counts"}, across ${d.days} ${d.days === 1 ? "day" : "days"} and ${num(d.plays)} plays.</p>` });
@@ -40,18 +41,18 @@ function build(d, who, label) {
   s.push({ cls: "black", html: `<div class="k">When</div><h2>${DAYS[day]}s around ${hour}:00</h2>
     <p class="lead">That's when the music plays most.</p>${d.busiestDay ? `<p>The biggest day: ${esc(new Date(d.busiestDay.date).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" }))}, ${hm(d.busiestDay.minutes)}.</p>` : ""}
     ${d.streak > 1 ? `<p>Best run: ${d.streak} days in a row.</p>` : ""}` });
-  const sems = d.seminars.filter(x => seminars[x.id]);
+  const sems = feat("groups") ? d.seminars.filter(x => seminars[x.id]) : [];
   if (sems.length && !you) {
     const mine = who.startsWith("sem:") ? who.slice(4) : null, rank = mine ? sems.findIndex(x => x.id === mine) + 1 : 0;
-    s.push({ cls: "red", html: `<div class="k">Seminars</div><h2>${mine && rank ? `${esc(seminars[mine].name)} came ${rank === 1 ? "first" : `number ${rank}`}` : `${esc(seminars[sems[0].id].name)} played the most`}</h2>
+    s.push({ cls: "red", html: `<div class="k">${esc(G().many)}</div><h2>${mine && rank ? `${esc(seminars[mine].name)} came ${rank === 1 ? "first" : `number ${rank}`}` : `${esc(seminars[sems[0].id].name)} played the most`}</h2>
       <ol class="rank">${sems.slice(0, 5).map(x => `<li class="${x.id === mine ? "me" : ""}">${semTag(x.id)}<span>${hm(x.minutes)}</span></li>`).join("")}</ol>` });
   }
   if (you) {
     const mine = people[who]?.seminars || [];
-    if (mine.length && sems.length) s.push({ cls: "red", html: `<div class="k">Seminars</div><h2>${esc(name)} plays for ${mine.map(x => esc(seminars[x]?.name || x)).join(" and ")}</h2>
+    if (mine.length && sems.length) s.push({ cls: "red", html: `<div class="k">${esc(G().many)}</div><h2>${esc(name)} plays for ${mine.map(x => esc(seminars[x]?.name || x)).join(" and ")}</h2>
       <ol class="rank">${sems.slice(0, 5).map(x => `<li class="${mine.includes(x.id) ? "me" : ""}">${semTag(x.id)}<span>${hm(x.minutes)}</span></li>`).join("")}</ol>` });
   } else {
-    const ps = d.people.filter(x => people[x.id] && (!who || people[x.id].seminars?.includes(who.slice(4))));
+    const ps = feat("people") ? d.people.filter(x => people[x.id] && (!who || people[x.id].seminars?.includes(who.slice(4)))) : [];
     if (ps.length) s.push({ cls: "yellow", html: `<div class="k">Who added the most</div><h2>${esc(people[ps[0].id].name)}</h2>
       <ol class="rank">${ps.slice(0, 5).map(x => `<li>${avatar(people[x.id], "sm")}<b>${esc(people[x.id].name)}</b><span>${hm(x.minutes)}</span></li>`).join("")}</ol>` });
   }
@@ -63,8 +64,9 @@ function build(d, who, label) {
 }
 
 export async function openRecap() {
+  if (!feat("recap")) return;
   const v = statsView(), r = range(v.period, v.from, v.to);
-  box.innerHTML = `<div class="slide black"><div class="in"><div class="k">Tunebox recap</div><h2>Counting…</h2></div></div>`;
+  box.innerHTML = `<div class="slide black"><div class="in"><div class="k">${esc(house.name)} recap</div><h2>Counting…</h2></div></div>`;
   box.classList.add("open"); document.body.classList.add("recap-open");
   let d;
   try { d = await fetchStats(r, v.who); } catch (e) { closeRecap(); toast(errText(e)); return; }

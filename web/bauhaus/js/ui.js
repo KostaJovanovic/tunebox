@@ -1,10 +1,12 @@
 /* Building blocks the views share: the toast, drawers and pop-ups, and the HTML for song rows, cards
    and section headings. Buttons carry data-act="..." (see shared/actions.js); a song button also says
-   which list it's from and where (data-list, data-i), the song itself sits in lists[list][i]. */
+   which list it's from and where (data-list, data-i), the song itself sits in lists[list][i]. What belongs to a feature the
+   admin can switch off says so with data-f="..." (base.css hides it). */
 import { $, $$, esc, pad } from "../../shared/dom.js";
 import { state } from "../../shared/playback.js";
 import { isLiked } from "../../shared/likes.js";
 import { byChip, people, avatar } from "../../shared/people.js";
+import { feat } from "../../shared/house.js";
 import * as icon from "./icons.js";
 
 /* ---------- toast ---------- */
@@ -51,7 +53,7 @@ export const at = (key, i) => `data-list="${esc(key)}" data-i="${i}"`;
 
 export const likeBtn = (key, i, vid) => {
   const on = isLiked(vid);
-  return `<button class="like${on ? " on" : ""}" data-act="like" ${at(key, i)} data-like="${esc(vid)}" title="Like" aria-label="Like" aria-pressed="${on}">${icon.HEART}</button>`;
+  return `<button class="like${on ? " on" : ""}" data-f="likes" data-act="like" ${at(key, i)} data-like="${esc(vid)}" title="Like" aria-label="Like" aria-pressed="${on}">${icon.HEART}</button>`;
 };
 
 /* A song row. A tap on the title adds the song (o.meta: other attributes for that tap); the buttons on
@@ -63,13 +65,13 @@ export function songRow(t, key, i, o = {}) {
   const meta = o.meta || `data-act="song" ${at(key, i)}`;
   const acts = o.acts ?? `<button class="wide" title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at(key, i)}>${icon.NEXT}</button>
       <button title="Play" aria-label="Play" data-act="song" data-mode="now" ${at(key, i)}>${icon.PLAYS}</button>
-      <button title="Add to playlist" aria-label="Add to playlist" data-act="pick" ${at(key, i)}>${icon.LIST}</button>
+      <button title="Add to playlist" aria-label="Add to playlist" data-f="playlists" data-act="pick" ${at(key, i)}>${icon.LIST}</button>
       ${likeBtn(key, i, t.videoId)}`;
   return `<div class="row${cur}${o.cls ? " " + o.cls : ""}">
     <span class="n">${pad(o.num ?? i + 1)}</span>
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="meta" ${meta}>
-      <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
+      <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] && feat("people") ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
     <span class="d">${esc(o.d ?? t.duration)}</span>
     <div class="acts">${acts}${o.extra || ""}</div></div>`;
@@ -84,7 +86,7 @@ export function card(it) {
 }
 
 /* A card for song i of a list (the house's own shelves on Home); liked songs show who liked them */
-const likers = t => (t.likedBy || []).filter(id => people[id]).map(id => avatar(people[id], "sm")).join("");
+const likers = t => (t.likedBy || []).filter(id => people[id] && feat("people")).map(id => avatar(people[id], "sm")).join("");
 export const songCard = (t, key, i) => `<button class="card" data-act="song" ${at(key, i)}><img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="t">${esc(t.title)}</div><div class="s">${likers(t) || '<i class="kind song"></i>'}${esc(t.artist)}</div></button>`;
 

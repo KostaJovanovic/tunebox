@@ -2,8 +2,9 @@
 from fastapi import APIRouter
 
 from ..lyrics import lyrics_for
+from ..web import feature
 
-router = APIRouter()
+router = APIRouter(dependencies=[feature("lyrics")])
 
 
 @router.get("/api/lyrics")

@@ -3,6 +3,7 @@
 import { $, $$, esc, ago } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists, LINK } from "../../shared/playback.js";
+import { feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
@@ -10,8 +11,13 @@ import { askPlay } from "./ask.js";
 import { withAdmin } from "./phrase.js";
 import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 import { toggleCanvas } from "./player.js";
+import { showLists } from "./playlists.js";
 
 let kind = "songs", lastQuery = "";
+
+/* Where the page starts, and where an emptied search goes back to: Home, or the first page that is
+   switched on when Home isn't. */
+export const startPage = () => feat("browse") ? showHome() : feat("playlists") || feat("likes") ? showLists() : showHistory();
 
 /* ---------- Home: the house's own shelves first, then YouTube's ---------- */
 export async function showHome() {
@@ -58,7 +64,7 @@ async function showMood(params, title) {
 
 /* ---------- search, or a pasted YouTube / YouTube Music link ---------- */
 async function openLink(url) {
-  lastQuery = url; setNav("search"); $("#tabs").hidden = true; setBack(showHome);
+  lastQuery = url; setNav("search"); $("#tabs").hidden = true; setBack(startPage);
   const my = seq;
   main(loading("Opening the link"));
   try {
@@ -72,7 +78,7 @@ async function openLink(url) {
 
 async function doSearch() {
   const q = $("#q").value.trim();
-  if (!q) return showHome();
+  if (!q) return startPage();
   if (LINK.test(q)) return openLink(q);
   lastQuery = q; setNav("search"); $("#tabs").hidden = false; setBack(doSearch);
   const my = seq;
@@ -103,7 +109,7 @@ export async function openItem(type, id, goingBack = false) {
         <div class="btns"><button class="btn red" data-act="play-all" ${all}>${icon.PLAYS}Play</button>
           <button class="btn" data-act="play-all" data-mode="next" ${all}>${icon.NEXT}Play next</button>
           <button class="btn" data-act="play-all" data-mode="add" ${all}>${icon.ADD}Add all</button>
-          <button class="btn" data-act="save-as-list" data-list="detail" data-label="${esc(d.title || "Playlist")}">${icon.ADD}Save as playlist</button></div>
+          <button class="btn" data-f="playlists" data-act="save-as-list" data-list="detail" data-label="${esc(d.title || "Playlist")}">${icon.ADD}Save as playlist</button></div>
       </div></div>
       <div class="list">${d.tracks.map((t, i) => songRow(t, "detail", i)).join("")}</div>
       ${d.albums && d.albums.length ? section(2, "Albums") + `<div class="shelf">${d.albums.map(card).join("")}</div>` : ""}`);
@@ -133,7 +139,7 @@ export async function showHistory() {
   let html = section(1, "Recently played", `${h.length} songs · shared by everyone`) +
     `<div class="newform plain"><button class="btn red" data-act="play-all" data-list="history" data-label="History" ${off}>${icon.PLAYS}Play all</button>
      <button class="btn" data-act="play-all" data-mode="add" data-list="history" data-label="History" ${off}>${icon.ADD}Add all</button>
-     <button class="btn" data-act="save-as-list" data-list="history" data-label="From history" ${off}>${icon.ADD}Save<span class="hide-sm">&nbsp;as playlist</span></button>
+     <button class="btn" data-f="playlists" data-act="save-as-list" data-list="history" data-label="From history" ${off}>${icon.ADD}Save<span class="hide-sm">&nbsp;as playlist</span></button>
      <button class="btn ghost danger push" data-act="clear-history" ${off}>Clear</button></div>`;
   if (!h.length) html += note("Nothing played yet.");
   let day = "";

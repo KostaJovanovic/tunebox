@@ -2,7 +2,7 @@
    whoever made it and the admin; "liked" is the Liked songs list), and the "Add to playlist" pop-up. */
 import { $, esc, plural } from "../../shared/dom.js";
 import { people, seminars, me, avatar, semTag } from "../../shared/people.js";
-import { admin } from "../../shared/house.js";
+import { admin, feat } from "../../shared/house.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { askPlay } from "./ask.js";
@@ -21,9 +21,9 @@ export async function showLists() {
   const ls = await api("api/lists").catch(() => []);
   if (my !== seq) return;
   main(section(1, "Tunebox playlists", "shared · anyone can add songs") +
-    `<div class="grid"><button class="card new" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>` +
+    `<div class="grid"><button class="card new" data-f="playlists" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>` +
     ls.map(p => `<button class="card" data-act="list-open" data-id="${esc(p.id)}">${p.liked && !p.thumbs.length ? `<div class="blank heart">${icon.HEART}</div>` : mosaic(p.thumbs)}<div class="t">${esc(p.name)}</div>
-      <div class="s"><i class="kind ${p.liked ? "liked" : "mine"}"></i>${plural(p.count, "song")}${p.liked ? "" : " · " + owner(p)}</div></button>`).join("") + "</div>");
+      <div class="s"><i class="kind ${p.liked ? "liked" : "mine"}"></i>${plural(p.count, "song")}${p.liked || !feat("people") ? "" : " · " + owner(p)}</div></button>`).join("") + "</div>");
 }
 
 /* whose playlist it is: the person who made it, or the house's (made before owners, or its owner was removed) */
@@ -56,10 +56,10 @@ export async function showList(id) {
 /* the Liked list is on screen and just changed */
 export function likesChanged() { if (openList === "liked" && view === "lists") showList("liked"); }
 
-/* Liked songs: who liked what, as chips to show one person's (or one seminar's) likes */
+/* Liked songs: who liked what, as chips to show one person's (or one group's) likes */
 function likers(tracks) {
-  const who = new Set(tracks.flatMap(t => t.likedBy || []).filter(id => people[id]));
-  const sems = new Set([...who].flatMap(id => people[id].seminars || []).filter(s => seminars[s]));
+  const who = new Set(feat("people") ? tracks.flatMap(t => t.likedBy || []).filter(id => people[id]) : []);
+  const sems = new Set(feat("groups") ? [...who].flatMap(id => people[id].seminars || []).filter(s => seminars[s]) : []);
   if (!who.size) return "";
   const chip = (v, html) => `<button class="${likedBy === v ? "on" : ""}" aria-pressed="${likedBy === v}" data-act="liked-by" data-v="${esc(v)}">${html}</button>`;
   return `<div class="likers">${chip("", "Everyone")}${[...who].sort((a, b) => people[a].name.localeCompare(people[b].name))
@@ -91,7 +91,7 @@ function renderList(p, renaming = false) {
   main(`${backBtn("All playlists", 'data-act="nav" data-v="lists"')}
     <div class="hero">${mosaic(p.tracks.map(t => t.thumb))}<div>
       <div class="k">${isLiked ? "Liked songs" : "Tunebox playlist"} · ${filtered ? `${n} of ${plural(p.tracks.length, "song")}` : plural(n, "song")}</div>${title}
-      <div class="s">${isLiked ? "Shared" : owner(p) + "'s"} · updated ${esc(dayName(p.updated).toLowerCase())}</div>
+      <div class="s">${isLiked || !feat("people") ? "Shared" : owner(p) + "'s"} · updated ${esc(dayName(p.updated).toLowerCase())}</div>
       <div class="btns">${buttons}</div>
     </div></div>${isLiked ? likers(p.tracks) : ""}
     <div class="list">${n ? shown.map(row).join("")

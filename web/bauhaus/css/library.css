@@ -21,6 +21,11 @@
   font: 600 12px var(--display); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; position: relative;
   display: flex; align-items: center; gap: 8px; transition: color .12s, background .12s; }
 @media (hover: hover) { .nav button:hover, .tabs button:hover { color: var(--text); background: var(--s1); } }
+.brand span::after { content: var(--house, "Tunebox"); }   /* the house's name (shared/look.js) */
+/* numbered by CSS, so a page that is switched off leaves no gap */
+.nav { counter-reset: nav; }
+.nav button { counter-increment: nav; }
+.nav button b::before { content: counter(nav, decimal-leading-zero); }
 .nav button b { font: 700 11px var(--display); color: var(--faint); letter-spacing: .06em; }
 .nav button.on, .tabs button.on { color: var(--text); }
 .nav button.on b { color: var(--red); }

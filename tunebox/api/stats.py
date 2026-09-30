@@ -1,16 +1,15 @@
-"""Stats and the recap, from the play log: for any period, for the house, one person or one seminar."""
+"""Stats and the recap, from the play log: for any period, for the house, one person or one group."""
 import datetime
 import time
 from collections import Counter, defaultdict
-from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from .. import data, plays
+from .. import admin, data, house, plays
 from ..plays import counted
-from ..settings import settings
+from ..web import feature, need_feature
 
-router = APIRouter()
+router = APIRouter(dependencies=[feature("stats", "recap")])
 
 
 def track_of(p: dict) -> dict:
@@ -63,15 +62,16 @@ def summary(ps: list[dict], earlier: set[str], tz) -> dict:
 
 
 @router.get("/api/stats")
-async def stats(since: float = 0, until: float = 0, who: str = ""):
-    """who: "" the house, a person's id, or "sem:<id>" for a seminar. since/until: Unix times."""
+async def stats(request: Request, since: float = 0, until: float = 0, who: str = ""):
+    """who: "" the house, a person's id, or "sem:<id>" for a group. since/until: Unix times."""
     until = until or time.time() + 1
-    if who and not who.startswith("sem:") and who not in data.people:
-        raise HTTPException(404, "No such person")
-    try:
-        tz = ZoneInfo(settings["alarm"].get("tz") or "UTC")
-    except Exception:
-        tz = datetime.timezone.utc
+    if who.startswith("sem:"):
+        need_feature(request, "groups")
+    elif who:
+        need_feature(request, "people")
+        if who not in data.people:
+            raise HTTPException(404, "No such person")
+    tz = house.tz()
     everything = [p for p in plays.read(0, until) if counted(p)]
 
     def mine(p):
@@ -90,5 +90,10 @@ async def stats(since: float = 0, until: float = 0, who: str = ""):
                 sem_min[s] += p["s"] / 60
     out["people"] = [{"id": k, "minutes": round(v)} for k, v in sorted(people_min.items(), key=lambda kv: -kv[1]) if round(v)]
     out["seminars"] = [{"id": k, "minutes": round(v)} for k, v in sorted(sem_min.items(), key=lambda kv: -kv[1]) if round(v)]
+    is_admin = admin.is_admin(request, touch=False)
+    if not (house.on("people") or is_admin):
+        out["people"] = []
+    if not (house.on("groups") or is_admin):
+        out["seminars"] = []
     out["first"] = min((p["t"] for p in everything), default=None)   # the log's first play, for "All time"
     return out

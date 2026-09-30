@@ -3,7 +3,7 @@
 import { $, esc } from "../../shared/dom.js";
 import { api, errText, setNameAsker } from "../../shared/api.js";
 import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTag, semTags } from "../../shared/people.js";
-import { admin } from "../../shared/house.js";
+import { admin, house, feat, isOn, G } from "../../shared/house.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
 import { toast, syncScrim, onCloseAll } from "./ui.js";
@@ -11,7 +11,7 @@ import { toast, syncScrim, onCloseAll } from "./ui.js";
 let waiting = null;                            /* resolves the name asker: true once a name is picked */
 let editing = null, pickColor = COLORS[4], pickEmoji = "", pickSems = new Set(), other = false;
 let fromList = false;                          /* the form was opened from the list: Back returns to it */
-let finishing = false;                         /* editing only because the name has no seminar yet: saving picks it */
+let finishing = false;                         /* editing only because the name has no group yet: saving picks it */
 let typedNow = null;                           /* the name whose pass phrase was just typed to unlock it */
 let justTyped = null;                          /* ...and opened for editing: its Phrase button needn't ask again */
 
@@ -25,13 +25,14 @@ export function paintMe() {
 function openWho() {
   resetForm(); renderWho(); showForm(!sortedPeople().length);
   $("#who").classList.add("open"); $("#scrim").classList.add("open");
-  /* the admin may have closed sign-ups: then only the admin adds names */
-  api("api/admin").then(st => { $("#whoNew").hidden = st.signups !== "open" && !admin; }).catch(() => {});
 }
+/* does this name still have to pick a group? (the house may not ask for one) */
+const needsGroup = p => isOn("groups") && house.groups.required && !p.seminars?.length;
 function showForm(on) {
   $("#whoPick").hidden = on; $("#whoForm").hidden = !on;
   $("#whoBack").textContent = editing && !fromList ? "Cancel" : "Back";
   $("#whoBack").hidden = !editing && !sortedPeople().length;
+  $("#whoNew").hidden = house.signups !== "open" && !admin;   /* the admin may have closed sign-ups: then only the admin adds names */
   if (!on) $("#whoTitle").textContent = "Who's listening?";
   else if (!editing) setTimeout(() => $("#whoName").focus(), 50);
 }
@@ -55,7 +56,7 @@ async function unlocked(id) {
 
 async function choose(id) {
   if (!await unlocked(id)) return;
-  if (!people[id].seminars?.length) return askSeminar(id);
+  if (needsGroup(people[id])) return askSeminar(id);
   setMe(id);
   paintMe(); renderPeople(); closeWho(true);
   toast(`Listening as ${people[id].name}`);
@@ -74,7 +75,7 @@ function resetForm(p = null) {
   editing = p ? p.id : null;
   pickColor = p ? p.color : COLORS[Object.keys(people).length % COLORS.length];
   pickEmoji = p ? p.emoji : "";
-  pickSems = new Set(p?.seminars || []); other = false; fromList = false; $("#whoOther").value = ""; finishing = false;
+  pickSems = new Set(p ? p.seminars || [] : house.newPerson.groups.filter(s => seminars[s])); other = false; fromList = false; $("#whoOther").value = ""; finishing = false;
   $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
   $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Add a name";
   $("#whoPhrase").value = ""; $("#whoPhrase").hidden = !!p;    /* editing: the pass phrase has its own button */
@@ -83,22 +84,25 @@ function resetForm(p = null) {
 }
 
 function paintForm() {
+  const groups = feat("groups"), mayAdd = house.groups.create === "open" || admin;   /* a new group: anyone, or only the admin */
+  $("#whoSemLbl").hidden = $("#whoSems").hidden = !groups;
+  $("#whoSemLbl").innerHTML = `${esc(G().one)} <span>pick one or more</span>`;
   $("#whoSems").innerHTML = Object.values(seminars).map(x => `<button type="button" class="${pickSems.has(x.id) ? "on" : ""}" style="--c:${esc(x.color)}"
     aria-pressed="${pickSems.has(x.id)}" data-act="who-sem" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("")
-    + `<button type="button" class="${other ? "on" : ""}" aria-pressed="${other}" data-act="who-sem-other">Other</button>`;
-  $("#whoOther").hidden = !other;
+    + (mayAdd ? `<button type="button" class="${other ? "on" : ""}" aria-pressed="${other}" data-act="who-sem-other">Other</button>` : "");
+  $("#whoOther").hidden = !groups || !mayAdd || !other;
   $("#whoColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pickColor ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="who-color" data-c="${c}"></button>`).join("");
   paintPreview();
   $("#whoEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pickEmoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="who-emoji" data-e="${e}">${e || "Aa"}</button>`).join("");
 }
 
-/* the badge being made, as it will look: avatar, then its seminar tags */
+/* the badge being made, as it will look: avatar, then its group tags */
 function paintPreview() {
   const name = $("#whoName").value.trim(), typed = $("#whoOther").value.trim();
   $("#whoPreview").innerHTML = avatar({ name: name || "?", color: pickColor, emoji: pickEmoji });
   const tags = [...pickSems].map(sid => semTag(sid)).join("")
     + (other && typed ? `<i class="sem">${esc(typed)}</i>` : "");
-  $("#whoTags").innerHTML = tags || "No seminar yet";
+  $("#whoTags").innerHTML = tags || (feat("groups") ? `No ${esc(G().a)} yet` : "");
 }
 $("#whoName").addEventListener("input", paintPreview);
 $("#whoOther").addEventListener("input", paintPreview);
@@ -108,8 +112,7 @@ $("#whoForm").addEventListener("submit", async e => {
   const name = $("#whoName").value.trim(), typed = $("#whoOther").value.trim();
   if (!name) return $("#whoName").focus();
   const sems = [...pickSems, ...(other && typed ? [typed] : [])], phrase = $("#whoPhrase").value;
-  if (other && typed.length !== 3) return formMsg("Other: type the seminar's 3 letters"), $("#whoOther").focus();
-  if (!sems.length) return formMsg("Pick your seminar");
+  if (!sems.length && isOn("groups") && house.groups.required) return formMsg(`Pick your ${G().a}`);
   try {
     const p = await savePerson(editing, { name, color: pickColor, emoji: pickEmoji, seminars: sems, ...(!editing && phrase.trim() ? { phrase } : {}) });
     if (finishing || !editing) choose(p.id);
@@ -118,21 +121,21 @@ $("#whoForm").addEventListener("submit", async e => {
 });
 function formMsg(t) { $("#whoMsg").textContent = t; $("#whoMsg").className = "msg err"; }
 
-/* A name from before seminars: pick one before it can be used */
+/* A name without a group, where everyone has to be in one: pick it before the name can be used */
 function askSeminar(id) {
   if (!$("#who").classList.contains("open")) openWho();
   resetForm(people[id]); finishing = true; showForm(true);
-  $("#whoTitle").textContent = `${people[id].name}: your seminar`;
-  $("#whoMsg").textContent = "Pick your seminar to go on"; $("#whoMsg").className = "msg";
+  $("#whoTitle").textContent = `${people[id].name}: your ${G().a}`;
+  $("#whoMsg").textContent = `Pick your ${G().a} to go on`; $("#whoMsg").className = "msg";
 }
 
-/* once per page: this device's name has no seminar yet */
+/* once per page: this device's name has no group yet */
 let checked = false;
 export function checkSeminar() {
   const p = me();
   if (checked || !p) return;
   checked = true;
-  if (!p.seminars?.length) askSeminar(p.id);
+  if (needsGroup(p)) askSeminar(p.id);
 }
 
 /* ---------- Settings → People ---------- */

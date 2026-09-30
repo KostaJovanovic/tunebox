@@ -6,14 +6,16 @@ import { errText } from "../../shared/api.js";
 import { state, lists, onState, startPolling, setToaster, ctl, undo, addSong, playAll, saveQueue } from "../../shared/playback.js";
 import { setupLikes, syncLikes, toggleLike, likeCurrent } from "../../shared/likes.js";
 import { syncPeople } from "../../shared/people.js";
+import { feat, syncHouse, onHouse } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, hideToast, closeAll, anyOpen, isOpen, openDrawer } from "./ui.js";
-import { showHome, showExplore, showHistory, goTo } from "./library.js";
+import { showHome, showExplore, showHistory, goTo, startPage } from "./library.js";
+import { view } from "./nav.js";
 import { showLists, likesChanged } from "./playlists.js";
 import { showStats } from "./stats.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleLyrics, paintLyrics } from "./lyrics.js";
-import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute } from "./settings.js";
+import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute, renderDevice } from "./settings.js";
 import { paintMe, renderPeople, renderWho, checkSeminar } from "./who.js";
 import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
 import { askPlay } from "./ask.js";
@@ -36,15 +38,28 @@ onState(async s => {
   $("#undoBtn").title = s.undo ? `Undo: ${s.undo.label} (Z)` : "Nothing to undo";
   paintLyrics();
   paintCanvas();
+  syncHouse(s.houseRev);
   if (await syncPeople(s.peopleRev)) { paintMe(); renderPeople(); if (isOpen("who")) renderWho(); renderQueue(); checkSeminar(); }
 });
 
 /* ---------- pages ---------- */
 const PAGES = { home: showHome, lists: showLists, history: showHistory, explore: showExplore, stats: showStats };
-$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) PAGES[b.dataset.v](); });
+/* a page whose feature the admin switched off isn't there (the admin still has it) */
+const pageOn = v => ({ home: feat("browse"), explore: feat("browse"), stats: feat("stats"), lists: feat("playlists") || feat("likes") }[v] ?? true);
+const go = v => { if (pageOn(v)) PAGES[v](); };
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); });
+
+/* the house's setup changed (or the admin was unlocked or locked here): what depends on it follows */
+function houseChanged() {
+  $("#q").placeholder = feat("links") ? "Search, or paste a YouTube link" : "Search";
+  paintMe(); renderPeople(); renderQueue(); renderDevice();
+  if (!feat("lyrics") && isOpen("lyrics")) openDrawer("lyrics", false);
+  if (!pageOn(view)) startPage();
+}
+onHouse(houseChanged);
 
 /* ---------- buttons that belong to no one part ---------- */
-on("nav", el => PAGES[el.dataset.v]());
+on("nav", el => go(el.dataset.v));
 /* playing something while a song is on asks first (ask.js); Play next and Add all just do it */
 on("song", el => {
   const mode = el.dataset.mode || "now";
@@ -87,8 +102,8 @@ document.addEventListener("keydown", e => {
     l: () => toggleLyrics(),
     s: () => toggleSettings(!isOpen("settings")),
     n: () => toggleCanvas(),
-    h: showHistory, p: showLists, e: showExplore, t: showStats,
-    f: likeCurrent,
+    h: () => go("history"), p: () => go("lists"), e: () => go("explore"), t: () => go("stats"),
+    f: () => { if (feat("likes")) likeCurrent(); },
     z: () => { hideToast(); undo(); },
     "?": () => openDrawer("keys", !isOpen("keys")),
   };
@@ -101,6 +116,7 @@ document.addEventListener("keydown", e => {
 if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 
 /* ---------- start ---------- */
-showHome();
+houseChanged();
+startPage();
 startPolling();
 if (location.hash === "#settings") toggleSettings(true);

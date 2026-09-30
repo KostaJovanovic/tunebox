@@ -3,12 +3,13 @@
 import { $, esc, fmt, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { COLORS, EMOJIS, seminars, avatar, semTags } from "../../shared/people.js";
+import { house, isOn, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, loading } from "./ui.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 
 let el = null;                                 /* the tab's body */
-let all = [], signups = "open";
+let all = [];
 let open = null;                               /* the person on screen (id), or null for the list */
 let detail = null, plays = [];                 /* theirs */
 let pick = { color: "", emoji: "", sems: new Set() };   /* the details form, before it is saved */
@@ -23,13 +24,13 @@ export function showPeople(target) { el = target; open = null; load(); }
 
 async function load() {
   if (!all.length) el.innerHTML = loading("Loading");
-  const [ps, st] = await Promise.all([call("api/admin/people"), api("api/admin")]);
-  if (ps === null) return;
-  all = ps; signups = st.signups;
+  const ps = await call("api/admin/people");
+  if (ps === null || el.dataset.tab !== "people") return;
+  all = ps;
   if (!person()) { open = null; return renderList(); }
   const p = person();
   [detail, plays] = await Promise.all([call(`api/admin/people/${p.id}/detail`), call(`api/admin/plays?who=${p.id}&limit=50`)]);
-  if (detail === null || plays === null) return;
+  if (detail === null || plays === null || el.dataset.tab !== "people") return;
   renderPerson();
 }
 
@@ -42,17 +43,18 @@ async function act(fn, done) {
   } catch (e) { toast(errText(e)); }
 }
 
+/* must everyone be in a group here? */
+const needGroup = () => isOn("groups") && house.groups.required;
+
 /* ---------- the list ---------- */
 const marks = p => (p.locked ? '<span class="lock" title="Has a pass phrase">🔒</span>' : "")
   + (p.noAdd ? '<i class="mark">can\'t add songs</i>' : "") + (p.cap ? `<i class="mark">max ${p.cap} waiting</i>` : "");
 
 function renderList() {
   el.innerHTML = `<div class="sec"><h2>People</h2><span class="aside">${plural(all.length, "name")}</span></div>
-    <div class="body">
-      <div class="optrow"><div><div class="ot">Anyone can add a name</div><div class="od">Off: only the admin adds people, here.</div></div>
-        <button class="tog" data-act="adm-signups" role="switch" aria-checked="${signups === "open"}" aria-label="Anyone can add a name"><i></i></button></div>
+    <div class="body">${house.signups === "open" ? "" : "<p>Sign-ups are closed (House tab): new names are added here.</p>"}
       <form class="aform" id="admNew"><input class="field" placeholder="A new person's name" maxlength="24" autocomplete="off">
-        <select class="field" aria-label="Seminar">${Object.values(seminars).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select>
+        <select class="field" aria-label="${esc(G().one)}">${needGroup() ? "" : `<option value="">No ${esc(G().a)}</option>`}${Object.values(seminars).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select>
         <button class="btn">Add</button></form>
       ${all.map(p => `<button class="aperson" data-act="adm-person" data-id="${esc(p.id)}">${avatar(p)}
         <div class="min0"><div class="t">${esc(p.name)} ${semTags(p, "sm")}${marks(p)}</div>
@@ -62,7 +64,8 @@ function renderList() {
   $("#admNew").addEventListener("submit", e => {
     e.preventDefault();
     const name = $("#admNew input").value.trim();
-    if (name) act(() => call("api/admin/people", { name, seminars: [$("#admNew select").value] }), `Added ${name}`);
+    const sem = $("#admNew select").value;
+    if (name) act(() => call("api/admin/people", { name, seminars: sem ? [sem] : [] }), `Added ${name}`);
   });
 }
 
@@ -79,7 +82,7 @@ function renderPerson() {
     <div class="sec"><h2>Details</h2></div>
     <form class="body whoform" id="admForm">
       <input class="field" id="admName" value="${esc(p.name)}" maxlength="24" autocomplete="off" aria-label="Name">
-      <div class="lbl">Seminar</div><div class="sems" id="admSems"></div>
+      <div class="lbl">${esc(G().one)}</div><div class="sems" id="admSems"></div>
       <div class="lbl">Colour</div><div class="swatches" id="admColors"></div>
       <div class="lbl">Icon</div><div class="emojis" id="admEmoji"></div>
       <div class="eqtools"><button class="btn red">Save</button></div>
@@ -127,7 +130,7 @@ function renderPerson() {
     e.preventDefault();
     const name = $("#admName").value.trim();
     if (!name) return $("#admName").focus();
-    if (!pick.sems.size) return toast("Pick a seminar");
+    if (!pick.sems.size && needGroup()) return toast(`Pick their ${G().a}`);
     act(() => call(`api/admin/people/${p.id}`, { name, color: pick.color, emoji: pick.emoji, seminars: [...pick.sems] }, "PATCH"), "Saved");
   });
   $("#admCap").addEventListener("submit", e => {
@@ -164,7 +167,6 @@ async function setPhrase() {
 /* ---------- wiring ---------- */
 on("adm-person", b => { open = b.dataset.id; load(); });
 on("adm-back", () => { open = null; renderList(); el.scrollTop = 0; });
-on("adm-signups", b => act(() => call("api/admin/signups", { open: b.getAttribute("aria-checked") !== "true" }, "PATCH")));
 on("adm-sem", b => { const s = b.dataset.s; pick.sems.has(s) ? pick.sems.delete(s) : pick.sems.add(s); paintPick(); });
 on("adm-color", b => { pick.color = b.dataset.c; paintPick(); });
 on("adm-emoji", b => { pick.emoji = b.dataset.e; paintPick(); });

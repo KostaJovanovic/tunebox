@@ -1,6 +1,9 @@
 /* The Settings drawer: volume, equaliser, switches, sleep timer, alarm, account. */
 /* ---------- settings ---------- */
 .set { overflow-y: auto; flex: 1; padding-bottom: 24px; }
+.set { counter-reset: sec; }
+.set > .sec { counter-increment: sec; }
+.set > .sec > b::before { content: counter(sec, decimal-leading-zero); }
 .set .body { padding: 12px 16px 16px; border-bottom: 1px solid var(--line); }
 .set p, .hint { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
 .hint { margin: 8px 0 0; }
@@ -23,6 +26,7 @@ input[type=range].big { width: 100%; }
 .presets svg.spark { width: 44px; height: 14px; overflow: visible; }
 .presets svg.spark polyline { fill: none; stroke: currentColor; stroke-width: 1.6; vector-effect: non-scaling-stroke; opacity: .8; }
 .presets .sw { width: 22px; height: 22px; }
+.presets button.acc.all { grid-column: 1 / -1; flex-direction: row; gap: 8px; }   /* "House", "Each device's own": a row of its own */
 .presets button.acc.on { background: var(--s2); color: var(--text); box-shadow: inset 0 -3px 0 var(--text); }
 
 /* EQ: response curve over hairline grid, draggable square knobs */

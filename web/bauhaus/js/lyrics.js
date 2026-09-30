@@ -3,6 +3,7 @@
 import { $, esc } from "../../shared/dom.js";
 import { state, ctl, position } from "../../shared/playback.js";
 import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
+import { feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { loading, openDrawer, isOpen } from "./ui.js";
 import { canvasLyrics, toggleCanvasLyrics, syncLyrBtn, coverSwiped } from "./player.js";
@@ -33,6 +34,7 @@ const box = $("#lyr"), follow = follower(box, 0.38, false);
 let shown = null;                              /* the videoId the drawer shows lyrics for */
 
 export function toggleLyrics(open = !isOpen("lyrics")) {
+  if (!feat("lyrics")) return;
   if (canvasLyrics()) return toggleCanvasLyrics();
   openDrawer("lyrics", open); syncLyrBtn();
   if (open) loadLyrics();
@@ -66,4 +68,4 @@ on("lyrics-toggle", () => toggleLyrics());
 on("lyrics-open", () => canvasLyrics() ? toggleCanvasLyrics(true) : toggleLyrics(true));
 on("lyrics-close", () => toggleLyrics(false));
 /* a tap on the big cover: the lyrics (beside it on a desktop, the drawer on a phone) */
-on("cover", () => { if (!coverSwiped()) canvasLyrics() ? toggleCanvasLyrics() : toggleLyrics(true); });
+on("cover", () => { if (!coverSwiped() && feat("lyrics")) canvasLyrics() ? toggleCanvasLyrics() : toggleLyrics(true); });

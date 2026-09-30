@@ -82,19 +82,41 @@ def save_people():
     write_json(PEOPLE_FILE, people)
 
 
-# ---------- seminars: every person is in at least one ----------
-seminars: dict[str, dict] = {**SEMINARS, **read_json(SEMINARS_FILE, {})}   # {id: {id, name, color}}; id = name.lower()
+# ---------- groups: {id: {id, name, color}}. The code calls them seminars, which they were in the house
+# this began in; what a house calls them is in house.json ----------
+def load_seminars() -> dict:
+    """The groups as saved. A file from before the admin could edit them holds only the added ones:
+    the three built-in ones go with it."""
+    saved = read_json(SEMINARS_FILE, None)
+    if isinstance(saved, dict) and saved.get("v") == 2:
+        return dict(saved.get("groups") or {})
+    return {**SEMINARS, **(saved if isinstance(saved, dict) else {})}
+
+
+seminars: dict[str, dict] = load_seminars()
+
+
+def save_seminars():
+    write_json(SEMINARS_FILE, {"v": 2, "groups": seminars})
+    save_people()                             # bumps people_rev: clients reload names and groups together
+
+
+def find_seminar(name: str) -> str | None:
+    """A group's id, by id or by name (any case)."""
+    low = name.strip().lower()
+    return low if low in seminars else next((k for k, s in seminars.items() if s["name"].lower() == low), None)
 
 
 def add_seminar(name: str) -> dict:
-    """A seminar someone typed under Other (3 letters or digits); the next free colour."""
-    sid = name.lower()
-    if sid not in seminars:
-        custom = {k: v for k, v in seminars.items() if k not in SEMINARS}
-        seminars[sid] = {"id": sid, "name": name[:1].upper() + name[1:].lower(),
-                         "color": SEMINAR_COLORS[len(custom) % len(SEMINAR_COLORS)]}
-        write_json(SEMINARS_FILE, {k: v for k, v in seminars.items() if k not in SEMINARS})
-        save_people()                         # bumps people_rev: clients reload names and seminars together
+    """A new group, in the next colour. Its id is its name in lower case (made unique if need be)."""
+    name = " ".join(name.split())[:24]
+    sid = base = re.sub(r"[^\w]+", "-", name.lower()).strip("-") or "group"
+    n = 1
+    while sid in seminars:
+        n += 1
+        sid = f"{base}-{n}"
+    seminars[sid] = {"id": sid, "name": name, "color": SEMINAR_COLORS[len(seminars) % len(SEMINAR_COLORS)]}
+    save_seminars()
     return seminars[sid]
 
 

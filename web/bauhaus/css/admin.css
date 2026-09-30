@@ -48,6 +48,10 @@ body.admin-open { overflow: hidden; }
 .aform label { flex: 1 1 100%; color: var(--muted); font-size: 12.5px; }
 .aform select.field { flex: 0 1 160px; }
 .aform .field.num { flex: 0 0 96px; }
+.aform.agroup { margin: 0; padding: 12px; background: var(--s1); border-bottom: 1px solid var(--line); }
+.aform.agroup .optrow { flex: 1 1 100%; padding-bottom: 0; }
+.abody .arow .sem { font-size: 12px; padding: 3px 7px; }
+.abody .presets small { text-align: center; }
 
 /* the top bar says so while the admin is unlocked on this device */
 .top .adminbadge { display: none; padding: 0 14px; border-left: 1px solid var(--line); color: var(--red);

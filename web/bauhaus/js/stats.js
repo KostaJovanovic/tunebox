@@ -1,9 +1,10 @@
-/* Stats: what the house (or one person, or one seminar) played in a period, from the play log.
+/* Stats: what the house (or one person, or one group) played in a period, from the play log.
    The recap (recap.js) tells the same numbers as a story. */
 import { $, esc } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { people, seminars, avatar, semTag, myId } from "../../shared/people.js";
+import { feat, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { seq, setNav } from "./nav.js";
 import { main, loading, note, section, songRow } from "./ui.js";
@@ -28,13 +29,14 @@ export function range(p = period, a = from, b = to) {
   }
 }
 
-export const whoName = w => !w ? "The house" : w.startsWith("sem:") ? (seminars[w.slice(4)]?.name || "Seminar") : (people[w]?.name || "Someone");
+export const whoName = w => !w ? "The house" : w.startsWith("sem:") ? (seminars[w.slice(4)]?.name || G().one) : (people[w]?.name || "Someone");
 export const fetchStats = (r, w) => api(`api/stats?since=${r.since}&until=${r.until}&who=${encodeURIComponent(w)}`);
 const hm = min => min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
 const num = n => n.toLocaleString();
 
 export async function showStats() {
   setNav("stats"); $("#q").value = "";
+  if (who && !feat(who.startsWith("sem:") ? "groups" : "people")) who = "";   /* switched off since it was picked */
   const my = seq, r = range();
   main(loading("Counting"));
   let d;
@@ -45,14 +47,15 @@ export async function showStats() {
 
 function filters(d) {
   const chip = (act, v, cur, html) => `<button class="${v === cur ? "on" : ""}" aria-pressed="${v === cur}" data-act="${act}" data-v="${esc(v)}">${html}</button>`;
-  const ps = Object.values(people).sort((a, b) => a.name.localeCompare(b.name));
+  const ps = feat("people") ? Object.values(people).sort((a, b) => a.name.localeCompare(b.name)) : [];
+  const gs = feat("groups") ? Object.values(seminars) : [];
   const me = myId();
   return `<div class="statbar">
     <div class="likers">${PERIODS.map(([k, t]) => chip("stats-period", k, period, t)).join("")}</div>
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
-    <div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
-      ${Object.values(seminars).map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>
+    ${ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
+      ${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>` : ""}
   </div>`;
 }
 
@@ -63,7 +66,7 @@ function bars(values, labels, every = 1) {
     `<div class="bar" title="${esc(labels[i])}: ${hm(v)}"><i style="height:${(v / max * 100).toFixed(1)}%"></i><span>${i % every ? "" : esc(labels[i])}</span></div>`).join("")}</div>`;
 }
 
-/* people or seminars, longest listeners first: each bar in its own colour, the name and minutes beside it */
+/* people or groups, longest listeners first: each bar in its own colour, the name and minutes beside it */
 function board(rows, look) {
   const max = Math.max(1, ...rows.map(r => r.minutes));
   return `<div class="board">${rows.map(r => { const l = look(r.id); if (!l) return "";
@@ -74,25 +77,25 @@ function board(rows, look) {
 function render(d, r) {
   let n = 0;
   const title = `${whoName(who)} · ${r.label}`;
-  let html = section(++n, "Stats", `<button class="link" data-act="recap-open">Play the recap ▸</button>`) + filters(d);
+  let html = section(++n, "Stats", `<button class="link" data-f="recap" data-act="recap-open">Play the recap ▸</button>`) + filters(d);
   if (!d.plays) return main(html + note(`No plays for ${esc(title.toLowerCase())} yet.`));
   html += `<div class="tiles">
     <div class="tile big"><b>${num(d.minutes)}</b><span>minutes listened</span></div>
     <div class="tile"><b>${num(d.plays)}</b><span>plays</span></div>
     <div class="tile"><b>${num(d.songs)}</b><span>different songs</span></div>
     <div class="tile"><b>${num(d.artists)}</b><span>artists</span></div>
-    <div class="tile"><b>${num(d.newSongs)}</b><span>new to ${who ? (who.startsWith("sem:") ? "the seminar" : "them") : "the house"}</span></div>
+    <div class="tile"><b>${num(d.newSongs)}</b><span>new to ${who ? (who.startsWith("sem:") ? "the " + esc(G().a) : "them") : "the house"}</span></div>
     <div class="tile"><b>${d.streak}</b><span>days in a row, at best</span></div>
   </div>`;
   lists.stats = d.topSongs;
   html += section(++n, "Top songs", esc(title)) + `<div class="list">${d.topSongs.map((t, i) => songRow(t, "stats", i, { d: `${t.plays}×`, playing: false })).join("")}</div>`;
   html += section(++n, "Top artists") + `<div class="shelf">${d.topArtists.map((a, i) => `<button class="card" ${a.id ? `data-act="open" data-type="artist" data-id="${esc(a.id)}"` : "disabled"}>
     <img loading="lazy" src="${esc(a.thumb)}" alt=""><div class="t">${i + 1}. ${esc(a.name)}</div><div class="s">${a.plays} plays · ${hm(a.minutes)}</div></button>`).join("")}</div>`;
-  if (!who || who.startsWith("sem:")) {
+  if (feat("people") && (!who || who.startsWith("sem:"))) {
     const ps = d.people.filter(x => !who || people[x.id]?.seminars?.includes(who.slice(4)));
     if (ps.length) html += section(++n, "Who added the most", "minutes of their songs") + board(ps, id => people[id] && { name: people[id].name, color: people[id].color, badge: avatar(people[id], "sm") });
   }
-  if (!who && d.seminars.length) html += section(++n, "Seminars", "minutes of their songs") + board(d.seminars, id => seminars[id] && { name: seminars[id].name, color: seminars[id].color, badge: semTag(id) });
+  if (!who && feat("groups") && d.seminars.length) html += section(++n, G().many, "minutes of their songs") + board(d.seminars, id => seminars[id] && { name: seminars[id].name, color: seminars[id].color, badge: semTag(id) });
   html += section(++n, "When", d.busiestDay ? `busiest day: ${esc(new Date(d.busiestDay.date).toLocaleDateString([], { day: "numeric", month: "long" }))}, ${hm(d.busiestDay.minutes)}` : "")
     + `<div class="when"><div><h3>Time of day</h3>${bars(d.hours, d.hours.map((_, h) => `${h}:00`), 6)}</div>
        <div><h3>Day of the week</h3>${bars(d.weekdays, DAYS)}</div></div>`;

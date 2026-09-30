@@ -6,6 +6,7 @@ import { $, $$, esc, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, lists, ctl, queueSongs, undo } from "../../shared/playback.js";
 import { isLiked, toggleLike } from "../../shared/likes.js";
+import { admin, feat } from "../../shared/house.js";
 import { toast, openDrawer } from "./ui.js";
 import { askPlay } from "./ask.js";
 import { openItem, goTo } from "./library.js";
@@ -14,6 +15,7 @@ import { toggleQueue } from "./queue.js";
 import { toggleLyrics } from "./lyrics.js";
 import { toggleSettings } from "./settings.js";
 import { toggleCanvas, phone } from "./player.js";
+import { block } from "./admin-house.js";
 
 const box = $("#ctx"), back = $("#ctxBack");
 let items = [];
@@ -31,14 +33,17 @@ function copyText(text) {
   ta.remove();
 }
 
-/* the "about this song" part every song menu ends with */
+/* the "about this song" part every song menu ends with; while the admin is unlocked, blocking too */
 const songTail = t => [
-  { label: "Add to playlist…", run: () => pickFor(t) },
-  { label: isLiked(t.videoId) ? "Unlike" : "Like", run: () => toggleLike(t) },
+  feat("playlists") && { label: "Add to playlist…", run: () => pickFor(t) },
+  feat("likes") && { label: isLiked(t.videoId) ? "Unlike" : "Like", run: () => toggleLike(t) },
   SEP,
   t.artist && { label: "Go to artist", hint: t.artist.split(",")[0], run: () => goTo("artist", t) },
   t.album && { label: "Go to album", hint: t.album, run: () => goTo("album", t) },
   { label: "Copy link", run: () => copyText(`https://music.youtube.com/watch?v=${t.videoId}`) },
+  admin && SEP,
+  admin && { label: "Block this song", danger: true, run: () => block({ kind: "song", track: t }) },
+  admin && t.artist && { label: "Block the artist", hint: t.artist.split(",")[0], danger: true, run: () => block({ kind: "artist", track: t }) },
 ];
 
 /* with something on, playing asks first (ask.js) */
@@ -61,7 +66,7 @@ function nowMenu() {
     { label: "Previous", hint: "Shift+←", run: () => ctl("prev") },
   ];
   if (!t) return base;
-  return [...base, SEP, { label: "Lyrics", hint: "L", run: () => toggleLyrics(true) }, ...songTail(t)];
+  return [...base, SEP, feat("lyrics") && { label: "Lyrics", hint: "L", run: () => toggleLyrics(true) }, ...songTail(t)];
 }
 
 /* the whole player, for anywhere that isn't a song or a list */
@@ -69,7 +74,7 @@ function playerMenu() {
   return [
     ...nowMenu().slice(0, 3), SEP,
     { label: "Up next", hint: "Q", run: () => toggleQueue(true) },
-    { label: "Lyrics", hint: "L", run: () => toggleLyrics(true) },
+    feat("lyrics") && { label: "Lyrics", hint: "L", run: () => toggleLyrics(true) },
     state.current && { label: "Now playing", hint: "N", run: () => toggleCanvas(true) },
     { label: "Settings", hint: "S", run: () => toggleSettings(true) },
     SEP,

@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="web/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Tunebox">
 <title>Tunebox wall</title>
+<script src="web/shared/look.js"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%23111'/><circle cx='9' cy='12' r='6' fill='%23E63B2E'/><path d='M14 6l8 12h-8z' fill='%23F2C230'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,9 +23,10 @@
 <div class="stage nolyrics" id="stage">
   <div class="left">
     <img class="cover" id="cover" alt="">
-    <div><h1 class="title" id="title"></h1><div class="artist" id="artist"></div></div>
+    <div><h1 class="title" id="title"></h1><div class="artist" id="artist"></div><div class="by" id="by" hidden></div></div>
     <div class="prog"><i id="fill"></i></div>
     <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
+    <div class="next" id="next" hidden></div>
     <div class="ctrls">
       <button data-act="prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h3v16H5zM20 4v16L9 12z"/></svg></button>
       <button class="play" id="playBtn" data-act="toggle" aria-label="Play or pause"></button>

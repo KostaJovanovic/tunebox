@@ -13,7 +13,8 @@ from ..config import HISTORY_MAX, LIKED_ID
 from ..data import clean_track, list_summary, playlists, save_lists, sorted_lists
 from ..player import player
 from ..settings import save_settings, settings
-from ..web import BaseModel, who
+from .. import house
+from ..web import BaseModel, feature, need_feature, who
 
 router = APIRouter()
 lists_lock = asyncio.Lock()
@@ -36,7 +37,9 @@ def may_manage(p: dict, request: Request) -> bool:
     return bool(p.get("owner") and p["owner"] == who(request)) or admin.is_admin(request)
 
 
-def get_list(list_id: str) -> dict:
+def get_list(list_id: str, request: Request) -> dict:
+    """The playlist, if its feature is on (Liked songs belongs to likes, the rest to playlists)."""
+    need_feature(request, "likes" if list_id == LIKED_ID else "playlists")
     if list_id not in playlists:
         raise HTTPException(404, "No such playlist")
     return playlists[list_id]
@@ -65,11 +68,13 @@ class ListEditBody(BaseModel):
 
 
 @router.get("/api/lists")
-async def all_lists():
-    return [list_summary(p) for p in sorted_lists()]
+async def all_lists(request: Request):
+    is_admin = admin.is_admin(request, touch=False)
+    return [list_summary(p) for p in sorted_lists()
+            if is_admin or house.on("likes" if p["id"] == LIKED_ID else "playlists")]
 
 
-@router.post("/api/lists")
+@router.post("/api/lists", dependencies=[feature("playlists")])
 async def create_list(body: ListBody, request: Request):
     name = (body.name or "").strip()[:80] or "New playlist"
     src = player.queue[max(player.index, 0):] if body.fromQueue else (body.tracks or [])
@@ -83,14 +88,14 @@ async def create_list(body: ListBody, request: Request):
 
 
 @router.get("/api/lists/{list_id}")
-async def one_list(list_id: str):
-    return get_list(list_id)
+async def one_list(list_id: str, request: Request):
+    return get_list(list_id, request)
 
 
 @router.patch("/api/lists/{list_id}")
 async def edit_list(list_id: str, body: ListBody, request: Request):
     async with lists_lock:
-        p = get_list(list_id)
+        p = get_list(list_id, request)
         name = (body.name or "").strip()[:80]
         if name and name != p["name"] and list_id != LIKED_ID:
             if not may_manage(p, request):
@@ -106,10 +111,10 @@ async def edit_list(list_id: str, body: ListBody, request: Request):
 
 
 @router.patch("/api/lists/{list_id}/tracks")
-async def edit_list_tracks(list_id: str, body: ListEditBody):
+async def edit_list_tracks(list_id: str, body: ListEditBody, request: Request):
     """Moves or removes one song by videoId, so edits from two devices don't undo each other."""
     async with lists_lock:
-        p = get_list(list_id)
+        p = get_list(list_id, request)
         ts = p["tracks"]
         i = body.at
         if i is None or not 0 <= i < len(ts) or ts[i]["videoId"] != body.videoId:
@@ -128,12 +133,12 @@ async def edit_list_tracks(list_id: str, body: ListEditBody):
 
 
 @router.post("/api/lists/{list_id}/tracks")
-async def add_to_list(list_id: str, body: ListTrackBody):
+async def add_to_list(list_id: str, body: ListTrackBody, request: Request):
     t = clean_track(body.track)
     if not t:
         raise HTTPException(400, "not a track")
     async with lists_lock:
-        p = get_list(list_id)
+        p = get_list(list_id, request)
         dup = any(x["videoId"] == t["videoId"] for x in p["tracks"])
         if not dup:
             p["tracks"].insert(0 if list_id == LIKED_ID else len(p["tracks"]), t)   # newest like first
@@ -142,7 +147,7 @@ async def add_to_list(list_id: str, body: ListTrackBody):
     return {"ok": True, "duplicate": dup, "count": len(p["tracks"])}
 
 
-@router.post("/api/like")
+@router.post("/api/like", dependencies=[feature("likes")])
 async def like(body: LikeBody, request: Request):
     """Adds the song to the top of Liked songs, or takes it out. The list is shared; likedBy
     remembers who liked each song (liking an already liked song adds your name)."""
@@ -171,7 +176,7 @@ async def delete_list(list_id: str, request: Request):
     if list_id == LIKED_ID:
         raise HTTPException(400, "Liked songs can't be deleted")
     async with lists_lock:
-        if not may_manage(get_list(list_id), request):
+        if not may_manage(get_list(list_id, request), request):
             raise HTTPException(403, "Only its owner or the admin can delete it")
         del playlists[list_id]
         save_lists()

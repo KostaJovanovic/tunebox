@@ -30,6 +30,42 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
 @media (hover: none) { button:focus-visible { outline: none; } }   /* a touch screen: no outline left on the last button tapped */
 img { display: block; }
+
+/* What the admin switched off (html[data-off], set by shared/look.js before the first paint): an element
+   says which feature it belongs to with data-f. It is gone for everyone; the admin still has it, faded. */
+html[data-off~="lyrics"]:not([data-admin]) [data-f~="lyrics"],
+html[data-off~="wall"]:not([data-admin]) [data-f~="wall"],
+html[data-off~="stats"]:not([data-admin]) [data-f~="stats"],
+html[data-off~="recap"]:not([data-admin]) [data-f~="recap"],
+html[data-off~="alarm"]:not([data-admin]) [data-f~="alarm"],
+html[data-off~="sleep"]:not([data-admin]) [data-f~="sleep"],
+html[data-off~="playlists"]:not([data-admin]) [data-f~="playlists"],
+html[data-off~="likes"]:not([data-admin]) [data-f~="likes"],
+html[data-off~="groups"]:not([data-admin]) [data-f~="groups"],
+html[data-off~="people"]:not([data-admin]) [data-f~="people"],
+html[data-off~="radio"]:not([data-admin]) [data-f~="radio"],
+html[data-off~="browse"]:not([data-admin]) [data-f~="browse"],
+html[data-off~="eq"]:not([data-admin]) [data-f~="eq"],
+html[data-off~="links"]:not([data-admin]) [data-f~="links"],
+html[data-off~="local"]:not([data-admin]) [data-f~="local"],
+html[data-off~="playlists"][data-off~="likes"]:not([data-admin]) [data-fall="lists"] { display: none !important; }
+html[data-admin][data-off~="lyrics"] [data-f~="lyrics"],
+html[data-admin][data-off~="wall"] [data-f~="wall"],
+html[data-admin][data-off~="stats"] [data-f~="stats"],
+html[data-admin][data-off~="recap"] [data-f~="recap"],
+html[data-admin][data-off~="alarm"] [data-f~="alarm"],
+html[data-admin][data-off~="sleep"] [data-f~="sleep"],
+html[data-admin][data-off~="playlists"] [data-f~="playlists"],
+html[data-admin][data-off~="likes"] [data-f~="likes"],
+html[data-admin][data-off~="groups"] [data-f~="groups"],
+html[data-admin][data-off~="people"] [data-f~="people"],
+html[data-admin][data-off~="radio"] [data-f~="radio"],
+html[data-admin][data-off~="browse"] [data-f~="browse"],
+html[data-admin][data-off~="eq"] [data-f~="eq"],
+html[data-admin][data-off~="links"] [data-f~="links"],
+html[data-admin][data-off~="local"] [data-f~="local"],
+html[data-admin][data-off~="playlists"][data-off~="likes"] [data-fall="lists"] { opacity: .45; }
+
 svg { flex: none; }
 .min0 { min-width: 0; }
 .push { margin-left: auto; }

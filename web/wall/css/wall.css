@@ -40,6 +40,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .ctrls svg { width: 46%; height: 46%; }
 .ctrls .like.on { color: var(--red); }
 .ctrls .like.on path { fill: currentColor; }
+.by { color: var(--faint); font: 600 clamp(12px, 1.4vw, 16px) var(--display); letter-spacing: .12em; text-transform: uppercase; margin-top: 1vh; }
+.next { width: 100%; max-width: min(38vw, 44vh); color: var(--muted); font-size: clamp(13px, 1.5vw, 17px); text-align: left; }
+.nolyrics .next { max-width: min(70vw, 44vh); }
+.next b { display: block; color: var(--faint); font: 600 11px var(--display); letter-spacing: .14em; text-transform: uppercase; margin-bottom: .6vh; }
+.next span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next i { color: var(--faint); font-style: normal; }
+/* what the admin left out of the wall */
+body.noctrls .ctrls { display: none; }
+body.noclock .clock b, body.noclock .clock span { display: none; }
 .vol { font: 700 13px var(--display); color: var(--muted); min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 
 .lyr { height: 84vh; overflow: hidden; position: relative; padding-right: 5%; mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent);
@@ -68,7 +77,7 @@ body:not(.idle) .clock { opacity: 0; pointer-events: none; }
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: start; gap: 3vh; padding-top: max(8vh, env(safe-area-inset-top)); }
   .left { align-items: center; text-align: center; }
   .cover, .nolyrics .cover { width: min(78vw, 42vh); }
-  .prog, .times, .nolyrics .prog, .nolyrics .times { max-width: min(78vw, 42vh); }
+  .prog, .times, .next, .nolyrics .prog, .nolyrics .times, .nolyrics .next { max-width: min(78vw, 42vh); }
   .lyr { height: 34vh; text-align: center; }
   .lyr p { transform-origin: center; }
   .ctrls { --b: clamp(40px, min(9vw, 7vh), 76px); }

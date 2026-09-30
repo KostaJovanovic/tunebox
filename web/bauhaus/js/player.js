@@ -5,6 +5,7 @@ import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
 import { state, ctl } from "../../shared/playback.js";
 import { fetchLyrics, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { store } from "../../shared/device.js";
+import { house, feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { follower } from "./lyrics.js";
@@ -36,7 +37,7 @@ export function paintBar(s) {
     $("#fill").style.width = dur ? `${Math.min(100, (s.position / dur) * 100)}%` : "0";
   }
   countBadge($("#qCount"), upcoming(s));
-  document.title = c ? `${s.paused ? "❚❚" : "▶"} ${c.title} · Tunebox` : "Tunebox";
+  document.title = c ? `${s.paused ? "❚❚" : "▶"} ${c.title} · ${house.name}` : house.name;
 }
 
 $("#seek").addEventListener("input", () => {
@@ -95,7 +96,7 @@ addEventListener("popstate", () => { if (canvasOpen()) { cv.classList.remove("op
 let lyrOn = store.get("tb_clyr", "0") === "1", cSeeking = false, lyrVid = null;
 const lyrBox = $("#cLyr"), follow = follower(lyrBox, 0.4, true);
 
-export function toggleCanvasLyrics(open = !lyrOn) { lyrOn = open; store.set("tb_clyr", lyrOn ? "1" : "0"); paintCanvas(true); syncLyrBtn(); }
+export function toggleCanvasLyrics(open = !lyrOn) { if (!feat("lyrics")) return; lyrOn = open; store.set("tb_clyr", lyrOn ? "1" : "0"); paintCanvas(true); syncLyrBtn(); }
 
 /* On a desktop with the canvas open, every Lyrics button (the canvas's and the bar's, and L) shows the
    canvas's own lyrics beside the cover; otherwise they open the Lyrics drawer */
@@ -121,8 +122,9 @@ export function paintCanvas(force) {
   $("#cBtn").innerHTML = playIcon(s);
   if (!volumeTouched()) $("#cVol").value = s.volume ?? 0;
   countBadge($("#cCount"), upcoming(s));
-  cv.classList.toggle("lyr-on", lyrOn); $("#cLyrToggle").classList.toggle("on", lyrOn);
-  if (lyrOn && !phone() && (c?.videoId || null) !== lyrVid) loadCanvasLyrics();
+  const lyr = lyrOn && feat("lyrics");
+  cv.classList.toggle("lyr-on", lyr); $("#cLyrToggle").classList.toggle("on", lyr);
+  if (lyr && !phone() && (c?.videoId || null) !== lyrVid) loadCanvasLyrics();
   if (force) follow.tick(true);
 }
 

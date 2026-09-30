@@ -5,19 +5,18 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field
 from ytmusicapi import YTMusic, setup as yt_setup
 
-from .. import admin, audit, data, youtube
+from .. import admin, audit, data, house, youtube
 from ..config import AUTH_FILE, DATA, EQ_FREQS, EQ_PRESETS, QUALITY, TEST_RAMP
 from ..audio import eq_bands
 from ..mpv import PlayerDown
 from ..player import player
 from ..settings import save_settings, settings
-from ..web import BaseModel
+from ..web import BaseModel, feature
 
 router = APIRouter()
 
@@ -40,7 +39,7 @@ async def get_settings():
     return {"volume": settings["volume"], "eq": settings["eq"], "bands": eq_bands(),
             "freqs": EQ_FREQS, "presets": EQ_PRESETS, "account": account_status(),
             "normalize": settings["normalize"], "autoplay": settings["autoplay"], "turns": settings["turns"],
-            "quality": settings["quality"], "qualities": list(QUALITY), "alarm": settings["alarm"],
+            "quality": settings["quality"], "qualities": list(QUALITY), "alarm": {**settings["alarm"], "tz": house.tz_name()},
             "lists": [data.list_summary(p) for p in data.sorted_lists()]}
 
 
@@ -77,7 +76,7 @@ class SleepBody(BaseModel):
     track: bool = False
 
 
-@router.post("/api/sleep")
+@router.post("/api/sleep", dependencies=[feature("sleep")])
 async def set_sleep(body: SleepBody):
     await player.set_sleep(body.minutes, body.track)
     return player.state()["sleep"] or {}
@@ -90,29 +89,25 @@ class AlarmBody(BaseModel):
     playlist: str | None = Field(None, alias="list")   # "list" in the JSON; as a field name it hides list[] (Python 3.14)
     level: int = 45
     ramp: float = 5
-    tz: str = "Europe/Belgrade"
+    tz: str | None = None                     # older pages send their own; the alarm goes by the house's time zone
     test: bool = False
 
 
-@router.post("/api/alarm")
+@router.post("/api/alarm", dependencies=[feature("alarm")])
 async def set_alarm(body: AlarmBody):
     if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", body.time):
         raise HTTPException(400, "time must be HH:MM")
-    try:
-        ZoneInfo(body.tz)
-    except Exception:
-        raise HTTPException(400, "unknown time zone")
     a = settings["alarm"]
     a.update(enabled=body.enabled, time=body.time, days=sorted({d for d in body.days if 0 <= d <= 6}),
              list=body.playlist if body.playlist in data.playlists else None, level=max(1, min(100, body.level)),
-             ramp=max(0, min(30, body.ramp)), tz=body.tz)
+             ramp=max(0, min(30, body.ramp)))
     save_settings()
     if body.test:
         await player.fire_alarm(ramp_s=TEST_RAMP)   # the full ramp starts 50 dB down: minutes of near-silence
     return await get_settings()
 
 
-@router.post("/api/eq")
+@router.post("/api/eq", dependencies=[feature("eq")])
 async def set_eq(body: EqBody):
     if body.preset != "custom" and body.preset not in EQ_PRESETS:
         raise HTTPException(400, "unknown preset")

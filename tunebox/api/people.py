@@ -1,5 +1,5 @@
 """People: who's listening, picked per device (cookie tb_who), so the queue can show who added what;
-their seminars; pass phrases for names (optional, see auth.py). The admin's side of it is in api/admin.py."""
+their groups; pass phrases for names (optional, see auth.py). The admin's side of it is in api/admin.py."""
 import asyncio
 import re
 import secrets
@@ -7,25 +7,24 @@ import secrets
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from .. import admin, auth, data, house
-from ..config import SEMINARS
 from ..data import people, save_people
-from ..web import BaseModel
+from ..web import BaseModel, need_feature
 
 router = APIRouter()
 people_lock = asyncio.Lock()
 COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
-SEMINAR_RE = re.compile(r"[^\W_]{3}")          # Other: exactly 3 letters or digits
 
 
 class PersonBody(BaseModel):
     name: str | None = None
     color: str | None = None
     emoji: str | None = None
-    seminars: list[str] | None = None         # ids or names; a new 3-letter name adds that seminar
+    seminars: list[str] | None = None         # groups, by id or name; an unknown name adds that group (if the house lets people)
     phrase: str | None = None                 # a new pass phrase; "" takes it off
 
 
-def person_fields(p: dict, body: PersonBody) -> None:
+def person_fields(p: dict, body: PersonBody, may_create: bool = False) -> None:
+    """may_create: an unknown group name makes that group (the admin always may; others by the house's rule)."""
     if body.name is not None:
         name = " ".join(body.name.split())[:24]
         if not name:
@@ -43,24 +42,31 @@ def person_fields(p: dict, body: PersonBody) -> None:
             raise HTTPException(400, "Pick an emoji")
         p["emoji"] = e
     if body.seminars is not None:
-        p["seminars"] = pick_seminars(body.seminars)
+        p["seminars"] = pick_seminars(body.seminars, may_create)
 
 
-def pick_seminars(names: list[str]) -> list[str]:
-    """At least one; known ones by id or name, a new one only as 3 letters or digits."""
-    out = []
+def pick_seminars(names: list[str], may_create: bool) -> list[str]:
+    """The groups a person is in: known ones by id or name, a new one by its name. The house says
+    whether everyone needs one, and what it calls them."""
+    g, out = house.house["groups"], []
     for n in names[:12]:
-        n = str(n).strip()
-        sid = n.lower()
-        if sid not in data.seminars:
-            if not SEMINAR_RE.fullmatch(n):
-                raise HTTPException(400, "A seminar is 3 letters")
+        n = " ".join(str(n).split())[:24]
+        if not n:
+            continue
+        sid = data.find_seminar(n)
+        if sid is None:
+            if not may_create:
+                raise HTTPException(400, f'Pick a {g["one"].lower()} from the list')
             sid = data.add_seminar(n)["id"]
         if sid not in out:
             out.append(sid)
-    if not out:
-        raise HTTPException(400, "Pick your seminar")
+    if not out and g["required"] and house.on("groups"):
+        raise HTTPException(400, f'Pick your {g["one"].lower()}')
     return out
+
+
+def may_create(request: Request) -> bool:
+    return house.house["groups"]["create"] == "open" or admin.is_admin(request, touch=False)
 
 
 @router.get("/api/people")
@@ -70,8 +76,7 @@ async def all_people(request: Request):
 
 @router.get("/api/seminars")
 async def all_seminars():
-    """Built-in ones first, then the added ones by name."""
-    return sorted(data.seminars.values(), key=lambda s: (s["id"] not in SEMINARS, s["name"]))
+    return sorted(data.seminars.values(), key=lambda s: s["name"].lower())
 
 
 def set_phrase(p: dict, phrase: str | None):
@@ -82,11 +87,12 @@ def set_phrase(p: dict, phrase: str | None):
             del p["phrase"]
 
 
-def new_person(body: PersonBody) -> dict:
+def new_person(body: PersonBody, may_create: bool = False) -> dict:
     """Makes the person and adds them; the caller holds people_lock and saves."""
     p = {"id": secrets.token_hex(4), "name": "", "color": "#1F5FBF", "emoji": "", "seminars": []}
+    start = [s for s in house.house["newPerson"]["groups"] if s in data.seminars]   # the house's groups for someone who picks none
     person_fields(p, PersonBody(name=body.name or "", color=body.color, emoji=body.emoji,
-                                seminars=body.seminars or []))
+                                seminars=body.seminars or start), may_create)
     set_phrase(p, body.phrase or None)
     people[p["id"]] = p
     return p
@@ -94,10 +100,11 @@ def new_person(body: PersonBody) -> dict:
 
 @router.post("/api/people")
 async def add_person(body: PersonBody, request: Request, response: Response):
+    need_feature(request, "people")
     if house.house["signups"] != "open" and not admin.is_admin(request):
         raise HTTPException(403, "New names are added by the admin here")
     async with people_lock:
-        p = new_person(body)
+        p = new_person(body, may_create(request))
         save_people()
     auth.give_key(response, p["id"])
     return {**auth.public(p, request), "mine": True}
@@ -110,7 +117,7 @@ async def edit_person(pid: str, body: PersonBody, request: Request, response: Re
             raise HTTPException(404, "No such person")
         if not auth.holds_key(request, pid):
             raise HTTPException(403, "Only they can change it: that name has a pass phrase")
-        person_fields(people[pid], body)
+        person_fields(people[pid], body, may_create(request))
         set_phrase(people[pid], body.phrase)
         save_people()
     auth.give_key(response, pid)

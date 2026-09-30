@@ -48,7 +48,7 @@ SKIP = {"__pycache__", ".bak"}                           # never deployed, never
 UNIT = ROOT / "tunebox.service"                          # ele's unit: compared and reported only
 # the server's live data -> dev/data (browser.json, the YouTube sign-in cookies, stays there)
 DATA_FILES = ["settings.json", "playlists.json", "history.json", "session.json", "people.json",
-              "stats.json", "seminars.json", "keys.json", "house.json"]
+              "stats.json", "seminars.json", "keys.json", "house.json", "blocklist.json"]
 
 
 def open_server(name: str, choose: bool):

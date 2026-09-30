@@ -4,6 +4,7 @@ import { $, esc, ago, plural } from "../../shared/dom.js";
 import { api } from "../../shared/api.js";
 import { state, lists, ctl } from "../../shared/playback.js";
 import { byChip } from "../../shared/people.js";
+import { feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { setupQueueGestures, queueBusy, moveLocally } from "../../shared/queue-gestures.js";
 import * as icon from "./icons.js";
@@ -27,7 +28,7 @@ export function renderQueue() {
   const put = html => { if (html !== queueHtml) { queueHtml = html; $("#queue").innerHTML = html; } };
   if (!q.length) return put('<div class="note">Queue is empty. Tap any song to start.</div>');
 
-  const pick = i => `<button title="Add to playlist" aria-label="Add to playlist" data-act="pick" ${at("queue", i)}>${icon.LIST}</button>`;
+  const pick = i => `<button title="Add to playlist" aria-label="Add to playlist" data-f="playlists" data-act="pick" ${at("queue", i)}>${icon.LIST}</button>`;
   const row = (t, i) => {
     if (i === 0) return songRow(t, "queue", 0, { num: 0, meta: 'data-act="lyrics-open"', by: t.src === "user" ? t.by : "radio", acts: pick(0) });
     const auto = i > nu;
@@ -40,10 +41,10 @@ export function renderQueue() {
   html += qhead("Next in queue", nu ? plural(nu, "song") : "",
     nu ? '<button data-act="queue" data-a="shuffle">Shuffle</button><button data-act="queue" data-a="clear">Clear</button>' : "");
   html += nu ? q.slice(1, nu + 1).map((t, k) => row(t, k + 1)).join("")
-    : '<div class="qempty">Tap any song to add it here. Songs from different people take turns.</div>';
-  const auto = q.slice(nu + 1);
-  html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
-      `<button data-act="queue" data-a="refresh">${auto.length ? "Refresh" : "Start radio"}</button>${auto.length ? '<button data-act="queue" data-a="clear_auto">Clear</button>' : ""}`)
+    : `<div class="qempty">Tap any song to add it here.${feat("people") ? " Songs from different people take turns." : ""}</div>`;
+  const auto = q.slice(nu + 1), radio = feat("radio");   /* radio switched off: what it already queued still plays */
+  if (radio || auto.length) html += qhead(state.seed ? `Next from: ${state.seed.title} radio` : "Radio", "",
+      (radio ? `<button data-act="queue" data-a="refresh">${auto.length ? "Refresh" : "Start radio"}</button>` : "") + (auto.length ? '<button data-act="queue" data-a="clear_auto">Clear</button>' : ""))
     + auto.map((t, k) => row(t, k + nu + 1)).join("");
   put(html);
 }

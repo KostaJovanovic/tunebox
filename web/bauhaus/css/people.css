@@ -31,7 +31,7 @@
   letter-spacing: .08em; text-transform: uppercase; }
 .sems button.on { background: var(--c, var(--text)); color: #fff; }
 .sems button:not([style]).on { color: var(--bg); }
-.whoform .field.other { flex: none; width: 120px; text-transform: uppercase; }
+.whoform .field.other { flex: none; width: 200px; }
 .prow .lock { font-size: 11px; margin-left: 2px; }
 .whoform .link { color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 @media (hover: hover) { .whoform .link:hover { text-decoration: underline; } }

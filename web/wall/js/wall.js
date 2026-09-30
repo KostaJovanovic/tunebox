@@ -1,9 +1,13 @@
 /* The wall screen: a tablet or TV showing what plays (cover, synced lyrics, big controls).
-   Idle (nothing playing, or paused a while): a dimmed clock; a tap wakes it for half a minute. */
-import { $, $$, fmt, secs, cssUrl } from "../../shared/dom.js";
+   Idle (nothing playing, or paused a while): a dimmed clock; a tap wakes it for half a minute.
+   The admin picks what it shows (house.wall): lyrics, the next songs, who added the song, the clock,
+   the buttons. */
+import { $, $$, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
 import { state, onState, startPolling, setToaster, ctl, setVolume, position, poll } from "../../shared/playback.js";
 import { setupLikes, syncLikes, likeCurrent } from "../../shared/likes.js";
 import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
+import { people, syncPeople } from "../../shared/people.js";
+import { house, fresh, feat, syncAdmin, syncHouse, onHouse } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
@@ -45,6 +49,7 @@ let lyr = { vid: null, lines: null }, lyrActive = -1;
 async function loadLyrics(c) {
   lyr = { vid: c.videoId, lines: null }; lyrActive = -1;
   $("#lyr").hidden = true; $("#stage").classList.add("nolyrics");
+  if (!house.wall.lyrics || !feat("lyrics")) return;
   const d = await fetchLyrics(c);
   if (lyr.vid !== c.videoId || d.none || d.instrumental) return;
   if (d.synced) {
@@ -84,6 +89,18 @@ function render() {
 }
 setInterval(render, 1000);                     /* the clock keeps going even when the server doesn't answer */
 
+/* the house's setup: the wall's options, its name; a wall that was switched off goes to the player */
+function applyHouse() {
+  if (fresh && !feat("wall")) return location.replace("./");   /* switched off while it was open (else the server wouldn't have sent it) */
+  document.title = `${house.name} wall`;
+  document.body.classList.toggle("noctrls", !house.wall.controls);
+  document.body.classList.toggle("noclock", !house.wall.clock);
+  $("#likeBtn").hidden = !feat("likes");
+  lyr.vid = null;                              /* the next poll shows or drops the lyrics */
+}
+onHouse(applyHouse);
+applyHouse();
+
 onState(s => {
   if (s.paused) pausedSince = pausedSince || Date.now(); else pausedSince = null;
   const c = s.current;
@@ -92,6 +109,12 @@ onState(s => {
     $("#title").textContent = c.title; $("#artist").textContent = [c.artist, c.album].filter(Boolean).join(" · ");
     if (lyr.vid !== c.videoId) loadLyrics(c);
   }
+  syncAdmin(s.admin); syncHouse(s.houseRev);
+  const w = house.wall, now = (s.queue || [])[0], next = c && w.queue ? (s.queue || []).slice(1, 4) : [];
+  const by = !c || !now || !w.who || !feat("people") ? "" : now.src !== "user" ? "From the radio" : people[now.by] ? `Added by ${people[now.by].name}` : "";
+  if (w.who) syncPeople(s.peopleRev);
+  $("#by").textContent = by; $("#by").hidden = !by;
+  $("#next").innerHTML = "<b>Up next</b>" + next.map(t => `<span>${esc(t.title)} <i>${esc(t.artist)}</i></span>`).join(""); $("#next").hidden = !next.length;
   $("#playBtn").innerHTML = s.paused || !c ? ICON_PLAY : ICON_PAUSE;
   const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
   $("#fill").style.width = dur ? `${Math.min(100, s.position / dur * 100)}%` : "0";

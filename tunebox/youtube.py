@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from ytmusicapi import YTMusic
 from ytmusicapi.exceptions import YTMusicUserError
 
+from . import blocklist
 from .config import AUTH_FILE, FAIL_TTL, QUALITY, URL_TTL
 from .settings import settings
 from .tools import node_path
@@ -98,7 +99,7 @@ async def radio_for(vid: str, limit: int = 30) -> list[dict]:
         radio = await asyncio.to_thread(yt.get_watch_playlist, vid, radio=True, limit=limit)
     except Exception:
         return []
-    return [t for t in map(track_from, radio.get("tracks", [])) if t and t["videoId"] != vid]
+    return [t for t in map(track_from, radio.get("tracks", [])) if t and t["videoId"] != vid and not blocklist.blocked(t)]
 
 
 class Resolver:

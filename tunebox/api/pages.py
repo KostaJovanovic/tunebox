@@ -1,11 +1,15 @@
-"""The pages: / (the player) and /wall, plus their CSS and JS under /web/.
+"""The pages: / (the player) and /wall, plus their CSS and JS under /web/, and the app manifest with
+the house's name in it.
 
 Everything is sent with Cache-Control: no-cache, so a phone checks for a newer file on every load
 (a quick 304 when nothing changed) and picks up a deploy straight away."""
-from fastapi import APIRouter
-from fastapi.responses import FileResponse, RedirectResponse
+import json
+
+from fastapi import APIRouter, Request
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from .. import admin, house
 from ..config import WEB_DIR
 
 router = APIRouter()
@@ -36,9 +40,21 @@ def service_worker():
 
 
 @router.get("/wall")
-def wall():
+def wall(request: Request):
     """The wall screen: a tablet or TV showing what plays."""
+    if not house.on("wall") and not admin.is_admin(request, touch=False):
+        return RedirectResponse("./", 302, headers=NO_CACHE)
     return page("wall")
+
+
+@router.get("/web/manifest.webmanifest")
+def manifest():
+    """The installed app carries the house's name (this route comes before the /web files)."""
+    m = json.loads((WEB_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))
+    m["name"] = m["short_name"] = house.house["name"]
+    if not house.on("wall"):
+        m.pop("shortcuts", None)
+    return Response(json.dumps(m), media_type="application/manifest+json", headers=NO_CACHE)
 
 
 class NoCacheFiles(StaticFiles):

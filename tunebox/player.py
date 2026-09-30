@@ -6,9 +6,8 @@ import json
 import random
 import secrets
 import time
-from zoneinfo import ZoneInfo
 
-from . import data, plays
+from . import blocklist, data, house, plays
 from .audio import level_to_mpv
 from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_REFILL_AT, SESSION_EVERY,
                      SESSION_FILE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
@@ -351,7 +350,7 @@ class Player:
         """add: each song at its turn at the end of the added songs; next: in front of them, in order;
         now: in front, and the first one plays at once. The radio then follows the last song added.
         Returns the first song's place in the queue (1 = next, 0 = playing now)."""
-        items = [{**t, "by": by, "src": "user"} for t in tracks]
+        items = [{**t, "by": by, "src": "user"} for t in tracks if not blocklist.blocked(t)]
         if not items:
             return 0
         self.snapshot(label or (f'Added "{items[0]["title"]}"' if len(items) == 1 else f"Added {len(items)} songs"), by)
@@ -380,7 +379,7 @@ class Player:
     async def replace(self, tracks: list[dict], start: int = 0, by: str = "", label: str = ""):
         """Plays a list now; it becomes the songs up next (the radio follows its last song). What played
         before stays behind the current song, so Previous still goes back to it."""
-        items = [{**t, "by": by, "src": "user"} for t in tracks if t]
+        items = [{**t, "by": by, "src": "user"} for t in tracks if t and not blocklist.blocked(t)]
         if not items:
             return
         self.snapshot(label or f'Played "{items[0]["title"]}"', by)
@@ -398,7 +397,7 @@ class Player:
         """The radio now follows `track`: its radio replaces the auto songs (in the background)."""
         self.seed = {k: str(track.get(k) or "") for k in ("videoId", "title", "artist", "thumb")}
         self.seed_gen += 1
-        if fill and settings["autoplay"]:
+        if fill and settings["autoplay"] and house.on("radio"):
             asyncio.get_running_loop().create_task(self._reseed(self.seed_gen))
 
     async def _reseed(self, gen: int, fresh: bool = False):
@@ -424,6 +423,8 @@ class Player:
         """Keeps the music going: when little is left, more radio of the seed (the last song someone
         added), or of the current song when the seed has nothing new."""
         if not (settings["autoplay"] or force) or not self.current or len(self.queue) - self.index > RADIO_REFILL_AT:
+            return
+        if not house.on("radio"):
             return
         gen = self.seed_gen
         for seed in (self.seed, self.current):
@@ -463,6 +464,18 @@ class Player:
             await self.disarm()
             self.queue = keep + q
             asyncio.get_running_loop().create_task(self.play_index(len(keep), start=snap.get("position") or 0))
+        keep = self.index + 1                 # an earlier queue may hold songs blocked since
+        self.queue[keep:] = [t for t in self.queue[keep:] if not blocklist.blocked(t)]
+
+    async def drop_blocked(self, label: str) -> int:
+        """Takes the songs the admin blocked out of what's up next; how many went."""
+        keep = self.index + 1
+        gone = [t for t in self.queue[keep:] if blocklist.blocked(t)]
+        if gone:
+            self.snapshot(label)
+            self.queue[keep:] = [t for t in self.queue[keep:] if not blocklist.blocked(t)]
+            await self.sync_armed()
+        return len(gone)
 
     # ---------- sleep timer and alarm ----------
     async def set_sleep(self, minutes: float | None = None, track: bool = False):
@@ -525,12 +538,10 @@ class Player:
             await asyncio.sleep(15)
             try:                              # nothing may end this loop, or the alarm never rings again
                 a = settings["alarm"]
-                try:
-                    now = datetime.datetime.now(ZoneInfo(a.get("tz") or "UTC"))
-                except Exception:
-                    now = datetime.datetime.now()
+                now = datetime.datetime.now(house.tz())
                 stamp = now.strftime("%Y-%m-%d") + " " + a["time"]
-                if a["enabled"] and now.weekday() in a["days"] and now.strftime("%H:%M") == a["time"] and a.get("last") != stamp:
+                if (a["enabled"] and house.on("alarm") and now.weekday() in a["days"] and now.strftime("%H:%M") == a["time"]
+                        and a.get("last") != stamp):
                     a["last"] = stamp
                     save_settings()
                     await self.fire_alarm()

@@ -4,6 +4,7 @@ import { $, $$, esc, fmt } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
+import { house } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
 import { withAdmin } from "./phrase.js";
@@ -256,11 +257,11 @@ async function saveAlarm(test = false) {
     enabled: $("#alOn").getAttribute("aria-checked") === "true", time: $("#alTime").value || "07:00",
     days: $$("#alDays button.on").map(b => +b.dataset.d), list: $("#alList").value || null,
     level: +$("#alLevel").value, ramp: +$("#alRamp").value,
-    tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Belgrade", test,
+    test,
   };
   try {
     cfg = await api("api/alarm", body); renderAlarm();
-    $("#alMsg").className = "msg"; $("#alMsg").textContent = test ? "Playing the alarm now." : `Saved · ${body.tz} time`;
+    $("#alMsg").className = "msg"; $("#alMsg").textContent = test ? "Playing the alarm now." : `Saved · ${house.tz ? house.tz + " time" : "the server's time"}`;
     poll();
   } catch (e) { $("#alMsg").className = "msg err"; $("#alMsg").textContent = errText(e); }
 }
@@ -284,12 +285,15 @@ async function signOut() {
 }
 
 /* ---------- this device: theme, accent ---------- */
-$("#accents").innerHTML = Object.entries(ACCENTS).map(([k, a]) => `<button class="acc" data-a="${k}"><i class="sw" style="background:${a.c}"></i>${a.name}</button>`).join("");
 $("#accents").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_accent", b.dataset.a); applyLook(); renderDevice(); });
 $("#themeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_theme", b.dataset.t); applyLook(); renderDevice(); });
 
-function renderDevice() {
-  const t = store.get("tb_theme", "auto"), a = store.get("tb_accent", "red");
+/* the accent: this device's own, or the house's (when the admin set one) until it picks */
+export function renderDevice() {
+  const t = store.get("tb_theme", "auto"), own = store.get("tb_accent", ""), hs = ACCENTS[house.accent];
+  const a = ACCENTS[own] ? own : hs ? "" : "red";
+  $("#accents").innerHTML = (hs ? `<button class="acc all" data-a=""><i class="sw" style="background:${hs.c}"></i>The house's</button>` : "")
+    + Object.entries(ACCENTS).map(([k, x]) => `<button class="acc" data-a="${k}"><i class="sw" style="background:${x.c}"></i>${x.name}</button>`).join("");
   $$("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
   $$("#accents button").forEach(b => b.classList.toggle("on", b.dataset.a === a));
 }

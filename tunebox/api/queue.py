@@ -4,11 +4,11 @@ import random
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, house
+from .. import admin, blocklist, house
 from ..data import clean_track, people
 from ..player import player
 from ..settings import save_settings_soon, settings
-from ..web import BaseModel, need_who, who
+from ..web import BaseModel, need_feature, need_who, who
 
 router = APIRouter()
 
@@ -70,16 +70,26 @@ async def play(body: PlayBody, request: Request):
     tracks = [t for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
+    first = tracks[max(0, min(body.start, len(tracks) - 1))]
+    allowed = [t for t in tracks if not blocklist.blocked(t)]
+    if not allowed:
+        raise HTTPException(403, "That song is blocked here" if len(tracks) == 1 else "Those songs are blocked here")
+    start = allowed.index(first) if first in allowed else 0      # a blocked song in a list is left out
+    skipped, tracks = len(tracks) - len(allowed), allowed
     may_add(by, len(tracks), body.mode == "replace")
     label = (body.label or "").strip()[:60]
     if body.mode in ("add", "next", "now"):
         pos = await player.add(tracks, by, body.mode, f'Added "{label}"' if label else "")
         msg = ("Playing now" if pos == 0 else "Plays next" if pos == 1 or body.mode == "next" else f"Added · {nth(pos)} in queue")
-        return {"ok": True, "position": pos, "message": msg}
+        return {"ok": True, "position": pos, "message": msg + left_out(skipped)}
     if body.mode != "replace":
         raise HTTPException(400, "unknown mode")
-    asyncio.get_running_loop().create_task(player.replace(tracks, body.start, by, f'Played "{label}"' if label else ""))
-    return {"ok": True, "message": f'Playing "{label}"' if label else "Playing"}
+    asyncio.get_running_loop().create_task(player.replace(tracks, start, by, f'Played "{label}"' if label else ""))
+    return {"ok": True, "message": (f'Playing "{label}"' if label else "Playing") + left_out(skipped)}
+
+
+def left_out(n: int) -> str:
+    return f" · {n} blocked song{'s' if n != 1 else ''} left out" if n else ""
 
 
 @router.post("/api/queue")
@@ -88,6 +98,8 @@ async def enqueue(body: QueueBody, request: Request):
     track = clean_track(body.track)
     if not track:
         raise HTTPException(400, "not a track")
+    if blocklist.blocked(track):
+        raise HTTPException(403, "That song is blocked here")
     may_add(by, 1)
     pos = await player.add([track], by, "next" if body.next else "add")
     return {"ok": True, "position": pos}
@@ -174,6 +186,7 @@ async def control(body: ControlBody, request: Request):
             p.seed, p.seed_gen = None, p.seed_gen + 1
             msg = "Radio cleared"
     elif a == "refresh":
+        need_feature(request, "radio")
         seed = p.seed or p.current
         if seed:
             p.snapshot("New radio songs", by)
