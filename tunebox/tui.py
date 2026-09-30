@@ -13,6 +13,7 @@ No library: curses is missing on Windows. The pieces, top to bottom:
 
 Nothing here imports the server's modules, and cli.py is handed in, not imported: python cli.py runs
 it as __main__, and a second import would be a second copy."""
+import itertools
 import os
 import queue
 import random
@@ -329,6 +330,7 @@ class Net:
     def __init__(self, client, post, threads: bool):
         self.client, self.post, self.threads = client, post, threads
         self.jobs: queue.Queue = queue.Queue()
+        self.seq = itertools.count(1)          # every api/state request is numbered when it is sent
         if threads:
             for _ in range(2):
                 threading.Thread(target=self.work, daemon=True).start()
@@ -362,7 +364,8 @@ class Net:
 
     def poll(self):
         while True:
-            self.post(("state", *self.run({"method": "GET", "path": "api/state", "timeout": 8})))
+            n = next(self.seq)
+            self.post(("state", *self.run({"method": "GET", "path": "api/state", "timeout": 8}), n))
             time.sleep(1)
 
 
@@ -1562,7 +1565,7 @@ class App:
         self.threads, self.running = threads, True
         self.cols, self.rows_n = term.size()
         self.screen = Screen(self.cols, self.rows_n, color)
-        self.state, self.state_at, self.down = {}, time.monotonic(), ""
+        self.state, self.state_at, self.down, self.state_n = {}, time.monotonic(), "", 0
         self.house, self.people, self.groups, self.liked = dict(HOUSE), [], [], set()
         self.revs = {"house": None, "people": None, "lists": None}
         self.latest, self.waiting = {}, {"pick": [], "admin": []}
@@ -1582,7 +1585,7 @@ class App:
         if ev[0] == "net":
             self.on_net(*ev[1:])
         elif ev[0] == "state":
-            self.on_state(ev[1], ev[2])
+            self.on_state(*ev[1:])
         else:
             self.key(ev if isinstance(ev, str) else ev[1])
 
@@ -1652,11 +1655,16 @@ class App:
 
     def poll(self):
         if self.threads:
-            self.net.jobs.put({"method": "GET", "path": "api/state", "then": lambda s: self.on_state(s, None), "timeout": 8})
+            n = next(self.net.seq)
+            self.net.jobs.put({"method": "GET", "path": "api/state", "then": lambda s: self.on_state(s, None, n), "timeout": 8})
         else:
-            self.on_state(*self.net.run({"method": "GET", "path": "api/state"}))
+            n = next(self.net.seq)
+            self.on_state(*self.net.run({"method": "GET", "path": "api/state"}), n)
 
-    def on_state(self, st, err):
+    def on_state(self, st, err, n=0):
+        if n and n < self.state_n:
+            return                            # sent before an answer already shown (the poller and a worker raced)
+        self.state_n = max(self.state_n, n)
         if err is not None:
             self.down = "Tunebox doesn't answer" if isinstance(err, self.cli.Unreachable) else str(err)
             return
