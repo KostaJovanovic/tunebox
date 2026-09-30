@@ -2,7 +2,7 @@
    you moved on doesn't take over. */
 import { $, $$ } from "../../shared/dom.js";
 
-export let view = "home";                      /* home, lists, history, explore, stats or search */
+export let view = "home";                      /* home, lists, history, explore, local, stats or search */
 export let seq = 0;
 export let back = () => {};                    /* where Back on an album / playlist / artist page goes */
 

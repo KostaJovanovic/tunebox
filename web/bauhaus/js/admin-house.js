@@ -44,6 +44,7 @@ const FEATURES = () => [
   ["likes", "Likes", "The heart on every song, and the Liked songs list."],
   ["browse", "Home and Explore", "YouTube Music's shelves, new releases and moods. Off: search only."],
   ["links", "Pasting links", "A YouTube link in the search box opens that song, album or playlist."],
+  ["local", "Local songs", "Anyone with a name uploads audio files to play here, on the Local page. Off: nobody uploads; songs already in playlists still play."],
   ["radio", "Radio", "After the songs people add, more like the last one keep playing."],
   ["lyrics", "Lyrics", "Synced lyrics in the player and on the wall screen."],
   ["stats", "Stats", "What the house played: top songs and artists, who added the most, and when."],

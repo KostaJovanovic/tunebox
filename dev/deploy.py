@@ -13,7 +13,9 @@ its systemd unit (`tunebox` unless the server names another "service"), so it wo
 and for a server set up with install.sh. A server can pin these in servers.json instead:
 "dir", "python", "port", "data", "service".
 
-Only app code is deployed. The systemd unit is compared and reported (on a server that runs
+Only app code is deployed. When requirements.txt names a Python package the server doesn't have,
+deploy says so and asks before installing just that package (never the whole file: a server's
+Python can be shared with other apps, as it is on ele). The systemd unit is compared and reported (on a server that runs
 this repo's tunebox.service, like ele), never installed: that stays a deliberate job by hand.
 """
 import datetime
@@ -41,14 +43,14 @@ BUILTIN = {"name": "ele", "hosts": ["ele.local", "10.100.0.105", "10.100.0.62"],
 # what gets deployed, relative to this folder and to Tunebox's folder on the server
 #   files: single files.  dirs: whole folders, mirrored (a file deleted here is deleted there
 #   too).  retired: old files that no longer belong there and are removed.
-FILES = ["app.py", "run.py"]
+FILES = ["app.py", "run.py", "requirements.txt"]
 DIRS = ["tunebox", "web"]
 RETIRED = ["index.html", "classic.html", "wall.html"]
 SKIP = {"__pycache__", ".bak"}                           # never deployed, never removed there
 UNIT = ROOT / "tunebox.service"                          # ele's unit: compared and reported only
 # the server's live data -> dev/data (browser.json, the YouTube sign-in cookies, stays there)
 DATA_FILES = ["settings.json", "playlists.json", "history.json", "session.json", "people.json",
-              "stats.json", "seminars.json", "keys.json", "house.json", "blocklist.json"]
+              "stats.json", "seminars.json", "keys.json", "house.json", "blocklist.json", "local.json"]
 
 
 def open_server(name: str, choose: bool):
@@ -146,6 +148,37 @@ def report_system(srv: Server, t):
         say("sys", f"tunebox.service differs from {remote} - NOT deployed, install it by hand if intended")
 
 
+def missing_packages(srv: Server, t) -> list[str]:
+    """The lines of requirements.txt whose package the server's Python doesn't have at all. One it has
+    in another version is left alone: on ele that Python belongs to other apps too."""
+    lines = [line.split("#")[0].strip() for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()]
+    reqs = [r for r in lines if r and not r.startswith("-")]
+    names = [re.split(r"[<>=!~\[; ]", r, maxsplit=1)[0] for r in reqs]
+    code = ("import importlib.metadata as m, sys\n"
+            "for n in sys.argv[1:]:\n"
+            "    try: m.version(n)\n"
+            "    except m.PackageNotFoundError: print(n)")
+    rc, o, e = srv.run(f"{shlex.quote(t['python'])} -c {shlex.quote(code)} {quoted(names)}", check=False)
+    if rc != 0:
+        say("warn", f"couldn't ask the server's Python which packages it has: {(e or o).strip()[:200]}")
+        return []
+    gone = set(o.split())
+    return [r for r, n in zip(reqs, names) if n in gone]
+
+
+def install_packages(srv: Server, t, reqs: list[str]) -> bool:
+    """pip install of exactly these, as whoever owns the server's Python (not root, not the whole file)."""
+    python = shlex.quote(t["python"])
+    _, owner, _ = srv.run(f"stat -c %U \"$(dirname {python})\"", check=False)
+    owner = owner.strip()
+    pip = f"{python} -m pip install --quiet --disable-pip-version-check {quoted(reqs)}"
+    cmd = pip if not owner or owner == srv.user else f"sudo runuser -u {shlex.quote(owner)} -- {pip}"
+    rc, o, e = srv.run(cmd, check=False)
+    if rc != 0:
+        say("err", f"pip failed ({rc}): {(e or o).strip()[-400:]}")
+    return rc == 0
+
+
 def healthy(srv: Server, t) -> bool:
     for _ in range(20):
         time.sleep(1)
@@ -203,6 +236,9 @@ def push(server, srv: Server, t, dry) -> int:
         say("diff", f"{f}  ->  {rdir}/{f}   ({delta})")
     for f in removals:
         say("gone", f"{rdir}/{f}   (no longer here, will be removed)")
+    missing = missing_packages(srv, t)
+    if missing:
+        say("pkg", f"{where}'s Python doesn't have: {', '.join(missing)}")
     if dry:
         return 0
     if input(f"\nupload these to {where}? (y/n): ").strip().lower() != "y":
@@ -238,7 +274,15 @@ def push(server, srv: Server, t, dry) -> int:
         return 1
     srv.run(f"rm -rf {tmp}", check=False)
 
-    if not any(f.endswith(".py") for f in files + gone):
+    installed = False
+    if missing:                           # asked on its own: only these are installed, nothing else is touched
+        if input(f"install {', '.join(missing)} on {where} with pip (only that, nothing is upgraded)? (y/n): ").strip().lower() == "y":
+            installed = install_packages(srv, t, missing)
+            if installed:
+                say("ok", f"installed {', '.join(missing)}")
+        if not installed:
+            say("warn", f"not installed: what needs {', '.join(missing)} won't work fully until it is there")
+    if not installed and not any(f.endswith(".py") for f in files + gone):
         return 0                          # pages, CSS and JS are read from disk per request
     service = t["service"]
     playing = tunebox_playing(srv, t)

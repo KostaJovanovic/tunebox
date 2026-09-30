@@ -8,6 +8,7 @@ import time
 
 from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FILE, SEMINAR_COLORS, SEMINARS,
                      SEMINARS_FILE, STATS_DAYS, STATS_FILE)
+from . import local
 from .files import read_json, write_json
 
 VIDEO_ID = re.compile(r"[\w-]{11}")          # YouTube's video IDs: always 11 of these
@@ -15,7 +16,10 @@ TRACK_KEYS = ("videoId", "title", "artist", "album", "duration", "thumb", "artis
 
 
 def clean_track(t: dict) -> dict | None:
-    """Only the fields a song needs, as short strings (anything else a client sends is dropped)."""
+    """Only the fields a song needs, as short strings (anything else a client sends is dropped).
+    A local song is looked up: what it is called is the server's to say, and one that was removed is no song."""
+    if isinstance(t, dict) and local.is_local(t.get("videoId")):
+        return local.track_of(t["videoId"])
     if not isinstance(t, dict) or not VIDEO_ID.fullmatch(str(t.get("videoId") or "")):
         return None
     return {k: str(t.get(k) or "")[:300] for k in TRACK_KEYS}

@@ -1,7 +1,8 @@
 /* The admin panel: a full screen with tabs. It opens with the Konami code (↑ ↑ ↓ ↓ ← → ← → B A) or,
    on a phone, ten quick taps on the word "Settings". The first time it asks for a password to set;
    after that it asks for it, and this device stays unlocked until 15 minutes pass without admin work.
-   Tabs: People (admin-people.js), Features and House (admin-house.js), Security (the password, the audit log). */
+   Tabs: People (admin-people.js), Features and House (admin-house.js), Local songs (admin-local.js),
+   Security (the password, the audit log). */
 import { $, esc } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, position, ctl, onState } from "../../shared/playback.js";
@@ -12,9 +13,10 @@ import { askPhrase, longEnough, unlockAdmin, withAdmin } from "./phrase.js";
 import { setVol } from "./settings.js";
 import { showPeople } from "./admin-people.js";
 import { showFeatures, showHouse } from "./admin-house.js";
+import { showLocalSpace } from "./admin-local.js";
 
 const box = $("#admin");
-const TABS = { people: ["People", showPeople], features: ["Features", showFeatures], house: ["House", showHouse], security: ["Security", showSecurity] };
+const TABS = { people: ["People", showPeople], features: ["Features", showFeatures], house: ["House", showHouse], local: ["Local songs", showLocalSpace], security: ["Security", showSecurity] };
 let tab = "people";
 
 export const adminOpen = () => box.classList.contains("open");

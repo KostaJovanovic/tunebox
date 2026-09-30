@@ -97,6 +97,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .like.on svg path { fill: currentColor; }
 .ctrls .sq.like { display: none; }
 .acts button:disabled { opacity: .3; pointer-events: none; }
+.loc { display: inline-block; margin-right: 6px; padding: 0 4px; border: 1px solid var(--line-2); color: var(--muted);
+  font: 700 9px/14px var(--display); letter-spacing: .1em; text-transform: uppercase; font-style: normal; vertical-align: 1px; }
 .daygroup { padding: 14px 16px 6px; font: 700 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
   border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 56px; z-index: 2; }
 
@@ -136,3 +138,20 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
   font: 600 12px var(--body, inherit); background: var(--bg); }
 .likers button .av.sm, .likers button .sem { margin: 0 6px 0 0; }
 .likers button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+/* ---------- Local songs: uploads on their way, files dragged over the page ---------- */
+#view .upnote { padding: 0 16px; margin: 10px 0; }
+#view > .likers { padding: 12px 16px 0; }
+.uprow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; padding: 8px 16px 10px; border-bottom: 1px solid var(--line); }
+.uprow:first-child { border-top: 1px solid var(--line); }
+.uprow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uprow .s { color: var(--muted); font-size: 12.5px; text-align: right; }
+.uprow .upbar { grid-column: 1 / -1; height: 3px; background: var(--s2); }
+.uprow .upbar i { display: block; height: 100%; background: var(--yellow); transition: width .2s linear; }
+.uprow.wait .t { color: var(--muted); }
+.uprow.done .upbar i { background: var(--blue); }
+.uprow.bad .s { color: var(--red); grid-column: 1 / -1; text-align: left; white-space: normal; }
+.uprow.bad .upbar { display: none; }
+#view.dropping { outline: 3px dashed var(--yellow); outline-offset: -6px; }
+.whoid.lecover { grid-template-columns: 96px minmax(0, 1fr); }
+.lecover img { width: 96px; height: 96px; object-fit: cover; background: var(--s2); }
+.lecover .btn { justify-self: start; }

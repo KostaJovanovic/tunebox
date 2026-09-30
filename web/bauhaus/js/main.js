@@ -13,6 +13,7 @@ import { showHome, showExplore, showHistory, goTo, startPage } from "./library.j
 import { view } from "./nav.js";
 import { showLists, likesChanged } from "./playlists.js";
 import { showStats } from "./stats.js";
+import { showLocal } from "./local.js";
 import { renderQueue, toggleQueue } from "./queue.js";
 import { toggleLyrics, paintLyrics } from "./lyrics.js";
 import { toggleSettings, paintVolume, paintSleep, nudgeVol, toggleMute, renderDevice } from "./settings.js";
@@ -43,9 +44,9 @@ onState(async s => {
 });
 
 /* ---------- pages ---------- */
-const PAGES = { home: showHome, lists: showLists, history: showHistory, explore: showExplore, stats: showStats };
+const PAGES = { home: showHome, lists: showLists, history: showHistory, explore: showExplore, stats: showStats, local: showLocal };
 /* a page whose feature the admin switched off isn't there (the admin still has it) */
-const pageOn = v => ({ home: feat("browse"), explore: feat("browse"), stats: feat("stats"), lists: feat("playlists") || feat("likes") }[v] ?? true);
+const pageOn = v => ({ home: feat("browse"), explore: feat("browse"), stats: feat("stats"), local: feat("local"), lists: feat("playlists") || feat("likes") }[v] ?? true);
 const go = v => { if (pageOn(v)) PAGES[v](); };
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); });
 

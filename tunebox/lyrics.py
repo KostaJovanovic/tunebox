@@ -1,4 +1,5 @@
-"""Lyrics: LRCLIB (free, open, often time-synced) first, YouTube Music's own as the fallback."""
+"""Lyrics: LRCLIB (free, open, often time-synced) first, YouTube Music's own as the fallback
+(a local song has only LRCLIB)."""
 import asyncio
 import json
 import re
@@ -66,6 +67,8 @@ def fetch_lyrics(vid: str, title: str, artist: str, album: str, duration: str) -
     if hit:
         synced = parse_lrc(hit.get("syncedLyrics") or "")
         return {"synced": synced or None, "plain": hit.get("plainLyrics") or "", "source": "LRCLIB"}
+    if vid.startswith("local:"):
+        return {"none": True}
     try:
         w = youtube.yt.get_watch_playlist(vid, limit=1)
         if w.get("lyrics"):

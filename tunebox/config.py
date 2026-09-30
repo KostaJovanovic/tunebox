@@ -28,6 +28,8 @@ SEMINARS_FILE = DATA / "seminars.json"     # the groups people are in (a house c
 HOUSE_FILE = DATA / "house.json"           # what the admin set for the whole house
 BLOCK_FILE = DATA / "blocklist.json"       # songs and artists the admin blocked
 AUDIT_FILE = DATA / "audit.json"           # what the admin did, and who tried to get in
+LOCAL_FILE = DATA / "local.json"            # the local songs: what each uploaded file is (local.py)
+LOCAL_DIR = DATA / "local"                  # the files themselves, their covers, and uploads on their way in
 TOKEN_FILE = DATA / "cli.token"            # written at every start: reading it proves you are on the server (admin.py)
 
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted

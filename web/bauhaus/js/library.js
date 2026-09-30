@@ -12,6 +12,7 @@ import { withAdmin } from "./phrase.js";
 import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
 import { toggleCanvas } from "./player.js";
 import { showLists } from "./playlists.js";
+import { showLocal } from "./local.js";
 
 let kind = "songs", lastQuery = "";
 
@@ -117,9 +118,15 @@ export async function openItem(type, id, goingBack = false) {
 }
 
 /* A song's artist or album page (kind: "artist" or "album"). Songs saved before tracks carried those
-   ids (history, older playlists) ask the server which they are. */
+   ids (history, older playlists) ask the server which they are. A local song has neither: it goes to
+   the Local page. */
 export async function goTo(kind, t) {
   if (!t) return;
+  if (String(t.videoId).startsWith("local:")) {
+    if (!feat("local")) return toast("This song is one of the house's own files");
+    closeAll(); toggleCanvas(false);
+    return showLocal();
+  }
   let id = t[kind + "Id"];
   if (!id) try { id = (await api(`api/where/${encodeURIComponent(t.videoId)}`))[kind + "Id"]; } catch {}
   if (!id) return toast(kind === "artist" ? "YouTube Music has no page for this artist" : "Couldn't find this song's album");

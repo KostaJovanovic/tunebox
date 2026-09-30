@@ -56,6 +56,9 @@ export const likeBtn = (key, i, vid) => {
   return `<button class="like${on ? " on" : ""}" data-f="likes" data-act="like" ${at(key, i)} data-like="${esc(vid)}" title="Like" aria-label="Like" aria-pressed="${on}">${icon.HEART}</button>`;
 };
 
+/* a song from the house's own files says so */
+export const localTag = t => String(t.videoId).startsWith("local:") ? '<i class="loc">Local</i>' : "";
+
 /* A song row. A tap on the title adds the song (o.meta: other attributes for that tap); the buttons on
    the right are Play next, Play (asks first, see ask.js), Add to playlist and Like unless o.acts says otherwise.
    o: num (shown number), playing (false: never marked as playing), by (who added it), likers (who liked it), d (text in place
@@ -71,7 +74,7 @@ export function songRow(t, key, i, o = {}) {
     <span class="n">${pad(o.num ?? i + 1)}</span>
     <img loading="lazy" src="${esc(t.thumb)}" alt="">
     <div class="meta" ${meta}>
-      <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] && feat("people") ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
+      <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] && feat("people") ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${localTag(t)}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
     <span class="d">${esc(o.d ?? t.duration)}</span>
     <div class="acts">${acts}${o.extra || ""}</div></div>`;
@@ -88,7 +91,7 @@ export function card(it) {
 /* A card for song i of a list (the house's own shelves on Home); liked songs show who liked them */
 const likers = t => (t.likedBy || []).filter(id => people[id] && feat("people")).map(id => avatar(people[id], "sm")).join("");
 export const songCard = (t, key, i) => `<button class="card" data-act="song" ${at(key, i)}><img loading="lazy" src="${esc(t.thumb)}" alt="">
-    <div class="t">${esc(t.title)}</div><div class="s">${likers(t) || '<i class="kind song"></i>'}${esc(t.artist)}</div></button>`;
+    <div class="t">${esc(t.title)}</div><div class="s">${likers(t) || '<i class="kind song"></i>'}${localTag(t)}${esc(t.artist)}</div></button>`;
 
 /* A playlist cover: four covers in a square, one if there are fewer, a note icon if none */
 export function mosaic(thumbs, cls = "mosaic") {

@@ -1,6 +1,8 @@
 """Backup and restore: everything the house made (people, groups, pass phrases, playlists and likes,
-history, play counts, the play log, settings, the house setup, the blocklist) in one JSON file. The YouTube sign-in
-(browser.json) and the audit log are never in it. A restore first saves what it replaces in backups/,
+history, play counts, the play log, settings, the house setup, the blocklist, the list of local songs) in one
+JSON file. The YouTube sign-in (browser.json) and the audit log are never in it. The local songs' audio is
+only in the admin's full backup, a zip with that JSON file and the local folder; putting the audio
+back is unzipping the local folder into Tunebox's data folder. A restore first saves what it replaces in backups/,
 so it can be undone.
 
 Anyone may download a backup, but only the admin's has the secrets (keys.json and the pass phrase
@@ -8,13 +10,14 @@ hashes). Restoring is the admin's, and it never changes the admin password."""
 import datetime
 import json
 import time
+import zipfile
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
-from .. import admin, audit, auth, blocklist, data, house, plays
-from ..config import (BLOCK_FILE, DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, PEOPLE_FILE, PLAYS_DIR,
-                      SEMINARS_FILE, SETTINGS_FILE, STATS_FILE)
+from .. import admin, audit, auth, blocklist, data, house, local, plays
+from ..config import (BLOCK_FILE, DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, LOCAL_DIR, LOCAL_FILE, PEOPLE_FILE,
+                      PLAYS_DIR, SEMINARS_FILE, SETTINGS_FILE, STATS_FILE)
 from ..files import read_json, write_json
 from ..player import player
 from ..settings import load_settings, settings
@@ -24,7 +27,7 @@ router = APIRouter()
 BACKUPS = DATA / "backups"
 FILES = {"settings": SETTINGS_FILE, "history": HISTORY_FILE, "playlists": LISTS_FILE, "people": PEOPLE_FILE,
          "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE,
-         "blocklist": BLOCK_FILE}
+         "blocklist": BLOCK_FILE, "local": LOCAL_FILE}
 
 
 def snapshot(secrets: bool = True) -> dict:
@@ -49,6 +52,53 @@ async def backup(request: Request):
     day = datetime.date.today().isoformat()
     return Response(json.dumps(snapshot(admin.is_admin(request)), ensure_ascii=False), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="tunebox-backup-{day}.json"'})
+
+
+class Pipe:
+    """What zipfile writes to, handed on piece by piece: the zip is never whole in memory or on disk."""
+
+    def __init__(self):
+        self.buf, self.pos = bytearray(), 0
+
+    def write(self, b):
+        self.buf += b
+        self.pos += len(b)
+        return len(b)
+
+    def tell(self):
+        return self.pos
+
+    def flush(self):
+        pass
+
+    def take(self) -> bytes:
+        out, self.buf = bytes(self.buf), bytearray()
+        return out
+
+
+def full_zip(backup: dict):
+    """The backup and every local file, stored as they are (audio doesn't compress)."""
+    pipe = Pipe()
+    with zipfile.ZipFile(pipe, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("tunebox-backup.json", json.dumps(backup, ensure_ascii=False))
+        yield pipe.take()
+        for f in sorted(LOCAL_DIR.rglob("*")) if LOCAL_DIR.exists() else []:
+            rel = f.relative_to(LOCAL_DIR)
+            if not f.is_file() or rel.parts[0].startswith("."):
+                continue                      # uploads still on their way in
+            with z.open(zipfile.ZipInfo.from_file(f, f"local/{rel.as_posix()}"), "w", force_zip64=True) as dest, f.open("rb") as src:
+                while chunk := src.read(1 << 18):
+                    dest.write(chunk)
+                    yield pipe.take()
+    yield pipe.take()
+
+
+@router.get("/api/backup/full", dependencies=[Depends(admin.need)])
+async def full_backup(request: Request):
+    day = datetime.date.today().isoformat()
+    audit.log("backup", "Downloaded a full backup, with the local songs", request)
+    return StreamingResponse(full_zip(snapshot()), media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="tunebox-full-{day}.zip"'})
 
 
 class RestoreBody(BaseModel):
@@ -108,6 +158,7 @@ async def restore(body: RestoreBody, request: Request):
     house.load()
     house.save_house()                        # bumps its revision: every page reads the setup again
     blocklist.load()
+    local.load()
     data.save_lists()                         # bumps the revisions: every page reloads names and likes
     data.save_people()
     await player.apply_volume()

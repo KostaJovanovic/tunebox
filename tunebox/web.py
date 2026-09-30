@@ -36,7 +36,8 @@ def host_ok(host: str | None) -> bool:
 
 async def same_site_only(request: Request, call_next):
     """Refuses foreign Host headers, writes from foreign pages (Origin), and non-JSON bodies
-    (a foreign page can send text/plain or form bodies without a CORS preflight)."""
+    (a foreign page can send text/plain or form bodies without a CORS preflight). Local songs and
+    their covers arrive as the file itself: those types need a preflight too, which nothing here answers."""
     if not host_ok(request.headers.get("host")):
         return JSONResponse({"detail": "Unknown host"}, 403)
     if request.method not in ("GET", "HEAD", "OPTIONS"):
@@ -49,7 +50,9 @@ async def same_site_only(request: Request, call_next):
             if not oh or not host_ok(oh):
                 return JSONResponse({"detail": "Cross-site request refused"}, 403)
         has_body = request.headers.get("content-length", "0") != "0" or "transfer-encoding" in request.headers
-        if has_body and not request.headers.get("content-type", "").lower().startswith("application/json"):
+        kind = request.headers.get("content-type", "").lower()
+        file_ok = "/api/local/" in request.url.path and (kind == "application/octet-stream" or kind.startswith("image/"))
+        if has_body and not kind.startswith("application/json") and not file_ok:
             return JSONResponse({"detail": "Send JSON"}, 415)
     return await call_next(request)
 

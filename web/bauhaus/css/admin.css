@@ -53,6 +53,12 @@ body.admin-open { overflow: hidden; }
 .abody .arow .sem { font-size: 12px; padding: 3px 7px; }
 .abody .presets small { text-align: center; }
 
+/* Local songs: how full the disk (or the cap) is */
+.meter { display: flex; height: 14px; background: var(--s2); border: 1px solid var(--line-2); }
+.meter i { display: block; height: 100%; }
+.meter .other { background: var(--faint); }
+.meter .mine { background: var(--red); min-width: 2px; }
+
 /* the top bar says so while the admin is unlocked on this device */
 .top .adminbadge { display: none; padding: 0 14px; border-left: 1px solid var(--line); color: var(--red);
   font: 700 10px var(--display); letter-spacing: .14em; text-transform: uppercase; }

@@ -46,6 +46,8 @@
   .row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; }
   .row .n, .row .d { display: none; }
   .acts button { width: 38px; }
+  /* a local song of yours also has Edit and Remove: Play next and Add to playlist stay in its menu (hold the row) */
+  .row.own .acts .wide, .row.own .acts [data-act="pick"] { display: none; }
   .hero { grid-template-columns: 96px minmax(0, 1fr); align-items: start; }
   .hide-sm { display: none; }
   .hero > img, .hero > .mosaic, .hero > .blank { width: 96px; height: 96px; }

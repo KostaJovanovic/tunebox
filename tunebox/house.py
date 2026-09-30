@@ -1,6 +1,6 @@
 """What the admin set for the whole house, kept in house.json: its name and accent, the time zone,
-which features are on, what groups are called and how they work, what the wall screen shows, and
-whether anyone may add a name.
+which features are on, what groups are called and how they work, what the wall screen shows,
+whether anyone may add a name, and how much room local songs may take.
 
 A feature that is off is hidden from everyone and its routes answer only the admin (web.feature).
 Nothing is deleted: switching it back on brings everything back.
@@ -39,6 +39,8 @@ DEFAULTS = {
     "groups": {"one": "Seminar", "many": "Seminars", "required": True, "create": "open"},
     "newPerson": {"groups": []},              # the groups a new person starts in when they pick none
     "wall": {"lyrics": True, "queue": False, "who": False, "clock": True, "controls": True},
+    # local songs: the most they may take in all (None: no cap), the free space always left on the disk, the biggest file
+    "local": {"capGB": None, "reserveGB": 2, "maxMB": 200},
 }
 
 
@@ -99,4 +101,4 @@ def public() -> dict:
     """What every page needs to know."""
     return {"name": house["name"], "accent": house["accent"], "tz": tz_name(), "signups": house["signups"],
             "off": [k for k in FEATURES if not on(k)], "groups": house["groups"], "newPerson": house["newPerson"],
-            "wall": house["wall"], "rev": rev}
+            "wall": house["wall"], "local": {"maxMB": house["local"]["maxMB"]}, "rev": rev}

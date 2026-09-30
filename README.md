@@ -47,6 +47,8 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 🎵 **Play anything.** Search, browse Home and Explore, or paste any YouTube link. Right-click (or long-press) anything for a menu.
 
+📁 **Your own files too.** Upload the songs YouTube doesn't have, on the *Local* page: drop the files in, and they play, queue, go into playlists and count in Stats like any other song. Titles, artists and covers come from the files' tags and can be changed. WAV and AIFF are stored as FLAC (lossless, half the size); mp3, FLAC, m4a, Ogg and Opus stay as they are.
+
 👥 **Share the queue fairly.** Songs from different people take turns, so no one person controls the music. Radio plays when the queue is empty. You can undo every change.
 
 🙋 **Know who's who.** Everyone picks a name, colour, emoji and group (call them seminars, teams, rooms: your word). You can see who queued each song and who liked it. Names can have an optional pass phrase.
@@ -63,13 +65,13 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 📱 **Installable** as an app on your phone's home screen.
 
-💾 **Backup and restore** everything in one file, from Settings.
+💾 **Backup and restore** everything in one file, from Settings. The admin can also download a full backup: a zip with that file and the audio of the local songs.
 
 🔑 **One admin for the house.** Type the Konami code (↑ ↑ ↓ ↓ ← → ← → B A), or tap the word *Settings* ten times on a phone. The first time, you choose the admin password. The admin can edit, merge, block and remove people, see what each person played, and clean up plays, likes and playlists.
 
-🧩 **Only what you need.** The admin can switch off any part: names, groups, playlists, likes, Home and Explore, pasted links, radio, lyrics, stats, the recap, the wall screen, the alarm, the sleep timer, the equaliser. What is off is hidden for everyone and nothing is deleted. Four presets (Home, Office, Party, Solo) set all the switches at once, and a setup can be copied to another Tunebox as a file.
+🧩 **Only what you need.** The admin can switch off any part: names, groups, playlists, likes, Home and Explore, pasted links, local songs, radio, lyrics, stats, the recap, the wall screen, the alarm, the sleep timer, the equaliser. What is off is hidden for everyone and nothing is deleted. Four presets (Home, Office, Party, Solo) set all the switches at once, and a setup can be copied to another Tunebox as a file.
 
-🏠 **Make it yours.** Give the house its own name and accent colour, set its time zone, decide who may add names and groups, choose what the wall screen shows, and block songs or artists nobody wants to hear again.
+🏠 **Make it yours.** Give the house its own name and accent colour, set its time zone, decide who may add names and groups, choose what the wall screen shows, and block songs or artists nobody wants to hear again. For local songs, the admin sees how full the disk is and sets how much they may take, how much free space always stays, and the biggest file.
 
 ---
 
@@ -82,6 +84,8 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 ```sh
 .venv/bin/python run.py --reset-admin
 ```
+
+**Bringing local songs back from a full backup?** Unzip its `local` folder into Tunebox's data folder on the server, then restore the `tunebox-backup.json` from the same zip in Settings.
 
 **Songs won't play?** YouTube probably changed something. Update yt-dlp:
 
@@ -137,6 +141,7 @@ Everything lives in the app folder (or `TUNEBOX_DATA`). Git ignores all of it.
 | `keys.json` | the admin password (hashed) and the device-key secret |
 | `house.json` | what the admin set for the house: name, accent, time zone, feature switches, group rules, wall options |
 | `blocklist.json` | the songs and artists the admin blocked |
+| `local.json`, `local/` | the uploaded songs: their details, and the audio files and covers |
 | `audit.json` | the admin's log: unlocks, wrong passwords, changes |
 | `cli.token` | a token written at every start; it lets `run.py --reset-admin` talk to the running Tunebox |
 | `backups/` | the copy a restore saves before it replaces anything |
@@ -165,6 +170,8 @@ The deploy works with any server that runs Tunebox as a systemd service, like on
 2. Add the server: a name, its address and the SSH user.
 3. Pick **deploy**. With more than one server, it asks which. You can also name one: `save.bat deploy office`.
 
+When Tunebox needs a Python package the server doesn't have yet, the deploy names it and asks before installing only that one.
+
 Each device keeps its own list in `dev/servers.json`, and git ignores it. The deploy logs in with your SSH key. If the key doesn't work, it asks for the password. If sudo needs a password too, it asks once per deploy.
 
 To log in to the server with a different address or SSH user, pick **logout**, or run `save.bat logout` or `./save.sh logout`. It moves `dev/servers.json` to `dev/servers.json.old`, and the next deploy asks for the address and user again. The SSH password is never saved. The GitHub login is not touched.
@@ -179,6 +186,7 @@ To log in to the server with a different address or SSH user, pick **logout**, o
 | `app.py` | puts the app together |
 | `tunebox/player.py`, `mpv.py` | the queue, gapless playback, the sleep timer, the alarm, and mpv control |
 | `tunebox/youtube.py`, `lyrics.py`, `audio.py` | YouTube Music and yt-dlp, lyrics, volume and EQ maths |
+| `tunebox/local.py` | uploaded songs: tags and covers ([mutagen](https://mutagen.readthedocs.io)), converting with mpv, room on the disk |
 | `tunebox/data.py`, `plays.py`, `auth.py` | playlists, people, the play log, pass phrases |
 | `tunebox/web.py`, `api/` | request checks and the HTTP API |
 | `web/bauhaus/`, `web/wall/`, `web/shared/` | the player, the wall screen, and code both use |

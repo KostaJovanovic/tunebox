@@ -8,7 +8,7 @@ import urllib.parse
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, data, house, youtube
+from .. import admin, data, house, local, youtube
 from ..config import LIKED_ID, STATS_DAYS
 from ..web import feature
 from ..youtube import album_card, cached, radio_for, thumb_of, track_from, yt_get
@@ -17,12 +17,19 @@ router = APIRouter()
 
 
 @router.get("/api/search")
-async def search(q: str, kind: str = "songs"):
+async def search(q: str, request: Request, kind: str = "songs"):
+    """Songs: the house's own local songs that match come first."""
     if not q.strip():
         return []
     filt = kind if kind in ("songs", "albums", "artists", "playlists") else "songs"
-    res = await yt_get("search", youtube.yt.search, q, filter=filt, limit=30)
-    out = []
+    mine = [{"type": "song", **t} for t in local.search(q)] if filt == "songs" and (house.on("local") or admin.is_admin(request, touch=False)) else []
+    try:
+        res = await yt_get("search", youtube.yt.search, q, filter=filt, limit=30)
+    except HTTPException:
+        if not mine:
+            raise
+        res = []                              # YouTube can't be reached: the local songs are still there
+    out = mine
     for r in res:
         if filt == "songs":
             t = track_from(r)
@@ -105,6 +112,8 @@ _where: dict[str, dict] = {}
 @router.get("/api/where/{video_id}")
 async def where(video_id: str):
     """A song's artist and album pages, for songs saved before tracks carried them (history, playlists)."""
+    if local.is_local(video_id):
+        return {"artistId": "", "albumId": ""}
     if video_id not in _where:
         w = await yt_get("song", youtube.yt.get_watch_playlist, video_id, limit=1)
         t = track_from((w.get("tracks") or [{}])[0]) or {}

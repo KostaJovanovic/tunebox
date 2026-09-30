@@ -2,6 +2,7 @@
 
 `yt` is replaced when someone signs in or out, so read it as youtube.yt, not `from .youtube import yt`."""
 import asyncio
+import re
 import threading
 import time
 
@@ -10,7 +11,7 @@ from fastapi import HTTPException
 from ytmusicapi import YTMusic
 from ytmusicapi.exceptions import YTMusicUserError
 
-from . import blocklist
+from . import blocklist, local
 from .config import AUTH_FILE, FAIL_TTL, QUALITY, URL_TTL
 from .settings import settings
 from .tools import node_path
@@ -93,8 +94,34 @@ async def cached(key: str, fn, ttl: float = 3600):
     return data
 
 
+def _plain(s: str) -> str:
+    """For comparing names: no brackets ("(Remastered)"), no punctuation, lower case."""
+    return " ".join(re.sub(r"[^\w]+", " ", re.sub(r"[\(\[][^)\]]*[\)\]]", " ", s.lower())).split())
+
+
+def same_song(s: dict, t: dict) -> bool:
+    """Is YouTube's song t the local song s? A search always finds something: only the same title by
+    the same artist counts."""
+    a, b = _plain(s["title"]), _plain(t["title"])
+    who = _plain(re.split(r",|&| feat\.? | ft\.? ", s["artist"], flags=re.I)[0])
+    return bool(a and b and who) and (a == b or a.startswith(b + " ") or b.startswith(a + " ")) and who in _plain(t["artist"])
+
+
 async def radio_for(vid: str, limit: int = 30) -> list[dict]:
-    """YouTube Music's own radio for a song (without the song itself); [] when it has none."""
+    """YouTube Music's own radio for a song (without the song itself); [] when it has none.
+    A local song's radio is that of the song YouTube Music finds under its artist and title; when it
+    finds none, other local songs in a random order."""
+    if local.is_local(vid):
+        s = local.song_of(vid)
+        if not s:
+            return []
+        try:
+            found = await asyncio.to_thread(yt.search, f'{s["artist"]} {s["title"]}', filter="songs", limit=5) if s["artist"] else []
+            match = next((t for t in map(track_from, found) if t and same_song(s, t)), None)
+        except Exception:
+            match = None
+        items = [match] + await radio_for(match["videoId"], limit) if match else []
+        return [t for t in items or local.shuffled(vid, limit) if not blocklist.blocked(t)]
     try:
         radio = await asyncio.to_thread(yt.get_watch_playlist, vid, radio=True, limit=limit)
     except Exception:
@@ -116,7 +143,10 @@ class Resolver:
         return info["url"]
 
     async def get(self, vid: str, retry: bool = True) -> str:
-        """retry=False (background work) gives up at once on a videoId that failed in the last FAIL_TTL s."""
+        """retry=False (background work) gives up at once on a videoId that failed in the last FAIL_TTL s.
+        A local song is its file."""
+        if local.is_local(vid):
+            return local.path_of(vid)
         hit = self.cache.get(vid)
         if hit and time.time() - hit[0] < URL_TTL:
             return hit[1]

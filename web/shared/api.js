@@ -5,6 +5,9 @@ let askName = async () => false, asking = null;
 /* The page decides how to ask for a name (its "Who's listening?" picker). It resolves true once one is picked. */
 export function setNameAsker(fn) { askName = fn; }
 
+/* Asks for a name now, for a request that doesn't go through api() (an upload). True once one is picked. */
+export const needName = () => (asking ||= askName().finally(() => asking = null));
+
 /* GET without a body; POST (or `method`) with a JSON body. Adding songs needs a name: on a 401 the
    page asks for one, then the request is tried once more. */
 export async function api(path, body, method, retried = false) {

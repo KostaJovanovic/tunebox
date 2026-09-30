@@ -4,7 +4,7 @@ import random
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, blocklist, house
+from .. import admin, blocklist, house, local
 from ..data import clean_track, people
 from ..player import player
 from ..settings import save_settings_soon, settings
@@ -70,6 +70,7 @@ async def play(body: PlayBody, request: Request):
     tracks = [t for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
+    local_allowed(request, tracks)
     first = tracks[max(0, min(body.start, len(tracks) - 1))]
     allowed = [t for t in tracks if not blocklist.blocked(t)]
     if not allowed:
@@ -88,6 +89,12 @@ async def play(body: PlayBody, request: Request):
     return {"ok": True, "message": (f'Playing "{label}"' if label else "Playing") + left_out(skipped)}
 
 
+def local_allowed(request: Request, tracks: list[dict]):
+    """With local songs switched off, they can't be added (what is already up next still plays)."""
+    if any(local.is_local(t["videoId"]) for t in tracks):
+        need_feature(request, "local")
+
+
 def left_out(n: int) -> str:
     return f" · {n} blocked song{'s' if n != 1 else ''} left out" if n else ""
 
@@ -98,6 +105,7 @@ async def enqueue(body: QueueBody, request: Request):
     track = clean_track(body.track)
     if not track:
         raise HTTPException(400, "not a track")
+    local_allowed(request, [track])
     if blocklist.blocked(track):
         raise HTTPException(403, "That song is blocked here")
     may_add(by, 1)

@@ -13,6 +13,8 @@ stats.json
 keys.json
 house.json
 blocklist.json
+local.json
+local/
 audit.json
 cli.token
 browser.json

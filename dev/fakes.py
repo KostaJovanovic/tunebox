@@ -5,6 +5,7 @@ runs here is byte for byte the code that runs on the server.
 """
 import asyncio
 import time
+from pathlib import Path
 
 
 def _seconds(duration: str, default: float = 200.0) -> float:
@@ -32,6 +33,8 @@ def install_tunebox(speed: float = 1.0):
 
     def duration_of(url: str) -> float:
         vid = url.removeprefix("fake://")
+        if vid == url:                        # a local song: the player was handed its file
+            vid = "local:" + Path(url).stem
         for t in player.queue:
             if t["videoId"] == vid:
                 return _seconds(t.get("duration"))

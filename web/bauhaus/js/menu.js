@@ -33,14 +33,17 @@ function copyText(text) {
   ta.remove();
 }
 
-/* the "about this song" part every song menu ends with; while the admin is unlocked, blocking too */
+/* the "about this song" part every song menu ends with; while the admin is unlocked, blocking too.
+   A local song has no artist or album page and no link: it has its place on the Local page. */
+const isLocal = t => String(t.videoId).startsWith("local:");
 const songTail = t => [
   feat("playlists") && { label: "Add to playlist…", run: () => pickFor(t) },
   feat("likes") && { label: isLiked(t.videoId) ? "Unlike" : "Like", run: () => toggleLike(t) },
   SEP,
-  t.artist && { label: "Go to artist", hint: t.artist.split(",")[0], run: () => goTo("artist", t) },
-  t.album && { label: "Go to album", hint: t.album, run: () => goTo("album", t) },
-  { label: "Copy link", run: () => copyText(`https://music.youtube.com/watch?v=${t.videoId}`) },
+  !isLocal(t) && t.artist && { label: "Go to artist", hint: t.artist.split(",")[0], run: () => goTo("artist", t) },
+  !isLocal(t) && t.album && { label: "Go to album", hint: t.album, run: () => goTo("album", t) },
+  isLocal(t) ? feat("local") && { label: "Show in Local songs", run: () => goTo("local", t) }
+    : { label: "Copy link", run: () => copyText(`https://music.youtube.com/watch?v=${t.videoId}`) },
   admin && SEP,
   admin && { label: "Block this song", danger: true, run: () => block({ kind: "song", track: t }) },
   admin && t.artist && { label: "Block the artist", hint: t.artist.split(",")[0], danger: true, run: () => block({ kind: "artist", track: t }) },
