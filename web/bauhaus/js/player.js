@@ -50,10 +50,10 @@ let barSwipe = null, barSwiped = 0;
 const bar = $(".player .in"), now = $(".player .now");
 bar.addEventListener("click", e => {
   if (Date.now() - barSwiped < 400 || e.target.closest(".artlink")) return;
-  if (e.target.closest(".now") || (phone() && !e.target.closest("button, input"))) toggleCanvas(phone() ? true : undefined);
+  if (e.target.closest(".now") || (phone() && !e.target.closest("button, input, .vol"))) toggleCanvas(phone() ? true : undefined);
 });
 bar.addEventListener("pointerdown", e => {
-  if (!phone() || e.button > 0 || (e.target.closest("button, input") && !e.target.closest(".now"))) return;
+  if (!phone() || e.button > 0 || (e.target.closest("button, input, .vol") && !e.target.closest(".now"))) return;
   barSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, dy: 0 };
 });
 addEventListener("pointermove", e => {

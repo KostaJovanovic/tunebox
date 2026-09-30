@@ -25,6 +25,16 @@
   .prog .fill { top: 0; height: 2px; }
   .prog input { display: none; }
   .vol { display: none; }
+  /* the volume button opens this small bar over the player */
+  body.vol-open .vol { display: grid; grid-template-columns: var(--hit) minmax(0, 1fr) var(--hit) 52px auto; position: fixed; left: 8px; right: 8px;
+    bottom: calc(var(--player-h) + env(safe-area-inset-bottom) + 8px); padding: 6px; background: var(--s1); border: 1px solid var(--line-2); color: var(--text); }
+  body.vol-open .vol svg { display: none; }
+  body.vol-open .vol .vp { display: block; }
+  .vol button.vp { height: var(--hit); border: 1px solid var(--line-2); font-size: 18px; }
+  .vol button.vp.eq { padding: 0 12px; font: 600 12px var(--display); letter-spacing: .06em; }
+  .vol b.vp { font: 700 15px var(--display); text-align: right; font-variant-numeric: tabular-nums; }
+  .vol b.vp small { display: block; font: 600 10px var(--display); color: var(--faint); }
+  body.vol-open .vol input.vr { width: 100%; }
   .canvas { bottom: 0 !important; z-index: 12; }
   .chead #cLyrToggle { display: none; }
   .cbody { display: flex; flex-direction: column; justify-content: center; padding: 0 24px calc(12px + env(safe-area-inset-bottom)); gap: 0; }

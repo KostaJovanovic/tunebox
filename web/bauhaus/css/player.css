@@ -23,6 +23,7 @@
 .play:active { transform: scale(.94); }
 .right { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 .vol { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.vol .vp { display: none; }   /* the phone's volume bar has these (phone.css) */
 input[type=range].vr { -webkit-appearance: none; appearance: none; width: 110px; height: var(--hit); background: none; margin: 0; }
 input[type=range].vr::-webkit-slider-runnable-track { height: 2px; background: var(--line-2); }
 input[type=range].vr::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; background: var(--text); }

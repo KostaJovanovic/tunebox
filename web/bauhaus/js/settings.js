@@ -5,7 +5,7 @@ import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
 import { on } from "../../shared/actions.js";
-import { toast, openDrawer, clearHash } from "./ui.js";
+import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
 import { paintAdmin } from "./who.js";
 
 const FREQ_LABEL = f => f >= 1000 ? `${f / 1000}k` : String(f);
@@ -52,7 +52,8 @@ export const volumeTouched = () => Date.now() - volTouch < 2000;
 
 export function setVol(v) {
   v = setVolume(v); volTouch = Date.now();
-  $("#vol").value = $("#vol2").value = $("#cVol").value = v; $("#volN").innerHTML = volLabel(v);
+  $("#vol").value = $("#vol2").value = $("#cVol").value = v; $("#volN").innerHTML = $("#volP").innerHTML = volLabel(v);
+  if (document.body.classList.contains("vol-open")) volPop(true);
 }
 export const nudgeVol = d => setVol(+$("#vol2").value + d);
 export function toggleMute() {
@@ -61,8 +62,19 @@ export function toggleMute() {
 }
 export function paintVolume(s) {
   if (volumeTouched()) return;
-  $("#vol").value = $("#vol2").value = s.volume; $("#volN").innerHTML = volLabel(Math.round(s.volume));
+  $("#vol").value = $("#vol2").value = s.volume; $("#volN").innerHTML = $("#volP").innerHTML = volLabel(Math.round(s.volume));
 }
+/* a phone's volume button: a small bar over the player; it goes after 4 seconds untouched, a tap elsewhere or Esc */
+let volTimer = 0;
+function volPop(open) {
+  document.body.classList.toggle("vol-open", open);
+  clearTimeout(volTimer);
+  if (open) volTimer = setTimeout(() => volPop(false), 4000);
+}
+document.addEventListener("pointerdown", e => {
+  if (document.body.classList.contains("vol-open") && !e.target.closest(".vol, .volbtn")) volPop(false);
+}, true);
+onCloseAll(() => volPop(false));
 $("#vol").addEventListener("input", () => setVol(+$("#vol").value));
 $("#vol2").addEventListener("input", () => setVol(+$("#vol2").value));
 
@@ -280,7 +292,8 @@ function renderDevice() {
 }
 
 /* ---------- wiring ---------- */
-on("settings-open", () => toggleSettings(true));
+on("settings-open", () => { volPop(false); toggleSettings(true); });
+on("vol-pop", () => volPop(!document.body.classList.contains("vol-open")));
 on("settings-close", () => toggleSettings(false));
 on("vol-nudge", el => nudgeVol(+el.dataset.d));
 on("eq", el => setEq(el.dataset.preset));
