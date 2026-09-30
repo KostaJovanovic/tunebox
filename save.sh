@@ -9,6 +9,7 @@
 #   ./save.sh pull                git pull
 #   ./save.sh pull-data [server]  copy the server's live data into dev/data
 #   ./save.sh servers             list, add or remove the servers this device deploys to
+#   ./save.sh logout              forget the server address + SSH user, so the next deploy asks again
 #   ./save.sh quick "msg"         commit + push to GitHub, no menu, prompts or deploy
 #   ./save.sh quick-commit "msg"  commit only, no menu or prompts
 #
@@ -102,6 +103,17 @@ pull() {
   git pull "$r" "$b"
 }
 
+logout() {
+  # without dev/servers.json the next deploy asks for the address and SSH user again
+  if [ -f dev/servers.json ]; then
+    mv -f dev/servers.json dev/servers.json.old || return 1
+    echo "[srv]   forgot the server address and SSH user (moved to dev/servers.json.old) - the next deploy asks for them again"
+  else
+    echo "[srv]   no saved server - the next deploy asks for the address and SSH user"
+  fi
+  echo "[srv]   the SSH password is never saved: deploy asks for it each time the SSH key does not log in"
+}
+
 run() {
   case "$1" in
     save)         save ;;
@@ -111,6 +123,7 @@ run() {
     pull)         pull ;;
     pull-data)    tool pull-data $ARG --ask ;;
     servers)      tool servers ;;
+    logout)       logout ;;
     quick)        QUICK=1; save ;;
     quick-commit) QUICK=1; COMMIT_ONLY=1; save ;;
     *)            return 2 ;;
@@ -119,7 +132,7 @@ run() {
 
 if [ -n "${1:-}" ]; then
   run "$1"; rc=$?
-  [ $rc = 2 ] && sed -n '2,16p' "$0"
+  [ $rc = 2 ] && sed -n '2,17p' "$0"
   exit $rc
 fi
 
@@ -135,10 +148,11 @@ while :; do
   5  pull        git pull
   6  pull data   copy a server's live data into dev/data
   7  servers     list, add or remove servers
-  8  quit
+  8  logout      forget the server address + SSH user
+  9  quit
 
 EOF
-  printf 'select [1-8]: '; read -r c || exit 0
+  printf 'select [1-9]: '; read -r c || exit 0
   case "$c" in
     1) run commit; exit $? ;;
     2) run save; exit $? ;;
@@ -147,7 +161,8 @@ EOF
     5) run pull; exit $? ;;
     6) run pull-data; exit $? ;;
     7) run servers; exit $? ;;
-    8) exit 0 ;;
+    8) run logout; exit $? ;;
+    9) exit 0 ;;
     *) echo "[err]   invalid choice" ;;
   esac
 done

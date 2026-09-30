@@ -150,6 +150,8 @@ The deploy works with any server that runs Tunebox as a systemd service, like on
 3. Pick **deploy**. With more than one server, it asks which. You can also name one: `save.bat deploy office`.
 
 Each device keeps its own list in `dev/servers.json`, and git ignores it. The deploy logs in with your SSH key. If the key doesn't work, it asks for the password. If sudo needs a password too, it asks once per deploy.
+
+To log in to the server with a different address or SSH user, pick **logout**, or run `save.bat logout` or `./save.sh logout`. It moves `dev/servers.json` to `dev/servers.json.old`, and the next deploy asks for the address and user again. The SSH password is never saved. The GitHub login is not touched.
 </details>
 
 <details>

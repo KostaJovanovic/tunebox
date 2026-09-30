@@ -16,6 +16,7 @@ rem   save.bat status [server]     show what differs on the server, change nothi
 rem   save.bat pull                git pull
 rem   save.bat pull-data [server]  copy the server's live data into dev\data for server.bat
 rem   save.bat servers             list, add or remove the servers this device deploys to
+rem   save.bat logout              forget the server address + SSH user, so the next deploy asks again
 rem   save.bat quick "msg"         commit + push to GitHub, no menu, prompts or deploy
 rem   save.bat quick-commit "msg"  commit only, no menu or prompts
 rem
@@ -43,6 +44,7 @@ if /i "%ACTION%"=="status"    goto status
 if /i "%ACTION%"=="pull"      goto pull
 if /i "%ACTION%"=="pull-data" goto pulldata
 if /i "%ACTION%"=="servers"   goto servers
+if /i "%ACTION%"=="logout"    goto logout
 if /i "%ACTION%"=="quick"        (set "QUICK=1" & goto checkrepo)
 if /i "%ACTION%"=="quick-commit" (set "QUICK=1" & set "COMMIT_ONLY=1" & goto checkrepo)
 
@@ -57,10 +59,11 @@ echo   4  status      what differs on a server (changes nothing)
 echo   5  pull        git pull
 echo   6  pull data   copy a server's live data into dev\data for server.bat
 echo   7  servers     list, add or remove servers
-echo   8  quit
+echo   8  logout      forget the server address + SSH user
+echo   9  quit
 echo.
 set "CHOICE="
-set /p CHOICE=select [1-8]:
+set /p CHOICE=select [1-9]:
 if "%CHOICE%"=="1" (set "COMMIT_ONLY=1" & goto checkrepo)
 if "%CHOICE%"=="2" goto checkrepo
 if "%CHOICE%"=="3" goto deploy
@@ -68,7 +71,8 @@ if "%CHOICE%"=="4" goto status
 if "%CHOICE%"=="5" goto pull
 if "%CHOICE%"=="6" goto pulldata
 if "%CHOICE%"=="7" goto servers
-if "%CHOICE%"=="8" exit /b 0
+if "%CHOICE%"=="8" goto logout
+if "%CHOICE%"=="9" exit /b 0
 echo [err]  invalid choice
 goto menu
 
@@ -226,6 +230,20 @@ echo.
 echo === servers ===
 call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
 "%PY%" dev\deploy.py servers
+goto end
+
+:logout
+echo.
+echo === server: logout ===
+echo.
+rem Without dev\servers.json the next deploy asks for the address and SSH user again.
+if exist "dev\servers.json" (
+  move /y "dev\servers.json" "dev\servers.json.old" >nul || (set "SAVE_ERROR=1" & goto end)
+  echo [srv]  forgot the server address and SSH user ^(moved to dev\servers.json.old^) - the next deploy asks for them again
+) else (
+  echo [srv]  no saved server - the next deploy asks for the address and SSH user
+)
+echo [srv]  the SSH password is never saved: deploy asks for it each time the SSH key does not log in
 goto end
 
 :pull
