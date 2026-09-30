@@ -3,6 +3,9 @@
   font: 700 14px/1 var(--display); flex: none; text-transform: uppercase; }
 .av.sm { width: 16px; height: 16px; font-size: 9px; margin-right: 6px; vertical-align: -3px; }
 .av.dark { color: #111; }
+.av svg { width: 62%; height: 62%; }
+.av.sm svg { width: 75%; height: 75%; stroke-width: 2.6; }
+.lock .lockic { width: 11px; height: 11px; vertical-align: -1px; color: var(--muted); }
 .top .me { width: 56px; display: grid; place-items: center; border-left: 1px solid var(--line); transition: background .15s var(--ease); }
 @media (hover: hover) { .top .me:hover { background: var(--s1); } }
 .top .me .av { width: 28px; height: 28px; font-size: 13px; }
@@ -13,6 +16,7 @@
 .swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
 .swatches button.on { border-color: var(--text); }
 .emojis button { width: 36px; height: 36px; font-size: 18px; display: grid; place-items: center; border: 1px solid var(--line-2); }
+.emojis button svg { width: 20px; height: 20px; }
 .emojis button.on { background: var(--s2); border-color: var(--text); }
 .prow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .prow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -53,6 +53,8 @@ const FEATURES = () => [
   ["alarm", "Wake-up alarm", "Starts the music at a set time. Off: a set alarm doesn't ring."],
   ["sleep", "Sleep timer", "Fades out and pauses after a while."],
   ["eq", "Equaliser", "Presets and a custom curve. Off: the sound stays as it is now."],
+  ["namelist", "Names in Settings", "The People section at the bottom of Settings: every name, and Switch or add a name. Off: the name button in the top bar still switches names, and this panel's People tab stays."],
+  ["look", "Theme and accent", "Each device picks light or dark and its own accent colour in Settings. Off: every device follows the system's light or dark and uses the house's accent."],
 ];
 
 export async function showFeatures(target) {
@@ -118,6 +120,9 @@ export async function showHouse(target) {
       <span class="lbl">Time zone</span>
       <select class="field" id="admTz" aria-label="Time zone"><option value="">The server's own time</option>${zones.map(z => `<option${z === h.tz ? " selected" : ""}>${esc(z)}</option>`).join("")}</select>
       <p class="hint">The alarm rings in this time, and Stats counts its hours and days in it.</p>
+      <form class="aform" id="admNet"><label for="admNetName">The Wi-Fi to join: shown at the bottom of Settings, under the server's address</label>
+        <input class="field" id="admNetName" value="${esc(h.network || "")}" placeholder="The Wi-Fi's name" maxlength="32" autocomplete="off"><button class="btn">Save</button></form>
+      <p class="hint">Empty: the Wi-Fi the server itself is on, when it is on Wi-Fi. A server on a cable can't tell, so type it here.</p>
     </div>
 
     <div class="sec"><h2>New names</h2></div>
@@ -151,6 +156,7 @@ export async function showHouse(target) {
 
   const submit = (id, fn) => $(id)?.addEventListener("submit", e => { e.preventDefault(); fn($(id + " input").value.trim()); });
   submit("#admHouse", name => name && save(() => call("api/admin/house", { name }, "PATCH"), "Saved"));
+  submit("#admNet", network => save(() => call("api/admin/house", { network }, "PATCH"), network ? `Network: ${network}` : "Network: detected"));
   submit("#admWords", () => save(() => call("api/admin/house", { groups: { one: $("#admOne").value, many: $("#admMany").value } }, "PATCH"), "Saved"));
   submit("#admNewGroup", name => name && save(() => call("api/admin/groups", { name }), `Added ${name}`));
   submit("#admGroup", name => name && save(() => call(`api/admin/groups/${editing}`, { name }, "PATCH"), "Renamed"));

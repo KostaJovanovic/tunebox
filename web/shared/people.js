@@ -4,9 +4,10 @@
 import { cookie, esc, setCookie } from "./dom.js";
 import { api } from "./api.js";
 import { feat } from "./house.js";
+import { ICONS, iconFor } from "./avatars.js";
 
 export const COLORS = ["#E63B2E", "#EE6A1F", "#F2C230", "#1E8F5A", "#1F5FBF", "#6A4BC4", "#C8327A", "#5C5953"];
-export const EMOJIS = ["", "🎸", "🎧", "🎹", "🥁", "🐱", "🐶", "🦊", "🐻", "🌻", "🚀", "⭐", "🍕", "⚽"];
+export const EMOJIS = ["", ...ICONS];         /* "": the name's first letter */
 const DARK_ON = new Set(["#EE6A1F", "#F2C230"]);   /* light colours get dark text */
 
 export let people = {};                        /* {id: {id, name, color, emoji, seminars: [seminar id]}} */
@@ -48,10 +49,10 @@ export async function removePerson(id) {
   delete people[id];
 }
 
-/* A round badge in the person's colour with their emoji or initial */
+/* A round badge in the person's colour with their icon (avatars.js), another emoji, or their initial */
 export function avatar(p, cls = "") {
   if (!p) return `<i class="av none ${cls}">?</i>`;
-  return `<i class="av ${cls}${DARK_ON.has(p.color) ? " dark" : ""}" style="background:${esc(p.color)}" title="${esc(p.name)}">${esc(p.emoji || p.name.slice(0, 1))}</i>`;
+  return `<i class="av ${cls}${DARK_ON.has(p.color) ? " dark" : ""}" style="background:${esc(p.color)}" title="${esc(p.name)}">${iconFor(p.emoji) || esc(p.emoji || p.name.slice(0, 1))}</i>`;
 }
 
 /* A group's tag, in its colour */

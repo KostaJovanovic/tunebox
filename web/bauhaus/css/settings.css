@@ -76,6 +76,9 @@ input.field[type=time] { font: 700 26px var(--display); height: 56px; letter-spa
 textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--s1); color: var(--text); border: 1px solid var(--line-2);
   font: 12px/1.4 ui-monospace, Consolas, monospace; padding: 10px; }
 textarea:focus { outline: 2px solid var(--yellow); outline-offset: -1px; }
+.netrow { display: flex; align-items: center; gap: 10px; min-height: 36px; font: 600 15px var(--display); overflow-wrap: anywhere; }
+.netrow a { color: var(--text); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.netrow .btn { margin-left: auto; flex: none; }
 .acct { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-weight: 600; }
 .acct i { width: 12px; height: 12px; background: var(--faint); }
 .acct i.ok { background: var(--yellow); }

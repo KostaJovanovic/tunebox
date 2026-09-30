@@ -394,10 +394,15 @@ def cmd_server(c, a):
 
 def cmd_whoami(c, a):
     st, me, house = c.get("api/admin"), c.me(), c.get("api/house")
+    try:
+        net = c.get("api/network")
+    except Refused:                           # a Tunebox from before api/network
+        net = {}
     who = me["name"] if me else "nobody yet (tunebox iam NAME)"
     how = "yes, by this machine's token" if c.token and st["admin"] else "yes" if st["admin"] else "no"
-    show({"server": c.base, "house": house["name"], "who": me, "admin": st["admin"]},
-         f"{house['name']} at {c.base}\nYou are {who}\nAdmin: {how}")
+    where = (f"\nThe server is at {net['ip']}" + (f" on the Wi-Fi {net['wifi']}" if net.get("wifi") else "")) if net.get("ip") else ""
+    show({"server": c.base, "house": house["name"], "who": me, "admin": st["admin"], "network": net},
+         f"{house['name']} at {c.base}\nYou are {who}\nAdmin: {how}{where}")
 
 
 def cmd_iam(c, a):
@@ -888,15 +893,16 @@ def cmd_house(c, a):
         g, w = h["groups"], h["wall"]
         return show(h, "\n".join([
             f"name            {h['name']}", f"accent          {h['accent'] or 'each device its own'}", f"tz              {h['tz'] or 'the server own time'}",
+            f"network         {h.get('network') or 'detected'}",
             f"signups         {h['signups']}", f"group-one       {g['one']}", f"group-many      {g['many']}",
             f"group-required  {'on' if g['required'] else 'off'}", f"group-create    {g['create']}",
             *(f"wall-{k:<11}{'on' if w[k] else 'off'}" for k in WALL), f"off             {', '.join(h['off']) or 'nothing'}"]))
     k, v = a.key, " ".join(a.value)
-    if k is None or not a.value and k != "accent" and k != "tz":
-        raise Usage("tunebox house set KEY VALUE. Keys: name, accent, tz, signups, group-one, group-many, group-required, group-create, "
+    if k is None or not a.value and k not in ("accent", "tz", "network"):
+        raise Usage("tunebox house set KEY VALUE. Keys: name, accent, tz, network, signups, group-one, group-many, group-required, group-create, "
                     + ", ".join("wall-" + x for x in WALL))
-    if k in ("name", "accent", "tz"):
-        body = {k: "" if v in ("none", "own", "server") else v}
+    if k in ("name", "accent", "tz", "network"):
+        body = {k: "" if v in ("none", "own", "server", "detect") else v}
     elif k == "signups":
         body = {"signups": "open" if onoff(v) else "closed"}
     elif k in ("group-one", "group-many"):
@@ -1104,7 +1110,9 @@ def cmd_local(c, a):
 def cmd_backup(c, a):
     r = c.call("GET", "api/backup/full" if a.full else "api/backup", raw=True, timeout=600)
     named = re.search(r'filename="([^"]+)"', r.headers.get("Content-Disposition") or "")
-    path = Path(a.file or (named.group(1) if named else "tunebox-backup.json"))
+    # the server's name for it, as a plain name in this folder: a server (or anyone between) must not choose where it goes
+    name = Path(named.group(1).replace("\\", "/")).name if named else ""
+    path = Path(a.file or (name if re.fullmatch(r"[\w.-]+", name) and not name.startswith(".") else "tunebox-backup.json"))
     n = 0
     with path.open("wb") as out:
         while chunk := r.read(1 << 18):
@@ -1170,7 +1178,7 @@ def build() -> argparse.ArgumentParser:
     modes = [arg("--next", action="store_true", help="right after this song"), arg("--now", action="store_true", help="interrupt: play it now")]
     cmd("server", cmd_server, "saved Tunebox addresses: ls, add NAME URL, use NAME, rm NAME",
         arg("action", choices=["ls", "add", "use", "rm"], nargs="?", default="ls"), arg("name", nargs="?"), arg("url", nargs="?"))
-    cmd("whoami", cmd_whoami, "which Tunebox this is, who you are on it, and whether you are the admin")
+    cmd("whoami", cmd_whoami, "which Tunebox this is, who you are on it, whether you are the admin, and where the server is")
     cmd("iam", cmd_iam, "say who you are (the songs you add carry your name)", arg("name", nargs="?"), arg("--none", action="store_true", help="nobody"),
         arg("--new", action="store_true", help="add the name if nobody has it"), arg("--group", "-g", action="append", help="with --new: its group"))
     cmd("status", cmd_status, "what is playing")
@@ -1239,6 +1247,22 @@ def build() -> argparse.ArgumentParser:
     return ap
 
 
+class Clean:
+    """Standard output with the terminal's control characters taken out. Titles, names and tags come from
+    whoever added them, and an escape sequence in one would be a command to the terminal (set the
+    clipboard, rewrite the screen). Tabs, new lines and \r (the progress lines) stay."""
+    BAD = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+    def __init__(self, stream):
+        self.stream = stream
+
+    def write(self, text):
+        return self.stream.write(self.BAD.sub("", text))
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
 def main(argv=None) -> int:
     global JSON
     for stream in (sys.stdout, sys.stderr):
@@ -1250,6 +1274,8 @@ def main(argv=None) -> int:
         ap.print_help()
         return 2
     JSON = getattr(a, "json", False)
+    if a.cmd not in ("tui", "watch"):         # the full-screen interface draws with escapes of its own (and cleans what it shows)
+        sys.stdout, sys.stderr = Clean(sys.stdout), Clean(sys.stderr)
     a.yes = getattr(a, "yes", False)
     a.ask = sys.stdin.isatty() and not getattr(a, "no_input", False)
     if a.cmd == "queue":                       # "queue rm 2": the number; "queue restore ab12": the id

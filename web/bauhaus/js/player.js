@@ -2,10 +2,10 @@
    bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
 import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
-import { state, ctl, poll } from "../../shared/playback.js";
+import { state, ctl, poll, position } from "../../shared/playback.js";
 import { spring, tracker, project, rubberband, letGo } from "../../shared/motion.js";
 import { fetchLyrics, syncedHtml, plainHtml } from "../../shared/lyrics.js";
-import { store } from "../../shared/device.js";
+import { store, lite } from "../../shared/device.js";
 import { house, feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
@@ -35,11 +35,19 @@ export function paintBar(s) {
   $("#tPos").textContent = fmt(s.position); $("#tDur").textContent = fmt(dur);
   if (!seeking) {
     $("#seek").max = Math.max(1, dur); $("#seek").value = s.position;
-    $("#fill").style.transform = `scaleX(${dur ? Math.min(1, s.position / dur) : 0})`;
+    /* the bar slides to where the song will be when the next answer comes (every 3 s in performance mode,
+       motion.css); going back (a new song, a seek) it jumps instead of sliding backwards */
+    const ahead = s.paused || !dur ? 0 : lite() ? 3 : 0, to = dur ? Math.min(1, (s.position + ahead) / dur) : 0;
+    const fill = $("#fill"), was = +(fill.style.transform.match(/[\d.]+/) || [0])[0];
+    if (to < was - .01) { fill.style.transition = "none"; fill.style.transform = `scaleX(${to})`; void fill.offsetWidth; fill.style.transition = ""; }
+    else fill.style.transform = `scaleX(${to})`;
   }
   countBadge($("#qCount"), upcoming(s));
   document.title = c ? `${s.paused ? "❚❚" : "▶"} ${c.title} · ${house.name}` : house.name;
 }
+
+/* between answers every 3 seconds (performance mode) the time still counts each second, from the page's own clock */
+setInterval(() => { if (lite() && !seeking && state.current && !state.paused) $("#tPos").textContent = fmt(position()); }, 1000);
 
 $("#seek").addEventListener("input", () => {
   seeking = true; $("#prog").classList.add("seeking"); $("#tPos").textContent = fmt($("#seek").value);
@@ -79,13 +87,13 @@ function skipper(el) {
 /* On a phone the canvas is a sheet. It follows the finger up from the mini bar and back down, and on
    release it goes where the movement was heading, open or shut, at the speed it was let go. */
 const sheet = spring(y => { cv.style.transform = `translateY(${y}px)`; });
-function holdSheet(y) { cv.classList.add("dragging"); sheet.jump(Math.max(0, y)); }
+function holdSheet(y) { cv.classList.add("dragging"); cv.classList.remove("still"); sheet.jump(Math.max(0, y)); }
 function dropSheet(v, cancel, was) {
   const h = cv.offsetHeight, far = sheet.value + project(v);
   /* a quarter of the way, or a flick, is enough to change it; otherwise it goes back to what it was */
   const open = cancel ? was : was ? !(v > -100 && far > h / 4) : v < 100 && far < h * 3 / 4;
   if (open !== canvasOpen()) toggleCanvas(open);
-  sheet.to(open ? 0 : h, { velocity: v, then: () => letGo(cv) });
+  sheet.to(open ? 0 : h, { velocity: v, then: () => { letGo(cv); settle(); } });
 }
 
 /* the song opens the canvas; on a phone the whole bar does, a sideways swipe skips and a swipe up pulls it open */
@@ -127,15 +135,31 @@ addEventListener("pointercancel", e => endBarSwipe(e, true));
 function placeCanvas() { cv.style.bottom = phone() ? "" : $(".player").offsetHeight + "px"; }
 addEventListener("resize", placeCanvas);
 
+/* The canvas came to rest: open and not moving, the blurred cover behind it may show (canvas.css). Nothing
+   here touches <body>: a class there restyles the whole page, which a phone pays for with a dropped frame. */
+let settleTimer = 0;
+function settle() {
+  clearTimeout(settleTimer);
+  cv.classList.toggle("still", canvasOpen() && !cv.classList.contains("dragging"));
+}
+cv.addEventListener("transitionend", e => { if (e.target === cv) settle(); });
+
 export function toggleCanvas(open = !canvasOpen()) {
   if (open === canvasOpen()) return;
+  /* under a finger (or its spring) it was placed and painted when the swipe began, and settles when the spring lands */
+  const moving = cv.classList.contains("dragging");
+  cv.classList.remove("still");
+  clearTimeout(settleTimer);
+  if (!moving) settleTimer = setTimeout(settle, 700);   /* no transition to end (performance mode) */
   cv.classList.toggle("open", open); cv.setAttribute("aria-hidden", !open);
-  document.body.classList.toggle("canvas-open", open);
-  if (open) { placeCanvas(); paintCanvas(true); history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
+  /* a desktop's wheel and keys would scroll the page behind it; a phone's canvas takes every touch, and
+     there the class (which restyles the whole page) would cost a frame mid-swipe */
+  if (!phone()) document.body.classList.toggle("canvas-open", open);
+  if (open) { if (!moving) { placeCanvas(); paintCanvas(true); } history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
   else if (history.state?.canvas) history.back();
   syncLyrBtn();
 }
-addEventListener("popstate", () => { if (canvasOpen()) { cv.classList.remove("open"); document.body.classList.remove("canvas-open"); } });
+addEventListener("popstate", () => { if (canvasOpen()) { cv.classList.remove("open", "still"); document.body.classList.remove("canvas-open"); } });
 
 let lyrOn = store.get("tb_clyr", "0") === "1", cSeeking = false, lyrVid = null;
 const lyrBox = $("#cLyr"), follow = follower(lyrBox, 0.4, true);

@@ -3,11 +3,12 @@
 import { $, $$, esc, fmt } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
-import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
+import { store, ACCENTS, applyLook, clearLocal, weak } from "../../shared/device.js";
 import { house } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
 import { withAdmin } from "./phrase.js";
+import { copyText } from "./menu.js";
 
 const FREQ_LABEL = f => f >= 1000 ? `${f / 1000}k` : String(f);
 const PRESET_NAMES = { flat: "Flat", bass: "Bass", treble: "Treble", vocal: "Vocal", rock: "Rock", pop: "Pop", electronic: "Electro",
@@ -27,7 +28,12 @@ export function toggleSettings(open) {
   if (!open) clearHash();
 }
 
-async function loadSettings() { cfg = await api("api/settings"); renderSettings(); }
+let net = {};                                  /* the last /api/network */
+async function loadSettings() {
+  /* finding the network can take a moment (it may ask the system): the rest doesn't wait for it */
+  api("api/network").then(n => { net = n; if (cfg) renderNetwork(); }, () => {});
+  cfg = await api("api/settings"); renderSettings();
+}
 
 function renderSettings() {
   const presets = { ...cfg.presets, custom: cfg.eq.custom };
@@ -43,7 +49,17 @@ function renderSettings() {
   $("#acctDot").classList.toggle("ok", cfg.account.signedIn);
   $("#acctTxt").textContent = cfg.account.signedIn ? "Signed in: personal recommendations" : "Not signed in: anonymous recommendations";
   $("#acctOut").hidden = !cfg.account.signedIn;
-  renderDevice();
+  renderDevice(); renderNetwork();
+}
+
+/* ---------- network: where the server is, as this page reaches it (same port and path, the server's own address) ---------- */
+const netUrl = () => net.ip ? `${location.protocol}//${net.ip}${location.port ? ":" + location.port : ""}${location.pathname}` : "";
+function renderNetwork() {
+  const n = net, url = netUrl();
+  $("#netUrl").textContent = url || "Not found"; $("#netUrl").href = url || "./";
+  $("[data-act=net-copy]").hidden = !url;
+  $("#netWifi").textContent = n.wifi || "";
+  $("#netWifi").hidden = $("#netWifiLbl").hidden = !n.wifi;
 }
 
 /* ---------- volume ---------- */
@@ -284,7 +300,8 @@ async function signOut() {
   $("#acctMsg").textContent = "Signed out."; loadSettings();
 }
 
-/* ---------- this device: theme, accent ---------- */
+/* ---------- this device: performance mode, theme, accent ---------- */
+$("#perfSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_perf", b.dataset.p); applyLook(); renderDevice(); });
 $("#accents").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_accent", b.dataset.a); applyLook(); renderDevice(); });
 $("#themeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; store.set("tb_theme", b.dataset.t); applyLook(); renderDevice(); });
 
@@ -295,6 +312,10 @@ export function renderDevice() {
   $("#accents").innerHTML = (hs ? `<button class="acc all" data-a=""><i class="sw" style="background:${hs.c}"></i>The house's</button>` : "")
     + Object.entries(ACCENTS).map(([k, x]) => `<button class="acc" data-a="${k}"><i class="sw" style="background:${x.c}"></i>${x.name}</button>`).join("");
   $$("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  const pm = store.get("tb_perf", "auto");
+  $$("#perfSeg button").forEach(b => b.classList.toggle("on", b.dataset.p === pm));
+  $("#perfHint").textContent = "No animations, no blur, and the player asks the server every 3 seconds instead of every second. "
+    + (pm !== "auto" ? "" : weak() ? "Auto: on here; this device is low on memory or cores." : `Auto: off here; it comes on by itself on a device with 2 GB of memory or less${navigator.deviceMemory ? "" : " (this browser doesn't say how much it has)"} or 2 cores or fewer.`);
   $$("#accents button").forEach(b => b.classList.toggle("on", b.dataset.a === a));
 }
 
@@ -310,3 +331,4 @@ on("alarm-test", () => saveAlarm(true));
 on("account-save", saveAccount);
 on("account-out", signOut);
 on("clear-local", clearLocal);
+on("net-copy", () => copyText(netUrl(), "Address copied"));

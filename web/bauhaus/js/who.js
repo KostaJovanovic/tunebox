@@ -3,6 +3,7 @@
 import { $, esc } from "../../shared/dom.js";
 import { api, errText, setNameAsker } from "../../shared/api.js";
 import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTag, semTags } from "../../shared/people.js";
+import { iconFor, LOCK } from "../../shared/avatars.js";
 import { admin, house, feat, isOn, G } from "../../shared/house.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
@@ -30,6 +31,7 @@ function openWho() {
 const needsGroup = p => isOn("groups") && house.groups.required && !p.seminars?.length;
 function showForm(on) {
   $("#whoPick").hidden = on; $("#whoForm").hidden = !on;
+  $("#who").classList.toggle("form", on);      /* a phone shows the form full-screen (phone.css) */
   $("#whoBack").textContent = editing && !fromList ? "Cancel" : "Back";
   $("#whoBack").hidden = !editing && !sortedPeople().length;
   $("#whoNew").hidden = house.signups !== "open" && !admin;   /* the admin may have closed sign-ups: then only the admin adds names */
@@ -93,7 +95,7 @@ function paintForm() {
   $("#whoOther").hidden = !groups || !mayAdd || !other;
   $("#whoColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pickColor ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="who-color" data-c="${c}"></button>`).join("");
   paintPreview();
-  $("#whoEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pickEmoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="who-emoji" data-e="${e}">${e || "Aa"}</button>`).join("");
+  $("#whoEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pickEmoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="who-emoji" data-e="${e}">${iconFor(e) || e || "Aa"}</button>`).join("");
 }
 
 /* the badge being made, as it will look: avatar, then its group tags */
@@ -141,7 +143,7 @@ export function checkSeminar() {
 /* ---------- Settings → People ---------- */
 export function renderPeople() {
   const cur = myId();
-  $("#peopleList").innerHTML = sortedPeople().map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)} ${semTags(p, "sm")}${p.locked ? '<span class="lock" title="Has a pass phrase">🔒</span>' : ""}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>
+  $("#peopleList").innerHTML = sortedPeople().map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)} ${semTags(p, "sm")}${p.locked ? `<span class="lock" title="Has a pass phrase">${LOCK}</span>` : ""}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>
     <div class="acts"><button data-act="person-phrase" data-id="${esc(p.id)}" title="${p.locked ? "Change or remove the pass phrase" : "Add a pass phrase"}">Phrase</button><button data-act="person-edit" data-id="${esc(p.id)}">Edit</button><button data-act="person-remove" data-id="${esc(p.id)}">Remove</button></div></div>`).join("")
     || '<p class="hint tight">No names yet.</p>';
 }

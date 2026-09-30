@@ -24,8 +24,8 @@ let items = [];
 /* Item: {label, run, hint?, danger?}; SEP draws a line between groups; anything falsy is left out. */
 const SEP = "-";
 
-function copyText(text) {
-  const done = () => toast("Link copied");
+export function copyText(text, said = "Link copied") {
+  const done = () => toast(said);
   if (navigator.clipboard && isSecureContext) return navigator.clipboard.writeText(text).then(done, () => toast("Couldn't copy"));
   const ta = document.createElement("textarea");       /* plain http on the LAN has no clipboard API */
   ta.value = text; ta.style.cssText = "position:fixed;opacity:0"; document.body.append(ta); ta.select();

@@ -1187,13 +1187,18 @@ class Settings(View):
 
     def __init__(self, app):
         super().__init__(app)
-        self.st = None
+        self.st, self.net = None, {}
 
     def shown(self):
         self.app.get("api/settings", self.got, key="settings")
+        self.app.get("api/network", self.got_net, key="network", fail=lambda _: None)   # a Tunebox from before api/network
 
     def got(self, st):
         self.st = st
+        self.build()
+
+    def got_net(self, net):
+        self.net = net
         self.build()
 
     def build(self):
@@ -1217,9 +1222,12 @@ class Settings(View):
             al = st["alarm"]
             rows.append(item("Wake-up alarm", f"{al['time']} on {', '.join(a.cli.DAYS[d] for d in al['days'])}" if al["enabled"] else "off", run=self.alarm))
         me = a.me()
-        rows += [head("You"), item("Who's listening", me["name"] if me else "nobody yet", run=a.pick_name) if a.on("people") else None,
-                 head("The house"), item("YouTube Music account", "signed in" if st["account"]["signedIn"] else "not signed in", run=self.account),
-                 item(f"Save a backup{g('dots')}", run=lambda: self.backup(False)), item(f"Restore a backup{g('dots')}", run=self.restore)]
+        if a.on("people") and a.on("namelist"):
+            rows += [head("You"), item("Who's listening", me["name"] if me else "nobody yet", run=a.pick_name)]
+        net = self.net
+        rows += [head("The house"), item("YouTube Music account", "signed in" if st["account"]["signedIn"] else "not signed in", run=self.account),
+                 item(f"Save a backup{g('dots')}", run=lambda: self.backup(False)), item(f"Restore a backup{g('dots')}", run=self.restore),
+                 item("Server address", net.get("ip") or "unknown"), item("Wi-Fi", net["wifi"]) if net.get("wifi") else None]
         self.set_rows([r for r in rows if r])
 
     def eq(self):
@@ -1336,7 +1344,7 @@ class EqEdit(Modal):
 # ----- the admin's tabs
 FEATURES = {"people": "Names", "groups": "Groups", "playlists": "Playlists", "likes": "Likes", "browse": "Home and Explore", "links": "Pasting links",
             "local": "Local songs", "radio": "Radio", "lyrics": "Lyrics", "stats": "Stats", "recap": "Recap", "wall": "Wall screen", "alarm": "Wake-up alarm",
-            "sleep": "Sleep timer", "eq": "Equaliser"}
+            "sleep": "Sleep timer", "eq": "Equaliser", "namelist": "Names in Settings", "look": "Theme and accent"}
 
 
 class Admin(View):
@@ -1460,6 +1468,7 @@ class Admin(View):
                 item("Accent", h["accent"] or "each device's own", run=lambda: a.menu("Accent", [
                     item(x or "Each device's own", run=patch({"accent": x})) for x in d["api/admin/house"]["accents"]])),
                 item("Time zone", h["tz"] or "the server's own", run=text("Time zone", "tz", h["tz"], lambda v: {"tz": v.strip()})),
+                item("Wi-Fi name in Settings", h.get("network") or "detected", run=text("Wi-Fi name (empty: detected)", "network", h.get("network", ""), lambda v: {"network": v})),
                 head("Names"), item("Anyone can add a name", onoff(h["signups"] == "open"), run=patch({"signups": "closed" if h["signups"] == "open" else "open"})),
                 head(gr["many"]), item("What one is called", gr["one"], run=text("One of them", "one", gr["one"], lambda v: {"groups": {"one": v}})),
                 item("What many are called", gr["many"], run=text("Many of them", "many", gr["many"], lambda v: {"groups": {"many": v}})),

@@ -1,6 +1,6 @@
 """What the admin set for the whole house, kept in house.json: its name and accent, the time zone,
 which features are on, what groups are called and how they work, what the wall screen shows,
-whether anyone may add a name, and how much room local songs may take.
+the Wi-Fi's name for Settings, whether anyone may add a name, and how much room local songs may take.
 
 A feature that is off is hidden from everyone and its routes answer only the admin (web.feature).
 Nothing is deleted: switching it back on brings everything back.
@@ -19,7 +19,7 @@ FEATURES = {
     "lyrics": "lyrics", "wall": "the wall screen", "stats": "stats", "recap": "the recap", "alarm": "the alarm",
     "sleep": "the sleep timer", "playlists": "playlists", "likes": "likes", "groups": "groups", "people": "names",
     "radio": "the radio", "browse": "Home and Explore", "eq": "the equaliser", "links": "pasting links",
-    "local": "local songs",
+    "local": "local songs", "look": "choosing a theme and accent", "namelist": "the names in Settings",
 }
 # one-click setups: what each one switches off (everything else is on); the admin adjusts from there
 PRESETS = {
@@ -34,6 +34,7 @@ DEFAULTS = {
     "name": "Tunebox",
     "accent": "",
     "tz": "",                                 # "": the alarm's old time zone, or the server's own time
+    "network": "",                            # the Wi-Fi to join, shown in Settings; "": the server's own, when it is on Wi-Fi
     "features": {k: True for k in FEATURES},
     # what groups are called here, whether everyone must be in one, and who may make a new one ("open" or "admin")
     "groups": {"one": "Seminar", "many": "Seminars", "required": True, "create": "open"},
@@ -99,6 +100,6 @@ def tz_name() -> str:
 
 def public() -> dict:
     """What every page needs to know."""
-    return {"name": house["name"], "accent": house["accent"], "tz": tz_name(), "signups": house["signups"],
+    return {"name": house["name"], "accent": house["accent"], "tz": tz_name(), "signups": house["signups"], "network": house["network"],
             "off": [k for k in FEATURES if not on(k)], "groups": house["groups"], "newPerson": house["newPerson"],
             "wall": house["wall"], "local": {"maxMB": house["local"]["maxMB"]}, "rev": rev}

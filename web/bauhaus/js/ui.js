@@ -101,6 +101,16 @@ export function dragAway(el, o) {
 $$(".drawer").forEach(el => dragAway(el, { axis: "x", from: e => !e.target.closest("input, select, textarea, .eqc, .grip, #queue .row") }));
 $$(".modal").forEach(el => dragAway(el, { axis: "y", when: () => innerWidth <= 760, from: e => e.target.closest(".dhead") && !e.target.closest("button, a") }));
 
+/* A phone's keyboard covers the page without making it shorter (Firefox, Safari): --kb is how much of the
+   bottom it hides, so a pop-up's buttons can sit above it (phone.css). A pinch-zoom shrinks what shows
+   too, but that isn't a keyboard: zoomed in, it counts as none. */
+const vv = window.visualViewport;
+const keyboard = () => {
+  const kb = vv.scale > 1.01 ? 0 : Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+  document.documentElement.style.setProperty("--kb", `${kb}px`);
+};
+if (vv) { vv.addEventListener("resize", keyboard); vv.addEventListener("scroll", keyboard); }
+
 /* ---------- HTML pieces ---------- */
 /* puts a page into the main view */
 export const main = html => { $("#view").innerHTML = html; };
@@ -123,12 +133,13 @@ export const localTag = t => String(t.videoId).startsWith("local:") ? '<i class=
 
 /* A song row. A tap on the title adds the song (o.meta: other attributes for that tap); the buttons on
    the right are Play next, Play (asks first, see ask.js), Add to playlist and Like unless o.acts says otherwise.
-   o: num (shown number), playing (false: never marked as playing), by (who added it), likers (who liked it), d (text in place
+   o: next (false: no Play next button; Play still offers it), num (shown number), playing (false: never marked as playing), by (who added it), likers (who liked it), d (text in place
    of the length), cls (extra class), extra (HTML after the buttons) */
 export function songRow(t, key, i, o = {}) {
   const cur = (o.playing ?? true) && state.current && state.current.videoId === t.videoId ? " playing" : "";
   const meta = o.meta || `data-act="song" ${at(key, i)}`;
-  const acts = o.acts ?? `<button class="wide" title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at(key, i)}>${icon.NEXT}</button>
+  const next = o.next ?? true ? `<button class="wide" title="Play next" aria-label="Play next" data-act="song" data-mode="next" ${at(key, i)}>${icon.NEXT}</button>` : "";
+  const acts = o.acts ?? `${next}
       <button title="Play" aria-label="Play" data-act="song" data-mode="now" ${at(key, i)}>${icon.PLAYS}</button>
       <button title="Add to playlist" aria-label="Add to playlist" data-f="playlists" data-act="pick" ${at(key, i)}>${icon.LIST}</button>
       ${likeBtn(key, i, t.videoId)}`;

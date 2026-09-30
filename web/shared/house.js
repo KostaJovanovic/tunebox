@@ -17,6 +17,7 @@ export function syncAdmin(flag) {
   if (flag === admin) return false;
   admin = flag;
   document.documentElement.toggleAttribute("data-admin", flag);
+  window.look.apply();                         /* the admin keeps this device's own theme and accent when that is off */
   listeners.forEach(fn => fn());
   return true;
 }

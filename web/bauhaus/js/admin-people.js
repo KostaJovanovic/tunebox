@@ -3,6 +3,7 @@
 import { $, esc, fmt, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { COLORS, EMOJIS, seminars, avatar, semTags } from "../../shared/people.js";
+import { iconFor, LOCK } from "../../shared/avatars.js";
 import { house, isOn, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, loading } from "./ui.js";
@@ -47,7 +48,7 @@ async function act(fn, done) {
 const needGroup = () => isOn("groups") && house.groups.required;
 
 /* ---------- the list ---------- */
-const marks = p => (p.locked ? '<span class="lock" title="Has a pass phrase">🔒</span>' : "")
+const marks = p => (p.locked ? `<span class="lock" title="Has a pass phrase">${LOCK}</span>` : "")
   + (p.noAdd ? '<i class="mark">can\'t add songs</i>' : "") + (p.cap ? `<i class="mark">max ${p.cap} waiting</i>` : "");
 
 function renderList() {
@@ -152,7 +153,7 @@ function paintPick() {
   $("#admSems").innerHTML = Object.values(seminars).map(x => `<button type="button" class="${pick.sems.has(x.id) ? "on" : ""}" style="--c:${esc(x.color)}"
     aria-pressed="${pick.sems.has(x.id)}" data-act="adm-sem" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("");
   $("#admColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pick.color ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="adm-color" data-c="${c}"></button>`).join("");
-  $("#admEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pick.emoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="adm-emoji" data-e="${e}">${e || "Aa"}</button>`).join("");
+  $("#admEmoji").innerHTML = EMOJIS.map(e => `<button type="button" class="${e === pick.emoji ? "on" : ""}" aria-label="${e || "Initial"}" data-act="adm-emoji" data-e="${e}">${iconFor(e) || e || "Aa"}</button>`).join("");
   $("#admAv").innerHTML = avatar({ name: $("#admName").value.trim() || "?", color: pick.color, emoji: pick.emoji });
 }
 

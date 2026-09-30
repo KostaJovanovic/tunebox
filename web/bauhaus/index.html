@@ -226,8 +226,8 @@
       <div class="msg" id="acctMsg"></div>
     </div>
 
-    <div class="sec" data-f="people"><b></b><h2>People</h2></div>
-    <div class="body" data-f="people">
+    <div class="sec" data-f="people namelist"><b></b><h2>People</h2></div>
+    <div class="body" data-f="people namelist">
       <p>Everyone picks their name once per device, so the queue shows who added what.</p>
       <div id="peopleList"></div>
       <div class="eqtools"><button class="btn" data-act="who-open">Switch or add a name</button></div>
@@ -245,14 +245,26 @@
     <div class="sec"><b></b><h2>This device</h2></div>
     <div class="body">
       <p>Remembered in this browser only; other devices keep their own.</p>
-      <span class="lbl">Theme</span>
-      <div class="seg2 c3" id="themeSeg"><button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
-      <span class="lbl">Accent</span>
-      <div class="presets c3" id="accents"></div>
+      <span class="lbl">Performance mode</span>
+      <div class="seg2 c3" id="perfSeg"><button data-p="auto">Auto</button><button data-p="on">On</button><button data-p="off">Off</button></div>
+      <p class="hint" id="perfHint"></p>
+      <span class="lbl" data-f="look">Theme</span>
+      <div class="seg2 c3" id="themeSeg" data-f="look"><button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
+      <span class="lbl" data-f="look">Accent</span>
+      <div class="presets c3" id="accents" data-f="look"></div>
       <span class="lbl" data-f="wall">Wall screen</span>
       <p data-f="wall">A full-screen view for a tablet or TV: the cover, synced lyrics and big controls; a dimmed clock when nothing plays. Bookmark it on that device.</p>
       <div class="eqtools" data-f="wall"><a class="btn" href="wall" target="_blank">Open wall screen</a></div>
       <div class="eqtools"><button class="btn" data-act="keys-open">Keyboard shortcuts</button><button class="btn danger" data-act="clear-local">Clear data on this device</button></div>
+    </div>
+
+    <div class="sec"><b></b><h2>Network</h2></div>
+    <div class="body">
+      <p>Phones and computers on the same network open Tunebox at this address.</p>
+      <div class="net">
+        <span class="lbl">Address</span><div class="netrow"><a id="netUrl" href="./"></a><button class="btn" data-act="net-copy">Copy</button></div>
+        <span class="lbl" id="netWifiLbl">Wi-Fi</span><div class="netrow" id="netWifi"></div>
+      </div>
     </div>
   </div>
 </aside>

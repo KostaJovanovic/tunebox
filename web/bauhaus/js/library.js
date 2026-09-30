@@ -73,7 +73,7 @@ async function openLink(url) {
     if (my !== seq) return;
     if (r.type !== "song") return openItem(r.type, r.id);
     lists.link = [r.track];
-    main(section(1, "From your link") + `<div class="list">${songRow(r.track, "link", 0)}</div>`);
+    main(section(1, "From your link") + `<div class="list">${songRow(r.track, "link", 0, { next: false })}</div>`);
   } catch (e) { if (my === seq) main(note(esc(errText(e)))); }
 }
 
@@ -88,7 +88,7 @@ async function doSearch() {
     const res = await api(`api/search?q=${encodeURIComponent(q)}&kind=${kind}`);
     if (my !== seq) return;
     if (!res.length) return main(note("No results"));
-    if (kind === "songs") { lists.search = res; main(`<div class="list">${res.map((t, i) => songRow(t, "search", i)).join("")}</div>`); }
+    if (kind === "songs") { lists.search = res; main(`<div class="list">${res.map((t, i) => songRow(t, "search", i, { next: false })).join("")}</div>`); }
     else main(`<div class="grid">${res.map(card).join("")}</div>`);
   } catch (e) { if (my === seq) main(note(`Search failed: ${esc(errText(e))}`)); }
 }

@@ -50,6 +50,8 @@ html[data-off~="browse"]:not([data-admin]) [data-f~="browse"],
 html[data-off~="eq"]:not([data-admin]) [data-f~="eq"],
 html[data-off~="links"]:not([data-admin]) [data-f~="links"],
 html[data-off~="local"]:not([data-admin]) [data-f~="local"],
+html[data-off~="look"]:not([data-admin]) [data-f~="look"],
+html[data-off~="namelist"]:not([data-admin]) [data-f~="namelist"],
 html[data-off~="playlists"][data-off~="likes"]:not([data-admin]) [data-fall="lists"] { display: none !important; }
 html[data-admin][data-off~="lyrics"] [data-f~="lyrics"],
 html[data-admin][data-off~="wall"] [data-f~="wall"],
@@ -66,6 +68,8 @@ html[data-admin][data-off~="browse"] [data-f~="browse"],
 html[data-admin][data-off~="eq"] [data-f~="eq"],
 html[data-admin][data-off~="links"] [data-f~="links"],
 html[data-admin][data-off~="local"] [data-f~="local"],
+html[data-admin][data-off~="look"] [data-f~="look"],
+html[data-admin][data-off~="namelist"] [data-f~="namelist"],
 html[data-admin][data-off~="playlists"][data-off~="likes"] [data-fall="lists"] { opacity: .45; }
 
 svg { flex: none; }

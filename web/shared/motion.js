@@ -11,8 +11,9 @@
      letGo(el)                          the spring is done with it */
 
 const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-/* reduced motion: things still follow the finger, but nothing travels on its own */
-export const calm = () => reduce.matches;
+/* reduced motion, or performance mode (html[data-lite], look.js): things still follow the finger, but
+   nothing travels on its own */
+export const calm = () => reduce.matches || document.documentElement.hasAttribute("data-lite");
 
 export function spring(set, { damping = 1, response = .35 } = {}) {
   let x = 0, v = 0, goal = 0, k = 0, c = 0, raf = 0, last = 0, rest = null;

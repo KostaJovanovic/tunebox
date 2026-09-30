@@ -24,6 +24,16 @@
 .tog:active i::after { width: 20px; }
 .tog[aria-checked="true"]:active i::after { transform: translateX(16px); }
 
+/* ---------- performance mode (html[data-lite], look.js), for a device with little power: nothing moves on
+   its own and nothing is blurred or shadowed. What shows that something is going on stays (the spinner, the
+   loading bar, the recap's bars), and the progress bar still slides between the answers, which come every
+   3 seconds (playback.js). ---------- */
+html[data-lite] *, html[data-lite] *::before, html[data-lite] *::after { transition: none !important; box-shadow: none !important; backdrop-filter: none !important; }
+html[data-lite] :is(.adminp.open, .recap.open, .recap .slide, body.vol-open .vol, .nav button.on::after, .tabs button.on::after) { animation: none !important; }
+html[data-lite] .cbg { display: none; }
+html[data-lite] .prog .fill { transition: transform 2.9s linear !important; }
+html[data-lite] .prog.seeking .fill, html[data-lite] .prog.loading .fill { transition: none !important; }
+
 /* ---------- less motion: panels fade where they are instead of travelling, a press dims instead of shrinking.
    What shows that something is going on (the spinner, the loading bar, the recap's bars) stays. ---------- */
 @media (prefers-reduced-motion: reduce) {

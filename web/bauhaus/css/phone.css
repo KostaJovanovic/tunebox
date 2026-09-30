@@ -54,11 +54,14 @@
   .hero > img, .hero > .mosaic, .hero > .blank { width: 96px; height: 96px; }
   .daygroup { top: 56px; }
   /* a pop-up is a sheet too: up from the bottom, and its heading drags it back down (ui.js) */
-  .modal { top: auto; bottom: 0; left: 0; width: 100%; transform: translateY(100%); opacity: 1; max-height: 80vh; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .modal { top: auto; bottom: var(--kb, 0px); left: 0; width: 100%; transform: translateY(100%); opacity: 1; max-height: calc(80vh - var(--kb, 0px)); border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .modal.open { transform: none; }
   .modal > .dhead { position: relative; }
   .modal > .dhead, .modal > .dhead * { touch-action: none; }
   .modal > .dhead::before { content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 3px; margin-left: -18px; background: var(--line-2); }
+  /* ...except adding or editing a name, which takes the whole screen */
+  #who.form { top: 0; height: calc(100% - var(--kb, 0px)); max-height: none; border-width: 0; padding-top: env(safe-area-inset-top); }
+  #who.form > .dhead::before { display: none; }
   .eqplot { height: 176px; }
   .eqfoot b { font-size: 11px; }
 }

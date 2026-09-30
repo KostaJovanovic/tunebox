@@ -13,6 +13,7 @@ to always leave on the disk, and the biggest file.
 import asyncio
 import base64
 import random
+import re
 import secrets
 import shutil
 import time
@@ -33,16 +34,28 @@ OPUS_RATE = "160k"
 COVER_MAX = 5 * MB
 IMAGES = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif"}
 
+ID_RE, EXT_RE = re.compile(r"[0-9a-f]{16}"), re.compile(r"[a-z0-9]{1,5}")
+
+
+def sound(saved) -> dict:
+    """The songs from local.json that look the way this module writes them. The id and the extension make
+    a file's path, and a restore brings a local.json from anywhere: "..", a slash or a strange key would
+    point remove() and mpv at files outside DATA/local."""
+    return {k: s for k, s in (saved if isinstance(saved, dict) else {}).items()
+            if isinstance(s, dict) and s.get("id") == k and ID_RE.fullmatch(k) and EXT_RE.fullmatch(str(s.get("ext", "")))
+            and s.get("cx", "") in ("", None, *IMAGES)}
+
+
 # {id: {id, title, artist, album, secs, ext, size, sha, by, at, orig, cv, cx}}; cv: the cover's version
 # (0: none), cx: its file type
-songs: dict[str, dict] = read_json(LOCAL_FILE, {})
+songs: dict[str, dict] = sound(read_json(LOCAL_FILE, {}))
 _converting = asyncio.Lock()                  # one conversion at a time: the server has music to play
 _caps: dict | None = None
 
 
 def load():
     """The file was replaced (a restore): read it afresh, in place."""
-    new = read_json(LOCAL_FILE, {})
+    new = sound(read_json(LOCAL_FILE, {}))
     songs.clear()
     songs.update(new)
 
@@ -65,10 +78,16 @@ def song_of(vid) -> dict | None:
     return songs.get(str(vid)[len(PREFIX):]) if is_local(vid) else None
 
 
+def file_of(s: dict) -> Path | None:
+    """A song's audio file, only ever inside DATA/local (sound() already keeps odd entries out)."""
+    p = LOCAL_DIR / f'{s["id"]}.{s["ext"]}'
+    return p if p.resolve().parent == LOCAL_DIR.resolve() else None
+
+
 def path_of(vid: str) -> str:
     """The file mpv plays."""
     s = song_of(vid)
-    p = LOCAL_DIR / f'{s["id"]}.{s["ext"]}' if s else None
+    p = file_of(s) if s else None
     if not p or not p.exists():
         raise FileNotFoundError("That local song is gone")
     return str(p)
@@ -326,7 +345,9 @@ async def add_file(part: Path, name: str, sha: str, by: str) -> dict:
 def remove(sid: str) -> dict | None:
     s = songs.pop(sid, None)
     if s:
-        for p in [LOCAL_DIR / f'{sid}.{s["ext"]}', *COVERS.glob(f"{sid}.*")]:
+        for p in [file_of(s), *COVERS.glob(f"{s['id']}.*")]:
+            if p is None:
+                continue
             try:
                 p.unlink(missing_ok=True)
             except OSError:

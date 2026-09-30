@@ -1,5 +1,5 @@
 """Settings: volume is in queue.py; here the EQ, playback options, sleep timer, alarm and the
-YouTube account (the admin's to change)."""
+YouTube account (the admin's to change), and where the server is on the network."""
 import asyncio
 import os
 import re
@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field
 from ytmusicapi import YTMusic, setup as yt_setup
 
-from .. import admin, audit, data, house, youtube
+from .. import admin, audit, data, house, network, youtube
 from ..config import AUTH_FILE, DATA, EQ_FREQS, EQ_PRESETS, QUALITY, TEST_RAMP
 from ..audio import eq_bands
 from ..mpv import PlayerDown
@@ -28,6 +28,15 @@ class EqBody(BaseModel):
 
 class AccountBody(BaseModel):
     headers: str
+
+
+@router.get("/api/network")
+async def get_network(request: Request):
+    """The server's address as the device asking can reach it, and the Wi-Fi to join: the admin's name
+    for it, else the one the server is on."""
+    named = house.house["network"]
+    net = await asyncio.to_thread(network.info, audit.asker(request)[0], not named)
+    return {"ip": net["ip"], "host": net["host"], "wifi": named or net["wifi"] or None}
 
 
 def account_status() -> dict:

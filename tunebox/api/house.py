@@ -40,6 +40,7 @@ class HouseBody(BaseModel):
     name: str | None = None
     accent: str | None = None
     tz: str | None = None                     # "": the server's own time
+    network: str | None = None                # "": the Wi-Fi the server itself is on, if any
     signups: str | None = None
     groups: dict | None = None                # one, many, required, create
     newPerson: dict | None = None             # groups: [ids]
@@ -69,6 +70,9 @@ async def set_house(body: HouseBody, request: Request):
                 raise HTTPException(400, "unknown time zone")
         h["tz"] = body.tz
         what.append("time zone " + (body.tz or "the server's"))
+    if body.network is not None:
+        h["network"] = " ".join(body.network.split())[:32]   # a Wi-Fi name is at most 32 bytes
+        what.append(f'network "{h["network"]}"' if h["network"] else "network: detected")
     if body.signups is not None:
         if body.signups not in ("open", "closed"):
             raise HTTPException(400, "signups: open or closed")

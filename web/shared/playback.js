@@ -35,7 +35,11 @@ export async function poll() {
   for (const fn of listeners) fn(s);
 }
 
-export function startPolling() { poll(); setInterval(poll, 1000); }
+/* once a second; every 3 in performance mode (the progress bar slides between answers either way) */
+export function startPolling() {
+  poll();
+  setTimeout(function again() { poll(); setTimeout(again, window.look.lite() ? 3000 : 1000); }, window.look.lite() ? 3000 : 1000);
+}
 
 const UNDOABLE = new Set(["remove", "move", "promote", "shuffle", "clear", "clear_auto", "refresh", "stop", "restore"]);
 
