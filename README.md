@@ -67,7 +67,7 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 💾 **Backup and restore** everything in one file, from Settings. The admin can also download a full backup: a zip with that file and the audio of the local songs.
 
-⌨️ **From a terminal too.** `tunebox add daft punk`, `tunebox next`, `tunebox vol +5`: everything the page does is a command, on the server or from any computer on the network.
+⌨️ **From a terminal too.** `tunebox add daft punk`, `tunebox next`, `tunebox vol +5`: everything the page does is a command, on the server or from any computer on the network. `tunebox tui` is the whole player full-screen in the terminal.
 
 🔑 **One admin for the house.** Type the Konami code (↑ ↑ ↓ ↓ ← → ← → B A), or tap the word *Settings* ten times on a phone. The first time, you choose the admin password. The admin can edit, merge, block and remove people, see what each person played, and clean up plays, likes and playlists.
 
@@ -79,7 +79,7 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 ## Command line
 
-`install.sh` adds the `tunebox` command; on Windows it is `tunebox.bat` in the Tunebox folder. It needs only Python 3.11+, so you can also copy `tunebox/cli.py` to any computer and run `python cli.py`.
+`install.sh` adds the `tunebox` command; on Windows it is `tunebox.bat` in the Tunebox folder. It needs only Python 3.11+, so you can also copy `tunebox/cli.py` (and `tunebox/tui.py` next to it, for `tunebox tui`) to any computer and run `python cli.py`.
 
 ```sh
 tunebox status                       # what is playing
@@ -91,13 +91,15 @@ tunebox queue                        # up next; queue rm 2, queue mv 4 1, queue 
 tunebox search discovery -k albums   # then: tunebox album ID --add
 tunebox lists play "Friday" --shuffle
 tunebox local upload *.flac          # your own files
-tunebox watch                        # a live view: space, n, p, + and -, q
+tunebox tui                          # the whole thing full-screen: tabs, lists and keys
 tunebox -h                           # every command; tunebox COMMAND -h for one
 ```
 
 It talks to the Tunebox on the same machine. For another one, name it: `tunebox --server http://ele.local/music/ status`, or save it once with `tunebox server add home http://ele.local/music/`.
 
 What needs the admin asks for the password once (`tunebox features off lyrics`, `tunebox people`, `tunebox house set name Studio`, `tunebox block add --artist NAME`, `tunebox backup --full`, `tunebox restore FILE`). On the server itself no password is needed: reading Tunebox's own files is proof enough, so `ssh server tunebox admin reset` works when the password is lost.
+
+**`tunebox tui`** is Tunebox as a full-screen program in the terminal, also over SSH: Home, Search, Queue, Playlists, History, Local, Stats, Lyrics, Settings and the admin's panel as tabs (`1` to `9` and `0`), the player on the bottom line, and Up next beside it when the window is wide. Arrows or `j` and `k` move, Enter adds or opens, `/` searches, Space pauses, `n` and `p` skip, `+` and `-` set the volume, `?` lists every key, `q` leaves. If the lines or emoji look wrong in your terminal, start it with `tunebox tui --ascii`; set `NO_COLOR` for no colours.
 
 For scripts: `--json` prints the server's answer, `--no-input` never asks, `--yes` confirms, and `TUNEBOX_ADMIN_PASSWORD` gives the password. Exit codes: 0 done, 1 refused, 2 wrong usage, 3 no Tunebox there.
 

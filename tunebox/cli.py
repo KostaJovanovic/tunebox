@@ -8,7 +8,7 @@
   tunebox search QUERY, album ID, artist ID, playlist ID, home, explore, lyrics --follow, stats
   tunebox lists, like, history, people, groups, local upload FILE..., backup, restore FILE
   tunebox admin login, features off lyrics, house set name Studio, block add --artist NAME
-  tunebox watch                      a live view with keys: space, n, p, + and -, q
+  tunebox tui                        the full-screen interface: tabs, lists and keys (? shows them)
   tunebox COMMAND -h                 everything a command takes
 
 It talks to a running Tunebox over HTTP, like a browser does, and keeps its cookies (who you are, the
@@ -32,9 +32,7 @@ import json
 import os
 import random
 import re
-import shutil
 import sys
-import threading
 import time
 import urllib.error
 import urllib.parse
@@ -740,7 +738,7 @@ def cmd_history(c, a):
     except ValueError:
         raise Usage("tunebox history [HOW MANY], or history clear")
     h = c.get("api/history", limit=n)
-    show(h, "\n".join(f"{when(t['at'])}  {song(t)}" if t.get("at") else song(t) for t in h) or "Nothing played yet")
+    show(h, "\n".join(f"{when(t['playedAt'])}  {song(t)}" if t.get("playedAt") else song(t) for t in h) or "Nothing played yet")
 
 
 # ---------- people and groups ----------
@@ -1139,89 +1137,15 @@ def cmd_restore(c, a):
          + ("\nThe local songs' audio is not restored from here: unzip the local folder into Tunebox's data folder." if path.suffix.lower() == ".zip" else ""))
 
 
-# ---------- watch: a live view with a few keys ----------
-def read_keys(put):
-    """Calls put(key) for every key pressed, until the program ends."""
-    if os.name == "nt":
-        import msvcrt
-        while True:
-            ch = msvcrt.getwch()
-            if ch in ("\x00", "\xe0"):         # arrows and function keys come as two
-                msvcrt.getwch()
-                continue
-            put(ch)
-    else:
-        import termios
-        import tty
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        try:
-            tty.setcbreak(fd)
-            while True:
-                put(sys.stdin.read(1))
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
-
-
-def cmd_watch(c, a):
-    if not sys.stdout.isatty() or not sys.stdin.isatty():
-        raise Usage("tunebox watch needs a terminal (tunebox status prints once)")
-    keys: list[str] = []
-    restore = None
-    if os.name == "nt":
-        os.system("")                          # switches on ANSI escapes in the Windows console
-    else:
-        import termios
-        fd = sys.stdin.fileno()
-        saved = termios.tcgetattr(fd)          # as the terminal was, before the key reader changes it
-        restore = lambda: termios.tcsetattr(fd, termios.TCSADRAIN, saved)   # noqa: E731
-    threading.Thread(target=read_keys, args=(keys.append,), daemon=True).start()
-    print("\x1b[?25l\x1b[2J", end="")
-    said, s = "", {}
-    try:
-        while True:
-            try:
-                s = state(c)
-            except Unreachable:
-                said = "Tunebox doesn't answer..."
-            for _ in range(5):                 # a key acts at once; the view refreshes each second
-                while keys:
-                    k = keys.pop(0)
-                    if k in ("q", "\x03", "\x1b"):
-                        return
-                    act = {" ": ("toggle", {}), "n": ("next", {}), "p": ("prev", {}),
-                           "+": ("volume", {"value": min(100, s.get("volume", 50) + 5)}), "=": ("volume", {"value": min(100, s.get("volume", 50) + 5)}),
-                           "-": ("volume", {"value": max(0, s.get("volume", 50) - 5)})}.get(k)
-                    if act:
-                        try:
-                            said = control(c, act[0], **act[1]).get("message") or ""
-                            s = state(c)
-                        except (Refused, Unreachable) as exc:
-                            said = str(exc)
-                draw_watch(c, s, said)
-                time.sleep(0.2)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        if restore:
-            restore()
-        print("\x1b[?25h\x1b[0m")
-
-
-def draw_watch(c, s, said):
-    width = max(30, shutil.get_terminal_size().columns - 1)
-    q, t = s.get("queue") or [], s.get("current")
-    lines = ["Nothing is playing" if not t else ("Paused   " if s["paused"] else "Playing  ") + song(t)]
-    if t:
-        done = int((width - 14) * s["position"] / s["duration"]) if s["duration"] else 0
-        lines.append(f"{clock(s['position']):>5} " + "#" * done + "-" * (width - 14 - done) + f" {clock(s['duration'])}")
-    lines += [f"Volume {s.get('volume', '')}", ""]
-    for i, x in enumerate(q[1:11], 1):
-        if i == s["userCount"] + 1:
-            lines.append("     radio:")
-        lines.append(f"{i:>3}  {song(x)}")
-    lines += ["", said, "space play/pause   n next   p previous   + - volume   q quit"]
-    print("\x1b[H" + "".join(line[:width] + "\x1b[K\n" for line in lines) + "\x1b[J", end="", flush=True)
+# ---------- the full-screen interface ----------
+def cmd_tui(c, a):
+    """tui.py sits next to this file and is handed this module: it uses the client, the cookies and
+    the helpers here, and needs nothing installed either."""
+    if not (HERE / "tui.py").exists():
+        raise Usage("tunebox tui needs tui.py next to cli.py (copy both files)")
+    sys.path.insert(0, str(HERE))
+    import tui
+    return tui.run(sys.modules[__name__], c, a)
 
 
 # ---------- the command line ----------
@@ -1309,7 +1233,9 @@ def build() -> argparse.ArgumentParser:
         arg("--cap", help="limits: GB in all, or none"), arg("--reserve", type=float, help="limits: GB always kept free"), arg("--max", type=int, help="limits: the biggest file, MB"))
     cmd("backup", cmd_backup, "save a backup to a file", arg("file", nargs="?"), arg("--full", action="store_true", help="a zip with the local songs' audio too (the admin)"))
     cmd("restore", cmd_restore, "replace everything with a backup (the admin)", arg("file"))
-    cmd("watch", cmd_watch, "a live view: space, n, p, + and -, q")
+    for name in ("tui", "watch"):
+        cmd(name, cmd_tui, "the full-screen interface: every tab of the page, with keys (? lists them)",
+            arg("--ascii", action="store_true", help="plain characters only, for terminals that draw lines and emoji badly"))
     return ap
 
 
