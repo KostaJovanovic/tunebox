@@ -18,7 +18,7 @@
 .now .time .sl { color: var(--blue-text); margin-left: 8px; }
 .ctrls { display: flex; align-items: center; gap: 4px; }
 .ctrls .sq { width: 52px; height: 52px; display: grid; place-items: center; transition: background .12s; }
-.ctrls .sq:hover { background: var(--s2); }
+@media (hover: hover) { .ctrls .sq:hover { background: var(--s2); } }
 .play { width: 60px; height: 60px; border-radius: 50% !important; background: var(--red); color: var(--on-red); display: grid; place-items: center; margin: 0 6px; transition: transform .12s var(--ease), background .2s; }
 .play:active { transform: scale(.94); }
 .right { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
@@ -30,7 +30,7 @@ input[type=range].vr::-webkit-slider-thumb { -webkit-appearance: none; width: 14
 input[type=range].vr::-moz-range-track { height: 2px; background: var(--line-2); }
 input[type=range].vr::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 0; background: var(--text); }
 .qbtn { width: var(--hit); height: var(--hit); display: grid; place-items: center; position: relative; color: var(--text); transition: background .12s, color .12s; }
-.qbtn:hover { background: var(--s2); }
+@media (hover: hover) { .qbtn:hover { background: var(--s2); } }
 .qbtn.on { color: var(--yellow); }
 .qbtn em { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 16px; padding: 0 4px; background: var(--yellow); color: var(--on-yellow);
   font: 700 10px/16px var(--display); font-style: normal; text-align: center; }

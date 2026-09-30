@@ -25,7 +25,7 @@
 .when .bars { padding: 0; }
 .bar { display: grid; grid-template-rows: minmax(0, 1fr) 18px; align-items: end; height: 100%; }
 .bar i { display: block; background: var(--red); min-height: 1px; }
-.bar:hover i { background: var(--text); }
+@media (hover: hover) { .bar:hover i { background: var(--text); } }
 .bar span { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: visible; }
 section + .bars, .sec + .bars { margin: 0 16px; }
 .statnote { padding: 18px 16px 30px; }

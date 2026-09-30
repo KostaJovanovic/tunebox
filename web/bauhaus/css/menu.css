@@ -8,7 +8,8 @@
 .ctx button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx button em { font: 600 11px var(--display); letter-spacing: .06em; color: var(--muted); font-style: normal;
   max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctx button:hover, .ctx button:focus-visible { background: var(--s2); outline: none; }
+.ctx button:focus-visible { background: var(--s2); outline: none; }
+@media (hover: hover) { .ctx button:hover { background: var(--s2); outline: none; } }
 .ctx button:focus:not(:focus-visible):not(:hover) { background: none; }
 .ctx button.danger { color: var(--red); }
 .ctx hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
@@ -27,5 +28,5 @@
 @media (hover: none) { .row, .card, .player .now { -webkit-user-select: none; user-select: none; } }
 /* artist and album names that open their page */
 .artlink { color: inherit; font: inherit; padding: 0; text-align: left; }
-.artlink:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+@media (hover: hover) { .artlink:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); } }
 @media (max-width: 760px) { .player .artlink { pointer-events: none; } }   /* the mini bar opens the canvas; its links are there */

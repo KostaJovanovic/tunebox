@@ -5,7 +5,7 @@ import { state, ctl, position } from "../../shared/playback.js";
 import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { on } from "../../shared/actions.js";
 import { loading, openDrawer, isOpen } from "./ui.js";
-import { canvasLyrics, toggleCanvasLyrics, syncLyrBtn } from "./player.js";
+import { canvasLyrics, toggleCanvasLyrics, syncLyrBtn, coverSwiped } from "./player.js";
 
 /* Keeps a box of synced lines lit up and scrolled to the line being sung. `where` (0..1) is how far
    down the box that line sits; a scroll by hand pauses the following for 4 seconds. */
@@ -65,3 +65,5 @@ setInterval(() => { if (isOpen("lyrics")) follow.tick(); }, 200);
 on("lyrics-toggle", () => toggleLyrics());
 on("lyrics-open", () => canvasLyrics() ? toggleCanvasLyrics(true) : toggleLyrics(true));
 on("lyrics-close", () => toggleLyrics(false));
+/* a tap on the big cover: the lyrics (beside it on a desktop, the drawer on a phone) */
+on("cover", () => { if (!coverSwiped()) canvasLyrics() ? toggleCanvasLyrics() : toggleLyrics(true); });

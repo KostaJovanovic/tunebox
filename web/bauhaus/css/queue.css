@@ -6,12 +6,12 @@
 .qhead span { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .qtools { margin-left: auto; display: flex; flex: none; }
 .qtools button { height: 32px; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.qtools button:hover { color: var(--text); background: var(--s1); }
+@media (hover: hover) { .qtools button:hover { color: var(--text); background: var(--s1); } }
 .qempty { padding: 14px 16px; color: var(--faint); font-size: 12.5px; border-bottom: 1px solid var(--line); }
 #queue .row.auto { opacity: .72; }
-#queue .row.auto:hover { opacity: 1; }
+@media (hover: hover) { #queue .row.auto:hover { opacity: 1; } }
 .grip { width: 32px; height: var(--hit); display: grid; place-items: center; color: var(--faint); cursor: grab; touch-action: none; }
-.grip:hover { color: var(--text); }
+@media (hover: hover) { .grip:hover { color: var(--text); } }
 #queue .row { touch-action: pan-y; }
 #queue .row[data-swipe=left] { background: color-mix(in srgb, var(--red) 18%, var(--bg)); }
 #queue .row[data-swipe=remove] { background: color-mix(in srgb, var(--red) 45%, var(--bg)); }

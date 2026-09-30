@@ -28,6 +28,7 @@ body { -webkit-user-select: none; user-select: none; }
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+@media (hover: none) { button:focus-visible { outline: none; } }   /* a touch screen: no outline left on the last button tapped */
 img { display: block; }
 svg { flex: none; }
 .min0 { min-width: 0; }

@@ -148,27 +148,37 @@ $("#cSeek").addEventListener("input", () => {
 $("#cSeek").addEventListener("change", async () => { await ctl("seek", +$("#cSeek").value); cSeeking = false; });
 $("#cVol").addEventListener("input", () => setVol(+$("#cVol").value));
 
-/* a swipe down closes it (touch) */
-let cDrag = null;
+/* touch: a swipe down closes it; a swipe sideways on the cover skips (left: next, right: previous) */
+let cDrag = null, artSwiped = 0;
+const art = $("#cImg");
 cv.addEventListener("pointerdown", e => {
   if (e.pointerType === "mouse" || e.target.closest("input, .clyr")) return;
-  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dy: 0, on: false };
+  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dy: 0, dx: 0, on: false, side: false, art: e.target === art };
 });
 addEventListener("pointermove", e => {
   if (!cDrag || e.pointerId !== cDrag.id) return;
   const dy = e.clientY - cDrag.y, dx = e.clientX - cDrag.x;
+  if (!cDrag.on && !cDrag.side && cDrag.art && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { cDrag.side = true; art.classList.add("swiping"); }
+  if (cDrag.side) { cDrag.dx = dx; art.style.transform = `translateX(${dx * .6}px)`; return; }
   if (!cDrag.on && dy > 10 && dy > Math.abs(dx)) { cDrag.on = true; cv.classList.add("dragging"); }
   if (cDrag.on) { cDrag.dy = Math.max(0, dy); cv.style.transform = `translateY(${cDrag.dy}px)`; }
 });
-function endCanvasDrag(e) {
+function endCanvasDrag(e, cancel) {
   if (!cDrag || e.pointerId !== cDrag.id) return;
   const d = cDrag; cDrag = null;
+  if (d.side) {
+    art.classList.remove("swiping"); art.style.transform = ""; artSwiped = Date.now();
+    if (!cancel && Math.abs(d.dx) > 70) { if (navigator.vibrate) navigator.vibrate(10); ctl(d.dx < 0 ? "next" : "prev"); }
+    return;
+  }
   if (!d.on) return;
   cv.classList.remove("dragging"); cv.style.transform = "";
   if (d.dy > 110) toggleCanvas(false);
 }
-addEventListener("pointerup", endCanvasDrag);
-addEventListener("pointercancel", endCanvasDrag);
+addEventListener("pointerup", e => endCanvasDrag(e));
+addEventListener("pointercancel", e => endCanvasDrag(e, true));
 
 on("canvas-close", () => toggleCanvas(false));
 on("canvas-lyrics", () => toggleCanvasLyrics());
+/* the cover was just swiped: the tap that ends the swipe isn't one */
+export const coverSwiped = () => Date.now() - artSwiped < 400;

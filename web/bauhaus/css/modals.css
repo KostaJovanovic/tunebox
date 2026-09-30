@@ -7,7 +7,7 @@
 .modal .mbody { overflow-y: auto; }
 .pick { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; text-align: left;
   padding: 8px 12px; min-height: 60px; border-bottom: 1px solid var(--line); transition: background .12s; }
-.pick:hover { background: var(--s1); }
+@media (hover: hover) { .pick:hover { background: var(--s1); } }
 .pick .mosaic, .pick .blank { width: 44px; height: 44px; background: var(--s2); }
 .pick .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pick .s { color: var(--muted); font-size: 12px; }

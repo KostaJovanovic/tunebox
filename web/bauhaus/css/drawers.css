@@ -7,13 +7,13 @@
 .dhead h2 { flex: 1; margin: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; font: 700 14px var(--display); letter-spacing: .16em; text-transform: uppercase; }
 .dhead h2 i { width: 12px; height: 12px; background: var(--yellow); }
 .dhead button { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; }
-.dhead button:hover { background: var(--s1); }
+@media (hover: hover) { .dhead button:hover { background: var(--s1); } }
 .dhead a.gh { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; color: inherit; }
-.dhead a.gh:hover { background: var(--s1); }
+@media (hover: hover) { .dhead a.gh:hover { background: var(--s1); } }
 .dtools { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); flex: none; }
 .dtools button { height: var(--hit); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-right: 1px solid var(--line); }
 .dtools button:last-child { border-right: 0; }
-.dtools button:hover { color: var(--text); background: var(--s1); }
+@media (hover: hover) { .dtools button:hover { color: var(--text); background: var(--s1); } }
 .drawer .list { overflow-y: auto; flex: 1; }
 .scrim { position: fixed; inset: 0; background: #000a; z-index: 15; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .scrim.open { opacity: 1; pointer-events: auto; }
