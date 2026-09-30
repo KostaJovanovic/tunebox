@@ -49,7 +49,7 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 📁 **Your own files too.** Upload the songs YouTube doesn't have, on the *Local* page: drop the files in, and they play, queue, go into playlists and count in Stats like any other song. Titles, artists and covers come from the files' tags and can be changed. WAV and AIFF are stored as FLAC (lossless, half the size); mp3, FLAC, m4a, Ogg and Opus stay as they are.
 
-👥 **Share the queue fairly.** Songs from different people take turns, so no one person controls the music. Radio plays when the queue is empty. You can undo every change.
+👥 **Share the queue fairly.** Songs from different people take turns, so no one person controls the music. When the queue runs out, the radio carries on from its last song. You can undo every change.
 
 🙋 **Know who's who.** Everyone picks a name, colour, emoji and group (call them seminars, teams, rooms: your word). You can see who queued each song and who liked it. Names can have an optional pass phrase.
 

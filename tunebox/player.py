@@ -35,7 +35,7 @@ class Player:
         self.restarting = False               # mpv is being restarted after a crash
         self.gen = 0                          # bumped by every play request; only the newest loads
         self.fails = 0                        # streams that failed in a row
-        self.seed = None                      # the last song someone added: the radio (auto songs) follows it
+        self.seed = None                      # the song the radio (auto songs) follows: the last added song to play
         self.seed_gen = 0                     # bumped on every re-seed; a radio that arrives late is dropped
         self.undo: list[dict] = []            # queue snapshots, oldest first
         self.pp_db = 0.0                      # play/pause fade, on top of fade_db
@@ -348,8 +348,8 @@ class Player:
 
     async def add(self, tracks: list[dict], by: str, mode: str = "add", label: str = "") -> int:
         """add: each song at its turn at the end of the added songs; next: in front of them, in order;
-        now: in front, and the first one plays at once. The radio then follows the last song added.
-        Returns the first song's place in the queue (1 = next, 0 = playing now)."""
+        now: in front, and the first one plays at once. The radio follows whichever added song now
+        plays last (see follow). Returns the first song's place in the queue (1 = next, 0 = playing now)."""
         items = [{**t, "by": by, "src": "user"} for t in tracks if not blocklist.blocked(t)]
         if not items:
             return 0
@@ -371,7 +371,7 @@ class Player:
         if start_now:
             self.fails = 0
             asyncio.get_running_loop().create_task(self.play_index(self.index + 1))
-        self.reseed(items[-1])
+        self.follow(force=not self.queue[self.user_end():])    # no radio behind them yet: fetch it
         for t in items[:2]:
             self.resolver.prefetch(t["videoId"])
         return pos
@@ -392,6 +392,18 @@ class Player:
     async def play_tracks(self, tracks: list[dict], start: int = 0):
         """The alarm's way in: replace the queue with a list."""
         await self.replace(tracks, start, label="Alarm")
+
+    def follow(self, gone=(), force: bool = False):
+        """Keeps the radio on the added song that plays last: the last one in the queue's order, not the
+        newest one added (taking turns, Play next and Play now put a new song further up). Called after
+        every change to the added songs. With none of them left it stays as it is, unless its own song
+        was among the ones just taken out (`gone`): then it follows what is playing."""
+        end = self.user_end()
+        last = self.queue[end - 1] if end > 0 else None
+        if not last or last.get("src") != "user":
+            last = self.current if self.seed and any(t["videoId"] == self.seed["videoId"] for t in gone) else None
+        if last and (force or not self.seed or last["videoId"] != self.seed["videoId"]):
+            self.reseed(last)
 
     def reseed(self, track: dict, fill: bool = True):
         """The radio now follows `track`: its radio replaces the auto songs (in the background)."""
@@ -420,8 +432,8 @@ class Player:
             await self.sync_armed()
 
     async def refill(self, force: bool = False):
-        """Keeps the music going: when little is left, more radio of the seed (the last song someone
-        added), or of the current song when the seed has nothing new."""
+        """Keeps the music going: when little is left, more radio of the seed (the added song that
+        played last), or of the current song when the seed has nothing new."""
         if not (settings["autoplay"] or force) or not self.current or len(self.queue) - self.index > RADIO_REFILL_AT:
             return
         if not house.on("radio"):
@@ -475,6 +487,7 @@ class Player:
             self.snapshot(label)
             self.queue[keep:] = [t for t in self.queue[keep:] if not blocklist.blocked(t)]
             await self.sync_armed()
+            self.follow(gone)
         return len(gone)
 
     # ---------- sleep timer and alarm ----------

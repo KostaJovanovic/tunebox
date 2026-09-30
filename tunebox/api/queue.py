@@ -153,7 +153,7 @@ async def control(body: ControlBody, request: Request):
         i = queue_at(int(v), body.videoId)
         if p.index < i < len(p.queue):
             p.snapshot(f'Removed "{p.queue[i]["title"]}"', by)
-            p.queue.pop(i)
+            p.follow([p.queue.pop(i)])
             msg = "Removed"
     elif a in ("move", "promote") and v is not None:
         # move: to a new place (dropped among the added songs it counts as added, among the radio as radio);
@@ -171,6 +171,8 @@ async def control(body: ControlBody, request: Request):
         else:
             t["src"] = "auto"
         p.queue.insert(to, t)
+        if t["src"] == "user":                # dropped among the radio, it is radio: the rest of that radio stays
+            p.follow()
         msg = "Plays next" if a == "promote" else ""
     elif a == "shuffle":                      # the songs people added; the radio stays after them
         end = p.user_end()
@@ -179,12 +181,15 @@ async def control(body: ControlBody, request: Request):
             p.snapshot("Shuffled up next", by)
             random.shuffle(rest)
             p.queue[p.index + 1:end] = rest
+            p.follow()                        # another song is last now: the radio is that one's
             msg = "Shuffled"
     elif a == "clear":                        # the songs people added; the radio keeps going
         end = p.user_end()
         if end > p.index + 1:
             p.snapshot("Cleared up next", by)
+            gone = p.queue[p.index + 1:end]
             del p.queue[p.index + 1:end]
+            p.follow(gone)
             msg = "Cleared"
     elif a == "clear_auto":
         end = p.user_end()
