@@ -14,6 +14,7 @@ This file only puts the app together (systemd runs `uvicorn app:app`). The code 
   house.py     house.json: features, groups...  audit.py     the admin's audit log
   plays.py     the play log (Stats, recap)      blocklist.py songs and artists the admin blocked
   local.py     uploaded songs: tags, converting, room
+  cli.py       the tunebox command: a client over HTTP, on its own (no other module here, no package)
   api/         the HTTP routes, one file per area (pages, browse, queue, lists, people, admin, settings, lyrics...)
 """
 import sys

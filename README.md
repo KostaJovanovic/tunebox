@@ -67,11 +67,41 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 💾 **Backup and restore** everything in one file, from Settings. The admin can also download a full backup: a zip with that file and the audio of the local songs.
 
+⌨️ **From a terminal too.** `tunebox add daft punk`, `tunebox next`, `tunebox vol +5`: everything the page does is a command, on the server or from any computer on the network.
+
 🔑 **One admin for the house.** Type the Konami code (↑ ↑ ↓ ↓ ← → ← → B A), or tap the word *Settings* ten times on a phone. The first time, you choose the admin password. The admin can edit, merge, block and remove people, see what each person played, and clean up plays, likes and playlists.
 
 🧩 **Only what you need.** The admin can switch off any part: names, groups, playlists, likes, Home and Explore, pasted links, local songs, radio, lyrics, stats, the recap, the wall screen, the alarm, the sleep timer, the equaliser. What is off is hidden for everyone and nothing is deleted. Four presets (Home, Office, Party, Solo) set all the switches at once, and a setup can be copied to another Tunebox as a file.
 
 🏠 **Make it yours.** Give the house its own name and accent colour, set its time zone, decide who may add names and groups, choose what the wall screen shows, and block songs or artists nobody wants to hear again. For local songs, the admin sees how full the disk is and sets how much they may take, how much free space always stays, and the biggest file.
+
+---
+
+## Command line
+
+`install.sh` adds the `tunebox` command; on Windows it is `tunebox.bat` in the Tunebox folder. It needs only Python 3.11+, so you can also copy `tunebox/cli.py` to any computer and run `python cli.py`.
+
+```sh
+tunebox status                       # what is playing
+tunebox iam Ana                      # say who you are, once (iam Ana --new adds the name)
+tunebox add daft punk one more time  # finds the song and queues it; --next, --now, --replace, --pick 2
+tunebox add https://youtu.be/...     # a song, album or playlist link
+tunebox next                         # also: prev, pause, play, toggle, stop, seek 1:30, vol +5, sleep 30, undo
+tunebox queue                        # up next; queue rm 2, queue mv 4 1, queue top 3, queue clear
+tunebox search discovery -k albums   # then: tunebox album ID --add
+tunebox lists play "Friday" --shuffle
+tunebox local upload *.flac          # your own files
+tunebox watch                        # a live view: space, n, p, + and -, q
+tunebox -h                           # every command; tunebox COMMAND -h for one
+```
+
+It talks to the Tunebox on the same machine. For another one, name it: `tunebox --server http://ele.local/music/ status`, or save it once with `tunebox server add home http://ele.local/music/`.
+
+What needs the admin asks for the password once (`tunebox features off lyrics`, `tunebox people`, `tunebox house set name Studio`, `tunebox block add --artist NAME`, `tunebox backup --full`, `tunebox restore FILE`). On the server itself no password is needed: reading Tunebox's own files is proof enough, so `ssh server tunebox admin reset` works when the password is lost.
+
+For scripts: `--json` prints the server's answer, `--no-input` never asks, `--yes` confirms, and `TUNEBOX_ADMIN_PASSWORD` gives the password. Exit codes: 0 done, 1 refused, 2 wrong usage, 3 no Tunebox there.
+
+**Bringing local songs back from a full backup?** Unzip its `local` folder into Tunebox's data folder on the server, then restore the `tunebox-backup.json` from the same zip in Settings.
 
 ---
 
@@ -82,10 +112,8 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 **Forgot the admin password?** Run this on the server, in the Tunebox folder (add `--port N` if it isn't 8888). The music keeps playing, and the next person to open the admin panel chooses a new password:
 
 ```sh
-.venv/bin/python run.py --reset-admin
+.venv/bin/python run.py --reset-admin      # or: tunebox admin reset
 ```
-
-**Bringing local songs back from a full backup?** Unzip its `local` folder into Tunebox's data folder on the server, then restore the `tunebox-backup.json` from the same zip in Settings.
 
 **Songs won't play?** YouTube probably changed something. Update yt-dlp:
 
@@ -143,7 +171,7 @@ Everything lives in the app folder (or `TUNEBOX_DATA`). Git ignores all of it.
 | `blocklist.json` | the songs and artists the admin blocked |
 | `local.json`, `local/` | the uploaded songs: their details, and the audio files and covers |
 | `audit.json` | the admin's log: unlocks, wrong passwords, changes |
-| `cli.token` | a token written at every start; it lets `run.py --reset-admin` talk to the running Tunebox |
+| `cli.token` | a token written at every start; it lets `run.py --reset-admin` and the `tunebox` command on the server act as the admin |
 | `backups/` | the copy a restore saves before it replaces anything |
 | `browser.json` | your YouTube Music sign-in, only if you signed in |
 </details>
@@ -189,6 +217,7 @@ To log in to the server with a different address or SSH user, pick **logout**, o
 | `tunebox/local.py` | uploaded songs: tags and covers ([mutagen](https://mutagen.readthedocs.io)), converting with mpv, room on the disk |
 | `tunebox/data.py`, `plays.py`, `auth.py` | playlists, people, the play log, pass phrases |
 | `tunebox/web.py`, `api/` | request checks and the HTTP API |
+| `tunebox/cli.py`, `tunebox.bat` | the `tunebox` command |
 | `web/bauhaus/`, `web/wall/`, `web/shared/` | the player, the wall screen, and code both use |
 | `dev/` | the dev server, the fake player, the deploy tool |
 

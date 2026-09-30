@@ -8,7 +8,8 @@
 #   --port N      another port (default 8888)
 #
 # It installs mpv and Python's venv with apt (asks for sudo), puts the Python packages in .venv and
-# Node 22 in tools/node, and for a server writes /etc/systemd/system/tunebox.service.
+# Node 22 in tools/node, adds the tunebox command (/usr/local/bin/tunebox, see tunebox/cli.py), and
+# for a server writes /etc/systemd/system/tunebox.service.
 set -eu
 
 cd "$(dirname "$0")"
@@ -44,6 +45,14 @@ say "installing the Python packages"
 .venv/bin/pip install --quiet --disable-pip-version-check -U pip
 .venv/bin/pip install --quiet --disable-pip-version-check -U -r requirements.txt
 .venv/bin/python run.py --setup-only
+
+# ---------- the tunebox command: this Tunebox from a terminal (tunebox -h) ----------
+$SUDO tee /usr/local/bin/tunebox >/dev/null <<EOF
+#!/bin/sh
+# Written by $APP/install.sh. Talks to the Tunebox on this machine unless told otherwise (--server).
+TUNEBOX_PORT="\${TUNEBOX_PORT:-$PORT}" exec "$APP/.venv/bin/python" "$APP/tunebox/cli.py" "\$@"
+EOF
+$SUDO chmod 755 /usr/local/bin/tunebox
 
 if [ "$MODE" = desktop ]; then
   mkdir -p "$HOME/.local/share/applications"
@@ -94,3 +103,4 @@ for ip in $(hostname -I 2>/dev/null); do
   case "$ip" in *:*) ;; *) say "      or http://$ip:$PORT/" ;; esac
 done
 say "logs: sudo journalctl -u tunebox -f"
+say "from a terminal: tunebox status, tunebox add SONG, tunebox -h"
