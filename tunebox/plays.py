@@ -5,9 +5,11 @@ One JSON line per play, in a file per month (plays/2026-09.jsonl), only ever app
    "d": length (s), "s": seconds actually heard (pauses don't count), "by": person id or "",
    "sem": their seminars then, "src": "user" or "auto" (radio)}
 The song playing is counted in memory; finished plays are written with the session, at most once a
-minute (spares an SD card)."""
+minute (spares an SD card). Only the admin changes what is already written (rewrite)."""
 import json
+import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -27,6 +29,11 @@ def secs(duration) -> int:
             return 0
         n = n * 60 + int(part)
     return n
+
+
+def counted(p: dict) -> bool:
+    """A play counts once 30 s were heard (or half of a shorter song)."""
+    return p["s"] >= 30 or (p["d"] and p["s"] >= p["d"] / 2)
 
 
 def begin(track: dict):
@@ -81,6 +88,43 @@ def flush():
         _done.clear()
     except OSError as exc:
         print(f"tunebox: cannot write the play log: {exc}", file=sys.stderr)
+
+
+def rewrite(fn) -> int:
+    """Changes the log for good: fn(play) gives the play back (changed or not), or None to drop it.
+    Returns how many plays changed. It never awaits, so no play can be appended half-way through."""
+    global _open
+    flush()
+    n = 0
+    for f in sorted(PLAYS_DIR.glob("*.jsonl")) if PLAYS_DIR.exists() else []:
+        old = _month(f)
+        new = [fn(dict(p)) for p in old]
+        changed = sum(1 for a, b in zip(old, new) if a != b)
+        if not changed:
+            continue
+        n += changed
+        fd, tmp = tempfile.mkstemp(dir=PLAYS_DIR, prefix=f.name + ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as out:
+                out.write("".join(json.dumps(p, ensure_ascii=False) + "\n" for p in new if p is not None))
+                out.flush()
+                os.fsync(out.fileno())
+            os.replace(tmp, f)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+        _parsed.pop(f.name, None)
+    for i, p in reversed(list(enumerate(_done))):   # plays a failed flush left behind
+        q = fn(dict(p))
+        if q != p:
+            n += 1
+            _done[i:i + 1] = [q] if q is not None else []
+    if _open:
+        q = fn(dict(_open))
+        if q != _open:
+            n += 1
+            _open = q
+    return n
 
 
 def read(since: float = 0, until: float | None = None) -> list[dict]:

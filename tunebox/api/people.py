@@ -1,12 +1,12 @@
 """People: who's listening, picked per device (cookie tb_who), so the queue can show who added what;
-their seminars; pass phrases for names (optional) and the admin phrase (see auth.py)."""
+their seminars; pass phrases for names (optional, see auth.py). The admin's side of it is in api/admin.py."""
 import asyncio
 import re
 import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from .. import auth, data
+from .. import admin, auth, data, house
 from ..config import SEMINARS
 from ..data import people, save_people
 from ..web import BaseModel
@@ -82,14 +82,22 @@ def set_phrase(p: dict, phrase: str | None):
             del p["phrase"]
 
 
+def new_person(body: PersonBody) -> dict:
+    """Makes the person and adds them; the caller holds people_lock and saves."""
+    p = {"id": secrets.token_hex(4), "name": "", "color": "#1F5FBF", "emoji": "", "seminars": []}
+    person_fields(p, PersonBody(name=body.name or "", color=body.color, emoji=body.emoji,
+                                seminars=body.seminars or []))
+    set_phrase(p, body.phrase or None)
+    people[p["id"]] = p
+    return p
+
+
 @router.post("/api/people")
 async def add_person(body: PersonBody, request: Request, response: Response):
+    if house.house["signups"] != "open" and not admin.is_admin(request):
+        raise HTTPException(403, "New names are added by the admin here")
     async with people_lock:
-        p = {"id": secrets.token_hex(4), "name": "", "color": "#1F5FBF", "emoji": "", "seminars": []}
-        person_fields(p, PersonBody(name=body.name or "", color=body.color, emoji=body.emoji,
-                                    seminars=body.seminars or []))
-        set_phrase(p, body.phrase or None)
-        people[p["id"]] = p
+        p = new_person(body)
         save_people()
     auth.give_key(response, p["id"])
     return {**auth.public(p, request), "mine": True}
@@ -111,7 +119,6 @@ async def edit_person(pid: str, body: PersonBody, request: Request, response: Re
 
 class PhraseBody(BaseModel):
     phrase: str | None = None
-    admin: str | None = None
 
 
 @router.post("/api/people/{pid}/unlock")
@@ -125,44 +132,3 @@ async def unlock(pid: str, body: PhraseBody, response: Response):
     return {"ok": True}
 
 
-@router.post("/api/people/{pid}/reset")
-async def reset_phrase(pid: str, body: PhraseBody):
-    """A forgotten pass phrase: the admin phrase takes it off (then anyone can set a new one)."""
-    if not auth.admin_set():
-        raise HTTPException(400, "Set an admin pass phrase in Settings first")
-    await auth.need_admin(body.admin)
-    async with people_lock:
-        if pid not in people:
-            raise HTTPException(404, "No such person")
-        people[pid].pop("phrase", None)
-        save_people()
-    return {"ok": True}
-
-
-@router.delete("/api/people/{pid}")
-async def remove_person(pid: str, body: PhraseBody | None = None):
-    """Their songs stay where they are; they just show no name any more."""
-    await auth.need_admin(body and body.admin)
-    async with people_lock:
-        people.pop(pid, None)
-        save_people()
-    return {"ok": True}
-
-
-# ---------- the admin pass phrase ----------
-class AdminBody(BaseModel):
-    old: str | None = None
-    new: str | None = None                    # "" or null: no admin phrase any more
-
-
-@router.get("/api/admin")
-async def admin_state():
-    return {"set": auth.admin_set()}
-
-
-@router.post("/api/admin")
-async def set_admin(body: AdminBody):
-    if auth.admin_set() and not await auth.matches(body.old, auth.keys["admin"]):
-        raise HTTPException(403, "Wrong admin pass phrase")
-    auth.set_admin(body.new)
-    return {"set": auth.admin_set()}

@@ -7,14 +7,10 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException
 
 from .. import data, plays
+from ..plays import counted
 from ..settings import settings
 
 router = APIRouter()
-
-
-def counted(p: dict) -> bool:
-    """A play counts once 30 s were heard (or half of a shorter song)."""
-    return p["s"] >= 30 or (p["d"] and p["s"] >= p["d"] / 2)
 
 
 def track_of(p: dict) -> dict:

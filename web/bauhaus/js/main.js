@@ -19,6 +19,7 @@ import { paintBar, paintCanvas, toggleCanvas, canvasOpen } from "./player.js";
 import { askPlay } from "./ask.js";
 import "./menu.js";
 import "./recap.js";
+import "./admin.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);

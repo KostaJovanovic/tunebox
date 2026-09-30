@@ -10,7 +10,10 @@ This file only puts the app together (systemd runs `uvicorn app:app`). The code 
   audio.py     volume curve and EQ filters      youtube.py   ytmusicapi, yt-dlp, the stream resolver
   mpv.py       the mpv IPC client               player.py    the queue, gapless play, fades, sleep, alarm
   lyrics.py    LRCLIB + YouTube lyrics          web.py       same-site guard, errors, who's asking
-  api/         the HTTP routes, one file per area (pages, browse, queue, lists, people, settings, lyrics)
+  auth.py      pass phrases and device keys     admin.py     the admin's sessions, lockout, local token
+  house.py     house.json (what the admin set)  audit.py     the admin's audit log
+  plays.py     the play log (Stats, recap)
+  api/         the HTTP routes, one file per area (pages, browse, queue, lists, people, admin, settings, lyrics...)
 """
 import sys
 from contextlib import asynccontextmanager
@@ -20,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # tunebox/ sits next 
 
 from fastapi import FastAPI  # noqa: E402
 
-from tunebox import data, plays, web  # noqa: E402
-from tunebox.api import backup, browse, lists, lyrics, pages, people, queue, settings, stats  # noqa: E402
+from tunebox import audit, data, plays, web  # noqa: E402
+from tunebox.api import admin, backup, browse, lists, lyrics, pages, people, queue, settings, stats  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
 from tunebox.settings import flush_settings  # noqa: E402
@@ -36,11 +39,12 @@ async def lifespan(_app):
     plays.finish()
     plays.flush()
     flush_settings()
+    audit.flush()
     await player.mpv.quit()
 
 
 app = FastAPI(title="Tunebox", lifespan=lifespan)
 web.install(app)
-for area in (pages, queue, browse, lists, people, settings, lyrics, stats, backup):
+for area in (pages, queue, browse, lists, people, admin, settings, lyrics, stats, backup):
     app.include_router(area.router)
 app.mount("/web", pages.NoCacheFiles(directory=WEB_DIR, check_dir=False), name="web")

@@ -65,11 +65,19 @@ No apt? Install mpv and Python 3.11+ yourself first. Options: `--port N` (defaul
 
 💾 **Backup and restore** everything in one file, from Settings.
 
+🔑 **One admin for the house.** Type the Konami code (↑ ↑ ↓ ↓ ← → ← → B A), or tap the word *Settings* ten times on a phone. The first time, you choose the admin password. The admin can edit, merge, block and remove people, see what each person played, and clean up plays, likes and playlists.
+
 ---
 
 ## Good to know
 
-**It's for a home network.** There are no logins. It trusts the devices on the local network. It refuses requests from other addresses, so a website can't control your speakers.
+**It's for a home network.** There are no logins. It trusts the devices on the local network. It refuses requests from other addresses, so a website can't control your speakers. Only a few things need the admin password: managing people, clearing the history, the YouTube sign-in and restoring a backup.
+
+**Forgot the admin password?** Run this on the server, in the Tunebox folder (add `--port N` if it isn't 8888). The music keeps playing, and the next person to open the admin panel chooses a new password:
+
+```sh
+.venv/bin/python run.py --reset-admin
+```
 
 **Songs won't play?** YouTube probably changed something. Update yt-dlp:
 
@@ -118,11 +126,14 @@ Everything lives in the app folder (or `TUNEBOX_DATA`). Git ignores all of it.
 | `settings.json` | volume, EQ, options, alarm |
 | `session.json` | the queue and undo history |
 | `history.json` | the last 300 songs played |
-| `playlists.json` | playlists and likes |
+| `playlists.json` | playlists (with who made each) and likes |
 | `people.json`, `seminars.json` | names and seminars |
 | `plays/` | the play log behind Stats and the recap, one file per month |
 | `stats.json` | the last 30 days of plays, for *Most played* |
-| `keys.json` | the admin pass phrase (hashed) and the device-key secret |
+| `keys.json` | the admin password (hashed) and the device-key secret |
+| `house.json` | what the admin set for the house |
+| `audit.json` | the admin's log: unlocks, wrong passwords, changes |
+| `cli.token` | a token written at every start; it lets `run.py --reset-admin` talk to the running Tunebox |
 | `backups/` | the copy a restore saves before it replaces anything |
 | `browser.json` | your YouTube Music sign-in, only if you signed in |
 </details>

@@ -11,6 +11,9 @@ people.json
 seminars.json
 stats.json
 keys.json
+house.json
+audit.json
+cli.token
 browser.json
 browser*.new
 plays/

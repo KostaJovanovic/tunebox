@@ -1,16 +1,20 @@
 """Backup and restore: everything the house made (people, seminars, pass phrases, playlists and likes,
-history, play counts, the play log, settings) in one JSON file. The YouTube sign-in (browser.json)
-is never in it. A restore first saves what it replaces in backups/, so it can be undone."""
+history, play counts, the play log, settings, the house setup) in one JSON file. The YouTube sign-in
+(browser.json) and the audit log are never in it. A restore first saves what it replaces in backups/,
+so it can be undone.
+
+Anyone may download a backup, but only the admin's has the secrets (keys.json and the pass phrase
+hashes). Restoring is the admin's, and it never changes the admin password."""
 import datetime
 import json
 import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
-from .. import auth, data, plays
-from ..config import (DATA, HISTORY_FILE, KEYS_FILE, LISTS_FILE, PEOPLE_FILE, PLAYS_DIR, SEMINARS, SEMINARS_FILE,
-                      SETTINGS_FILE, STATS_FILE)
+from .. import admin, audit, auth, data, house, plays
+from ..config import (DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, PEOPLE_FILE, PLAYS_DIR, SEMINARS,
+                      SEMINARS_FILE, SETTINGS_FILE, STATS_FILE)
 from ..files import read_json, write_json
 from ..player import player
 from ..settings import load_settings, settings
@@ -19,23 +23,30 @@ from ..web import BaseModel
 router = APIRouter()
 BACKUPS = DATA / "backups"
 FILES = {"settings": SETTINGS_FILE, "history": HISTORY_FILE, "playlists": LISTS_FILE, "people": PEOPLE_FILE,
-         "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE}
+         "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE}
 
 
-def snapshot() -> dict:
-    """What a backup holds, as it is on disk now (unsaved plays and counts are written first)."""
+def snapshot(secrets: bool = True) -> dict:
+    """What a backup holds, as it is on disk now (unsaved plays and counts are written first).
+    Without secrets: no keys.json and no pass phrase hashes, and the backup says so ("stripped")."""
     plays.flush()
     data.save_stats(force=True)
     out = {"tunebox": 1, "made": int(time.time()), "files": {k: read_json(p, None) for k, p in FILES.items()}, "plays": {}}
     if PLAYS_DIR.exists():
         out["plays"] = {f.name: f.read_text(encoding="utf-8") for f in sorted(PLAYS_DIR.glob("*.jsonl"))}
+    if not secrets:
+        out["stripped"] = True
+        del out["files"]["keys"]
+        for p in (out["files"]["people"] or {}).values():
+            p.pop("phrase", None)
+            p.pop("kv", None)
     return out
 
 
 @router.get("/api/backup")
-async def backup():
+async def backup(request: Request):
     day = datetime.date.today().isoformat()
-    return Response(json.dumps(snapshot(), ensure_ascii=False), media_type="application/json",
+    return Response(json.dumps(snapshot(admin.is_admin(request)), ensure_ascii=False), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="tunebox-backup-{day}.json"'})
 
 
@@ -52,8 +63,8 @@ def replace_in_place(target, new):
         target.update(new)
 
 
-@router.post("/api/restore")
-async def restore(body: RestoreBody):
+@router.post("/api/restore", dependencies=[Depends(admin.need)])
+async def restore(body: RestoreBody, request: Request):
     b = body.backup
     files, logs = b.get("files"), b.get("plays") or {}
     if b.get("tunebox") != 1 or not isinstance(files, dict) or not isinstance(logs, dict):
@@ -63,8 +74,16 @@ async def restore(body: RestoreBody):
     BACKUPS.mkdir(parents=True, exist_ok=True)
     before = BACKUPS / f"before-restore-{time.strftime('%Y%m%d-%H%M%S')}.json"
     write_json(before, snapshot())            # what's here now, in case the restore was a mistake
+    if "keys" not in files and isinstance(files.get("people"), dict):
+        for pid, p in files["people"].items():    # a backup without secrets: names keep the pass phrases they have now
+            now = data.people.get(pid) or {}
+            p.update({k: now[k] for k in ("phrase", "kv") if k in now})
+    if isinstance(files.get("keys"), dict):
+        files["keys"]["admin"] = auth.keys.get("admin")   # the admin password stays what it is
     for k, path in FILES.items():
         v = files.get(k)
+        if k == "keys" and v is None:
+            continue                          # never without the secret: every device key would die
         if v is None:
             path.unlink(missing_ok=True)
         else:
@@ -85,8 +104,11 @@ async def restore(body: RestoreBody):
     replace_in_place(auth.keys, read_json(KEYS_FILE, {}))
     auth.ensure_secret()
     replace_in_place(settings, load_settings())
+    replace_in_place(house.house, {**house.DEFAULTS, **(read_json(HOUSE_FILE, {}) or {})})
+    house.save_house()
     data.save_lists()                         # bumps the revisions: every page reloads names and likes
     data.save_people()
     await player.apply_volume()
     await player.mpv.apply_eq()
+    audit.log("restore", f"Restored a backup from {time.strftime('%Y-%m-%d', time.localtime(b.get('made') or 0))}", request)
     return {"ok": True, "before": before.name}

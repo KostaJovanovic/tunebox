@@ -1,6 +1,6 @@
 """Pass phrases. A person may have one: picking that name on a device then asks for it once, and the
-device keeps a signed cookie (tb_key_<id>) instead. The house may have an admin phrase: it guards
-removing people and clearing the history, and resets a person's forgotten phrase.
+device keeps a signed cookie (tb_key_<id>) instead. The admin password's hash is kept here too;
+admin.py checks it and keeps the admin sessions.
 
 Only salted scrypt hashes are kept (in keys.json, with the secret that signs the cookies)."""
 import asyncio
@@ -55,9 +55,11 @@ async def matches(phrase: str | None, stored: dict | None) -> bool:
 
 # ---------- a person's phrase ----------
 def device_key(pid: str) -> str:
-    """What a device that knows pid's phrase holds; a new phrase (new salt) signs every device out."""
-    salt = data.people[pid]["phrase"]["salt"]
-    return hmac.new(bytes.fromhex(keys["secret"]), f"{pid}:{salt}".encode(), hashlib.sha256).hexdigest()
+    """What a device that knows pid's phrase holds. A new phrase (new salt) signs every device out,
+    and so does the admin, by raising the key's version (kv)."""
+    p = data.people[pid]
+    what = f"{pid}:{p['phrase']['salt']}" + (f":{p['kv']}" if p.get("kv") else "")
+    return hmac.new(bytes.fromhex(keys["secret"]), what.encode(), hashlib.sha256).hexdigest()
 
 
 def holds_key(request: Request, pid: str) -> bool:
@@ -74,28 +76,19 @@ def give_key(response: Response, pid: str):
 
 def public(p: dict, request: Request) -> dict:
     """A person as clients see them: never the hash; locked, and whether this device holds the key."""
-    out = {k: v for k, v in p.items() if k != "phrase"}
+    out = {k: v for k, v in p.items() if k not in ("phrase", "kv")}
     out["locked"] = bool(p.get("phrase"))
     if out["locked"]:
         out["mine"] = holds_key(request, p["id"])
     return out
 
 
-# ---------- the admin phrase ----------
+# ---------- the admin password ----------
 def admin_set() -> bool:
     return bool(keys.get("admin"))
 
 
-async def need_admin(phrase: str | None):
-    """No admin phrase set: anyone may. Otherwise 403 "admin" asks the page for it."""
-    if not admin_set():
-        return
-    if not phrase:
-        raise HTTPException(403, "admin")
-    if not await matches(phrase, keys["admin"]):
-        raise HTTPException(403, "Wrong admin pass phrase")
-
-
 def set_admin(phrase: str | None):
+    """None takes it off: the next person to open the admin panel sets a new one."""
     keys["admin"] = hash_phrase(clean_phrase(phrase)) if phrase else None
     write_json(KEYS_FILE, keys)

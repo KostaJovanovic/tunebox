@@ -6,7 +6,7 @@ import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal } from "../../shared/device.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
-import { paintAdmin } from "./who.js";
+import { withAdmin } from "./phrase.js";
 
 const FREQ_LABEL = f => f >= 1000 ? `${f / 1000}k` : String(f);
 const PRESET_NAMES = { flat: "Flat", bass: "Bass", treble: "Treble", vocal: "Vocal", rock: "Rock", pop: "Pop", electronic: "Electro",
@@ -26,7 +26,7 @@ export function toggleSettings(open) {
   if (!open) clearHash();
 }
 
-async function loadSettings() { paintAdmin(); cfg = await api("api/settings"); renderSettings(); }
+async function loadSettings() { cfg = await api("api/settings"); renderSettings(); }
 
 function renderSettings() {
   const presets = { ...cfg.presets, custom: cfg.eq.custom };
@@ -190,7 +190,7 @@ $("#restoreFile").addEventListener("change", async e => {
   const made = backup.made ? new Date(backup.made * 1000).toLocaleString() : "an unknown date";
   if (!confirm(`Restore the backup from ${made}? It replaces people, playlists, likes, history, stats and settings for everyone.`)) return;
   try {
-    await api("api/restore", { backup });
+    if (await withAdmin(() => api("api/restore", { backup })) === null) return;
     toast("Restored"); setTimeout(() => location.reload(), 900);
   } catch (err) { toast(errText(err)); }
 });
@@ -270,13 +270,16 @@ async function saveAccount() {
   const headers = $("#hdrs").value.trim();
   if (!headers) return;
   $("#acctMsg").className = "msg"; $("#acctMsg").textContent = "Checking with YouTube...";
-  try { await api("api/account", { headers }); $("#hdrs").value = ""; $("#acctMsg").textContent = "Saved. Home now uses your account."; loadSettings(); }
+  try {
+    if (await withAdmin(() => api("api/account", { headers })) === null) return $("#acctMsg").textContent = "";
+    $("#hdrs").value = ""; $("#acctMsg").textContent = "Saved. Home now uses your account."; loadSettings();
+  }
   catch (e) { $("#acctMsg").className = "msg err"; $("#acctMsg").textContent = errText(e); }
 }
 
 async function signOut() {
   if (!confirm("Remove the saved YouTube account from Tunebox?")) return;
-  await fetch("api/account", { method: "DELETE" });
+  if (await withAdmin(() => api("api/account", undefined, "DELETE")) === null) return;
   $("#acctMsg").textContent = "Signed out."; loadSettings();
 }
 

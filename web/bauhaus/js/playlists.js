@@ -1,7 +1,8 @@
-/* Tunebox playlists (shared, anyone can edit; "liked" is the Liked songs list), and the
-   "Add to playlist" pop-up. */
+/* Tunebox playlists (shared: anyone adds, removes and reorders songs; renaming and deleting one is for
+   whoever made it and the admin; "liked" is the Liked songs list), and the "Add to playlist" pop-up. */
 import { $, esc, plural } from "../../shared/dom.js";
-import { people, seminars, avatar, semTag } from "../../shared/people.js";
+import { people, seminars, me, avatar, semTag } from "../../shared/people.js";
+import { admin } from "../../shared/house.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { askPlay } from "./ask.js";
@@ -19,11 +20,15 @@ export async function showLists() {
   main(loading("Loading"));
   const ls = await api("api/lists").catch(() => []);
   if (my !== seq) return;
-  main(section(1, "Tunebox playlists", "shared · anyone can edit") +
+  main(section(1, "Tunebox playlists", "shared · anyone can add songs") +
     `<div class="grid"><button class="card new" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>` +
     ls.map(p => `<button class="card" data-act="list-open" data-id="${esc(p.id)}">${p.liked && !p.thumbs.length ? `<div class="blank heart">${icon.HEART}</div>` : mosaic(p.thumbs)}<div class="t">${esc(p.name)}</div>
-      <div class="s"><i class="kind ${p.liked ? "liked" : "mine"}"></i>${plural(p.count, "song")}</div></button>`).join("") + "</div>");
+      <div class="s"><i class="kind ${p.liked ? "liked" : "mine"}"></i>${plural(p.count, "song")}${p.liked ? "" : " · " + owner(p)}</div></button>`).join("") + "</div>");
 }
+
+/* whose playlist it is: the person who made it, or the house's (made before owners, or its owner was removed) */
+const owner = p => people[p.owner] ? esc(people[p.owner].name) : "House";
+const mine = p => admin || (!!p.owner && p.owner === me()?.id);
 
 function newListForm() {
   if ($("#newList")) return $("#newList input").focus();
@@ -75,7 +80,7 @@ function renderList(p, renaming = false) {
         <button class="btn" data-act="play-all" data-mode="next" ${all}>${icon.NEXT}Play next</button>
         <button class="btn" data-act="play-all" data-mode="add" ${all}>${icon.ADD}Add all</button>
         <button class="btn" data-act="list-shuffle" ${off}>${icon.SHUFFLE}Shuffle</button>
-        ${isLiked ? "" : `<button class="btn ghost" data-act="list-rename">Rename</button>
+        ${isLiked || !mine(p) ? "" : `<button class="btn ghost" data-act="list-rename">Rename</button>
         <button class="btn ghost danger" data-act="list-delete">Delete</button>`}`;
   const row = (t, i) => songRow(t, "mine", i, { likers: isLiked ? t.likedBy || [] : null, acts:
     (filtered ? "" : `<button title="Move up" aria-label="Move up" data-act="list-move" data-i="${i}" data-d="-1" ${i ? "" : "disabled"}>${icon.UP}</button>
@@ -86,7 +91,7 @@ function renderList(p, renaming = false) {
   main(`${backBtn("All playlists", 'data-act="nav" data-v="lists"')}
     <div class="hero">${mosaic(p.tracks.map(t => t.thumb))}<div>
       <div class="k">${isLiked ? "Liked songs" : "Tunebox playlist"} · ${filtered ? `${n} of ${plural(p.tracks.length, "song")}` : plural(n, "song")}</div>${title}
-      <div class="s">Shared · updated ${esc(dayName(p.updated).toLowerCase())}</div>
+      <div class="s">${isLiked ? "Shared" : owner(p) + "'s"} · updated ${esc(dayName(p.updated).toLowerCase())}</div>
       <div class="btns">${buttons}</div>
     </div></div>${isLiked ? likers(p.tracks) : ""}
     <div class="list">${n ? shown.map(row).join("")

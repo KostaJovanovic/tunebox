@@ -1,5 +1,5 @@
 """Settings: volume is in queue.py; here the EQ, playback options, sleep timer, alarm and the
-YouTube account."""
+YouTube account (the admin's to change)."""
 import asyncio
 import os
 import re
@@ -7,11 +7,11 @@ import tempfile
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field
 from ytmusicapi import YTMusic, setup as yt_setup
 
-from .. import data, youtube
+from .. import admin, audit, data, youtube
 from ..config import AUTH_FILE, DATA, EQ_FREQS, EQ_PRESETS, QUALITY, TEST_RAMP
 from ..audio import eq_bands
 from ..mpv import PlayerDown
@@ -131,8 +131,8 @@ async def set_eq(body: EqBody):
     return await get_settings()
 
 
-@router.post("/api/account")
-async def set_account(body: AccountBody):
+@router.post("/api/account", dependencies=[Depends(admin.need)])
+async def set_account(body: AccountBody, request: Request):
     """Accepts request headers copied from music.youtube.com, or just the Cookie value."""
     raw = body.headers.strip().replace("\r", "")
     if not raw:
@@ -161,11 +161,13 @@ async def set_account(body: AccountBody):
         raise HTTPException(400, f"YouTube rejected these headers: {str(exc)[:160]}")
     os.replace(tmp, AUTH_FILE)
     youtube.yt = test
+    audit.log("account", "Signed in to YouTube Music", request)
     return account_status()
 
 
-@router.delete("/api/account")
-async def clear_account():
+@router.delete("/api/account", dependencies=[Depends(admin.need)])
+async def clear_account(request: Request):
     AUTH_FILE.unlink(missing_ok=True)
     youtube.yt = YTMusic()
+    audit.log("account", "Signed out of YouTube Music", request)
     return account_status()

@@ -147,7 +147,7 @@ export async function showHistory() {
 
 async function clearHistory() {
   if (!confirm("Clear the play history for everyone?")) return;
-  if (await withAdmin(admin => api("api/history", { admin }, "DELETE")) === null) return;
+  if (await withAdmin(() => api("api/history", undefined, "DELETE")) === null) return;
   showHistory();
 }
 

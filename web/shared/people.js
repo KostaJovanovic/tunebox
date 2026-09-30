@@ -1,6 +1,6 @@
 /* People: who's listening on this device. The name is picked once per device (cookie tb_who, which the
    server reads to know who added a song). Anyone can add names; a name with a pass phrase can only be
-   picked or changed on a device that typed it, and removing names may need the admin pass phrase. */
+   picked or changed on a device that typed it. Removing a name is the admin's. */
 import { cookie, esc, setCookie } from "./dom.js";
 import { api } from "./api.js";
 
@@ -42,8 +42,8 @@ export async function unlockPerson(id, phrase) {
   people[id].mine = true;
 }
 
-export async function removePerson(id, admin) {
-  await api(`api/people/${id}`, { admin }, "DELETE");
+export async function removePerson(id) {
+  await api(`api/admin/people/${id}?mode=keep`, undefined, "DELETE");
   delete people[id];
 }
 

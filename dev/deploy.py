@@ -41,14 +41,14 @@ BUILTIN = {"name": "ele", "hosts": ["ele.local", "10.100.0.105", "10.100.0.62"],
 # what gets deployed, relative to this folder and to Tunebox's folder on the server
 #   files: single files.  dirs: whole folders, mirrored (a file deleted here is deleted there
 #   too).  retired: old files that no longer belong there and are removed.
-FILES = ["app.py"]
+FILES = ["app.py", "run.py"]
 DIRS = ["tunebox", "web"]
 RETIRED = ["index.html", "classic.html", "wall.html"]
 SKIP = {"__pycache__", ".bak"}                           # never deployed, never removed there
 UNIT = ROOT / "tunebox.service"                          # ele's unit: compared and reported only
 # the server's live data -> dev/data (browser.json, the YouTube sign-in cookies, stays there)
 DATA_FILES = ["settings.json", "playlists.json", "history.json", "session.json", "people.json",
-              "stats.json", "seminars.json", "keys.json"]
+              "stats.json", "seminars.json", "keys.json", "house.json"]
 
 
 def open_server(name: str, choose: bool):

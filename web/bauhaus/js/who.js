@@ -3,6 +3,7 @@
 import { $, esc } from "../../shared/dom.js";
 import { api, errText, setNameAsker } from "../../shared/api.js";
 import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTag, semTags } from "../../shared/people.js";
+import { admin } from "../../shared/house.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
 import { toast, syncScrim, onCloseAll } from "./ui.js";
@@ -24,6 +25,8 @@ export function paintMe() {
 function openWho() {
   resetForm(); renderWho(); showForm(!sortedPeople().length);
   $("#who").classList.add("open"); $("#scrim").classList.add("open");
+  /* the admin may have closed sign-ups: then only the admin adds names */
+  api("api/admin").then(st => { $("#whoNew").hidden = st.signups !== "open" && !admin; }).catch(() => {});
 }
 function showForm(on) {
   $("#whoPick").hidden = on; $("#whoForm").hidden = !on;
@@ -142,7 +145,7 @@ export function renderPeople() {
 
 async function remove(id) {
   if (!confirm(`Remove ${people[id].name}? Their songs stay in the queue.`)) return;
-  if (await withAdmin(admin => removePerson(id, admin)) === null) return;
+  if (await withAdmin(() => removePerson(id)) === null) return;
   renderPeople(); paintMe();
 }
 
@@ -150,7 +153,7 @@ async function resetPhrase(id) {
   const name = people[id].name;
   if (!confirm(`Take the pass phrase off ${name}? Anyone can then pick the name and set a new one.`)) return;
   try {
-    if (await withAdmin(admin => api(`api/people/${id}/reset`, { admin })) === null) return;
+    if (await withAdmin(() => api(`api/admin/people/${id}`, { phrase: "" }, "PATCH")) === null) return;
   } catch (e) { return toast(errText(e)); }
   people[id].locked = false; renderPeople(); paintPhraseBtn(editing === id ? people[id] : null);
   toast(`${name} has no pass phrase now`);
@@ -183,29 +186,6 @@ function paintPhraseBtn(p) {
   $("#whoPhraseBtn").textContent = p.locked ? "Change or remove the pass phrase" : "Add a pass phrase";
 }
 
-/* ---------- the admin pass phrase (Settings → People) ---------- */
-let adminSet = false;
-export async function paintAdmin() {
-  try { adminSet = (await api("api/admin")).set; } catch { return; }
-  $("#adminState").textContent = `Admin pass phrase: ${adminSet ? "set" : "not set"}`;
-  $("#adminBtn").textContent = adminSet ? "Change" : "Set";
-}
-
-async function setAdmin() {
-  let old;
-  if (adminSet && (old = await askPhrase({ title: "Current admin pass phrase" })) === null) return;
-  const nu = await askPhrase({ title: "New admin pass phrase", button: "Next", allowEmpty: adminSet, check: longEnough,
-    hint: adminSet ? "At least 4 characters. Leave it empty to remove the admin pass phrase." : "At least 4 characters." });
-  if (nu === null) return;
-  if (nu.trim() && await askPhrase({ title: "Type it again", button: "Save",
-    check: async v => { if (v !== nu) throw new Error("That's not the same"); } }) === null) return;
-  try {
-    const r = await api("api/admin", { old, new: nu.trim() ? nu : null });
-    toast(r.set ? "Admin pass phrase saved" : "Admin pass phrase removed");
-  } catch (e) { toast(errText(e)); }
-  paintAdmin();
-}
-
 /* ---------- wiring ---------- */
 on("who-open", openWho);
 on("who-close", () => closeWho());
@@ -227,4 +207,3 @@ on("who-back", () => editing && !fromList ? closeWho() : (resetForm(), showForm(
 on("person-remove", el => remove(el.dataset.id));
 on("person-phrase", el => editPhrase(el.dataset.id));
 on("who-phrase", () => editPhrase(editing));
-on("admin-set", setAdmin);

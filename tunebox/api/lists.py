@@ -1,11 +1,14 @@
-"""History, Tunebox playlists (one shared set for the whole house) and Liked songs."""
+"""History, Tunebox playlists (one shared set for the whole house) and Liked songs.
+
+Everyone sees every playlist and may add, remove and reorder its songs. Renaming or deleting one is
+for whoever made it (its owner) and the admin; a playlist with no owner is the house's."""
 import asyncio
 import secrets
 import time
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from .. import auth, data
+from .. import admin, audit, data
 from ..config import HISTORY_MAX, LIKED_ID
 from ..data import clean_track, list_summary, playlists, save_lists, sorted_lists
 from ..player import player
@@ -21,15 +24,16 @@ async def get_history(limit: int = 100):
     return data.history[:max(1, min(limit, HISTORY_MAX))]
 
 
-class AdminBody(BaseModel):
-    admin: str | None = None
-
-
-@router.delete("/api/history")
-async def clear_history(body: AdminBody | None = None):
-    await auth.need_admin(body and body.admin)
+@router.delete("/api/history", dependencies=[Depends(admin.need)])
+async def clear_history(request: Request):
     data.clear_history()
+    audit.log("history", "Cleared the history", request)
     return {"ok": True}
+
+
+def may_manage(p: dict, request: Request) -> bool:
+    """Renaming and deleting: the playlist's owner, or the admin."""
+    return bool(p.get("owner") and p["owner"] == who(request)) or admin.is_admin(request)
 
 
 def get_list(list_id: str) -> dict:
@@ -66,14 +70,14 @@ async def all_lists():
 
 
 @router.post("/api/lists")
-async def create_list(body: ListBody):
+async def create_list(body: ListBody, request: Request):
     name = (body.name or "").strip()[:80] or "New playlist"
     src = player.queue[max(player.index, 0):] if body.fromQueue else (body.tracks or [])
     async with lists_lock:
         pid = secrets.token_hex(4)
         now = int(time.time())
         playlists[pid] = {"id": pid, "name": name, "tracks": [t for t in map(clean_track, src) if t],
-                          "created": now, "updated": now}
+                          "created": now, "updated": now, "owner": who(request)}
         save_lists()
     return playlists[pid]
 
@@ -84,11 +88,14 @@ async def one_list(list_id: str):
 
 
 @router.patch("/api/lists/{list_id}")
-async def edit_list(list_id: str, body: ListBody):
+async def edit_list(list_id: str, body: ListBody, request: Request):
     async with lists_lock:
         p = get_list(list_id)
-        if body.name is not None and body.name.strip() and list_id != LIKED_ID:
-            p["name"] = body.name.strip()[:80]
+        name = (body.name or "").strip()[:80]
+        if name and name != p["name"] and list_id != LIKED_ID:
+            if not may_manage(p, request):
+                raise HTTPException(403, "Only its owner or the admin can rename it")
+            p["name"] = name
         if body.tracks is not None:
             liked_by = {t["videoId"]: t["likedBy"] for t in p["tracks"] if t.get("likedBy")}   # who liked what stays
             p["tracks"] = [{**t, "likedBy": liked_by[t["videoId"]]} if t["videoId"] in liked_by else t
@@ -160,11 +167,12 @@ async def like(body: LikeBody, request: Request):
 
 
 @router.delete("/api/lists/{list_id}")
-async def delete_list(list_id: str):
+async def delete_list(list_id: str, request: Request):
     if list_id == LIKED_ID:
         raise HTTPException(400, "Liked songs can't be deleted")
     async with lists_lock:
-        get_list(list_id)
+        if not may_manage(get_list(list_id), request):
+            raise HTTPException(403, "Only its owner or the admin can delete it")
         del playlists[list_id]
         save_lists()
         if settings["alarm"].get("list") == list_id:

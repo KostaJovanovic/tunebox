@@ -4,7 +4,8 @@ import random
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..data import clean_track
+from .. import admin, house
+from ..data import clean_track, people
 from ..player import player
 from ..settings import save_settings_soon, settings
 from ..web import BaseModel, need_who, who
@@ -13,8 +14,9 @@ router = APIRouter()
 
 
 @router.get("/api/state")
-async def state():
-    return player.state()
+async def state(request: Request):
+    # looking only: this is polled every second and must not keep an admin session alive
+    return {**player.state(), "admin": admin.is_admin(request, touch=False), "houseRev": house.rev}
 
 
 class PlayBody(BaseModel):
@@ -48,12 +50,27 @@ def nth(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
+def may_add(by: str, n: int, replacing: bool = False):
+    """The admin can stop a person adding songs, or limit how many of theirs wait at once."""
+    p = people.get(by) or {}
+    if p.get("noAdd"):
+        raise HTTPException(403, "You can't add songs right now")
+    cap = p.get("cap")
+    if cap:
+        start = player.index + 1
+        waiting = 0 if replacing else sum(1 for t in player.queue[start:player.user_end()] if t.get("by") == by)
+        if waiting + n - replacing > cap:     # replacing: the first of them plays now
+            raise HTTPException(403, f"You can have {cap} song{'s' if cap != 1 else ''} waiting" +
+                                (f", and {waiting} of yours {'is' if waiting == 1 else 'are'} already" if waiting else ""))
+
+
 @router.post("/api/play")
 async def play(body: PlayBody, request: Request):
     by = need_who(request)
     tracks = [t for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
+    may_add(by, len(tracks), body.mode == "replace")
     label = (body.label or "").strip()[:60]
     if body.mode in ("add", "next", "now"):
         pos = await player.add(tracks, by, body.mode, f'Added "{label}"' if label else "")
@@ -71,6 +88,7 @@ async def enqueue(body: QueueBody, request: Request):
     track = clean_track(body.track)
     if not track:
         raise HTTPException(400, "not a track")
+    may_add(by, 1)
     pos = await player.add([track], by, "next" if body.next else "add")
     return {"ok": True, "position": pos}
 

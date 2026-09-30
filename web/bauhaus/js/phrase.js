@@ -1,9 +1,10 @@
-/* The pass phrase pop-up: unlocking a protected name on this device, and the admin phrase (removing
-   people, clearing the history, resetting a forgotten phrase). It opens on top of whatever is open. */
+/* The pass phrase pop-up: unlocking a protected name on this device, and the admin password (the admin
+   panel, removing people, clearing the history, restoring a backup). It opens on top of whatever is open. */
 import { $, esc } from "../../shared/dom.js";
-import { errText } from "../../shared/api.js";
+import { api, errText } from "../../shared/api.js";
+import { syncAdmin } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
-import { syncScrim, onCloseAll } from "./ui.js";
+import { toast, syncScrim, onCloseAll } from "./ui.js";
 
 let done = null, check = null, empty = false, alt = null;
 
@@ -51,13 +52,35 @@ export async function longEnough(v) {
   if (n && n < 4) throw new Error("A pass phrase needs at least 4 characters");
 }
 
-/* Runs fn(admin) without the admin phrase first; if the server wants it, asks and tries again with it.
-   Resolves with fn's result, or null if the pop-up was closed. */
+/* Makes this device the admin: asks for the admin password, or for one to set when the house has none
+   yet. True once it is unlocked (it stays so until 15 minutes pass without admin work). */
+export async function unlockAdmin() {
+  let st;
+  try { st = await api("api/admin"); } catch (e) { toast(errText(e)); return false; }
+  if (st.admin) return syncAdmin(true), true;
+  if (st.lockedFor) { toast(`Too many wrong passwords. Try again in ${Math.ceil(st.lockedFor / 60)} min`); return false; }
+  let ok;
+  if (st.set) ok = await askPhrase({ title: "Admin password", hint: "This needs the house's admin password.", button: "Unlock",
+    check: password => api("api/admin/login", { password }) });
+  else {
+    const nu = await askPhrase({ title: "Choose an admin password", button: "Next", check: longEnough,
+      hint: "Nobody has set one yet. The admin manages people and the house's setup. At least 4 characters." });
+    if (nu === null) return false;
+    ok = await askPhrase({ title: "Type it again", button: "Save", check: async v => {
+      if (v !== nu) throw new Error("That's not the same");
+      await api("api/admin/login", { password: nu, create: true });
+    } });
+  }
+  if (ok === null) return false;
+  syncAdmin(true);
+  return true;
+}
+
+/* Runs fn(); if the server says it is the admin's, unlocks the admin here and runs it again.
+   Resolves with fn's result, or null if the password pop-up was closed. */
 export async function withAdmin(fn) {
-  try { return await fn(undefined); }
+  try { return await fn(); }
   catch (e) { if (errText(e) !== "admin") throw e; }
-  let result = null;
-  const got = await askPhrase({ title: "Admin pass phrase", hint: "This needs the house's admin pass phrase.",
-    check: async ph => { result = await fn(ph); } });
-  return got === null ? null : result;
+  syncAdmin(false);
+  return await unlockAdmin() ? fn() : null;
 }

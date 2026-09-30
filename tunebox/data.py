@@ -68,7 +68,7 @@ def sorted_lists():
 
 def list_summary(p: dict) -> dict:
     return {"id": p["id"], "name": p["name"], "count": len(p["tracks"]), "updated": p["updated"],
-            "thumbs": [t["thumb"] for t in p["tracks"][:4]], "liked": p["id"] == LIKED_ID}
+            "thumbs": [t["thumb"] for t in p["tracks"][:4]], "liked": p["id"] == LIKED_ID, "owner": p.get("owner", "")}
 
 
 # ---------- people: names picked per device ----------
