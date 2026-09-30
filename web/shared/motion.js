@@ -7,7 +7,8 @@
      tracker()                          how fast the pointer has been moving, px/s
      project(v)                         how far a flick at v px/s would carry
      rubberband(over, size)             the give past an edge: the further, the less it follows
-     shift(el)                          where an element is on screen right now, mid-transition or not */
+     shift(el)                          where an element is on screen right now, mid-transition or not
+     letGo(el)                          the spring is done with it */
 
 const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 /* reduced motion: things still follow the finger, but nothing travels on its own */
@@ -69,6 +70,14 @@ export const rubberband = (over, size, give = .55) => (over * size * give) / (si
 export function shift(el) {
   const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
   return { x: m.m41, y: m.m42 };
+}
+
+/* Hands an element a spring has been moving (class "dragging", inline transform) back to its stylesheet,
+   without it animating from where the spring left it */
+export function letGo(el) {
+  el.style.transition = "none"; el.classList.remove("dragging"); el.style.transform = "";
+  void el.offsetWidth;
+  el.style.transition = "";
 }
 
 /* iOS only shows :active on a page that listens for touches, and a press must show the moment it lands */

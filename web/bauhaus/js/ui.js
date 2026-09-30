@@ -7,6 +7,7 @@ import { state } from "../../shared/playback.js";
 import { isLiked } from "../../shared/likes.js";
 import { byChip, people, avatar } from "../../shared/people.js";
 import { feat } from "../../shared/house.js";
+import { spring, tracker, project, shift, letGo } from "../../shared/motion.js";
 import * as icon from "./icons.js";
 
 /* ---------- toast ---------- */
@@ -38,6 +39,67 @@ export function openDrawer(id, open) {
   if (open) $$(".drawer.open, .modal.open").forEach(d => d.id !== id && d.classList.remove("open"));
   $("#" + id).classList.toggle("open", open); syncScrim();
 }
+
+/* ---------- dragging a panel away (touch) ---------- */
+/* A panel goes back out the way it came in: a drawer to the right (axis "x"), a phone's sheet down ("y").
+   It follows the finger, and on release a flick counts as much as the distance. Past half way it presses
+   the panel's own Close button, so whatever closing it means still happens; if that leaves it open, it
+   comes back. o.when(): the drag applies now; o.from(e): this touch may start one; o.close(): instead of
+   the Close button; o.dim(): the backdrop that fades with it */
+export function dragAway(el, o) {
+  const X = o.axis === "x", when = o.when || (() => true), from = o.from || (() => true);
+  const dim = o.dim || (() => $$(".drawer.open, .modal.open").length === 1 ? $("#scrim") : null);   /* the backdrop is shared */
+  const sp = spring(v => { el.style.transform = X ? `translateX(${v}px)` : `translateY(${v}px)`; });
+  const size = () => X ? el.offsetWidth : el.offsetHeight;
+  let d = null, ended = 0;
+
+  function grab(e, at) {
+    d.on = true; d.x = e.clientX; d.y = e.clientY; d.base = at;
+    d.dim = dim(); if (d.dim) d.dim.style.transition = "none";
+    el.classList.add("dragging"); sp.jump(at);
+  }
+  el.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" || !el.classList.contains("open") || !when() || !from(e)) return;
+    d = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false, trk: tracker() };
+    const at = sp.moving ? sp.value : shift(el)[o.axis];
+    if (at > 1) grab(e, at);                   /* caught on its way: it starts from where it is */
+  });
+  addEventListener("pointermove", e => {
+    if (!d || e.pointerId !== d.id) return;
+    d.trk.add(e);
+    let along = X ? e.clientX - d.x : e.clientY - d.y;
+    const across = X ? e.clientY - d.y : e.clientX - d.x;
+    if (!d.on) {
+      if (Math.abs(across) > 10 && Math.abs(across) >= Math.abs(along)) { d = null; return; }   /* a scroll */
+      if (along < 10 || along < Math.abs(across)) return;
+      grab(e, 0); along = 0;
+    }
+    const at = Math.max(0, d.base + along);
+    sp.jump(at);
+    if (d.dim) d.dim.style.opacity = 1 - at / size();
+  });
+  function end(e, cancel) {
+    if (!d || e.pointerId !== d.id) return;
+    const g = d; d = null;
+    if (!g.on) return;
+    ended = Date.now();
+    const v = g.trk.velocity()[o.axis];
+    if (g.dim) { g.dim.style.transition = ""; g.dim.style.opacity = ""; }
+    let away = !cancel && v > -50 && sp.value + project(v) > size() / 2;
+    if (away) {
+      o.close ? o.close() : el.querySelector('.dhead [data-act$="-close"]')?.click();
+      away = !el.classList.contains("open");
+    }
+    sp.to(away ? size() : 0, { velocity: v, then: () => letGo(el) });
+  }
+  addEventListener("pointerup", e => end(e));
+  addEventListener("pointercancel", e => end(e, true));
+  /* the tap that ends a drag isn't one */
+  el.addEventListener("click", e => { if (e.isTrusted && Date.now() - ended < 300) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+
+$$(".drawer").forEach(el => dragAway(el, { axis: "x", from: e => !e.target.closest("input, select, textarea, .eqc, .grip, #queue .row") }));
+$$(".modal").forEach(el => dragAway(el, { axis: "y", when: () => innerWidth <= 760, from: e => e.target.closest(".dhead") && !e.target.closest("button, a") }));
 
 /* ---------- HTML pieces ---------- */
 /* puts a page into the main view */

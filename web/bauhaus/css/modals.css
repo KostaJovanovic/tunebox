@@ -1,9 +1,12 @@
 /* Pop-ups (add to playlist, who's listening, shortcuts) and the toast. */
 /* ---------- modal (add to playlist, shortcuts) ---------- */
 .modal { position: fixed; z-index: 30; left: 50%; top: 50%; width: min(420px, calc(100% - 32px)); max-height: min(560px, calc(100% - 64px));
-  transform: translate(-50%, -46%); opacity: 0; pointer-events: none; transition: opacity .16s var(--ease), transform .2s var(--ease);
+  transform: translate(-50%, -48%) scale(.97); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .15s var(--ease), transform var(--t-out) var(--ease-out), visibility 0s var(--t-out);
   background: var(--bg); border: 1px solid var(--line-2); display: flex; flex-direction: column; box-shadow: 0 20px 60px #0008; }
-.modal.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+.modal.open { opacity: 1; visibility: visible; transform: translate(-50%, -50%); pointer-events: auto;
+  transition: opacity .2s var(--ease), transform var(--t-in) var(--ease-out), visibility 0s; }
+.modal.dragging { transition: none; visibility: visible; }
 .modal .mbody { overflow-y: auto; }
 .pick { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; text-align: left;
   padding: 8px 12px; min-height: 60px; border-bottom: 1px solid var(--line); transition: background .12s; }
@@ -23,7 +26,7 @@ kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; 
   font: 700 12px var(--display); background: var(--s1); color: var(--text); }
 .keys span { color: var(--muted); }
 .toast { position: fixed; left: 50%; bottom: calc(var(--player-h) + 12px); transform: translate(-50%, 12px); opacity: 0; z-index: 40;
-  background: var(--text); color: var(--bg); padding: 10px 16px; font-weight: 600; transition: opacity .16s, transform .2s var(--ease); pointer-events: none;
+  background: var(--text); color: var(--bg); padding: 10px 16px; font-weight: 600; transition: opacity .2s, transform var(--t-in) var(--ease-out); pointer-events: none;
   max-width: calc(100% - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toast.open { opacity: 1; transform: translate(-50%, 0); }
 .toast.undo.open { pointer-events: auto; }

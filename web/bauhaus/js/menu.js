@@ -7,7 +7,7 @@ import { api, errText } from "../../shared/api.js";
 import { state, lists, ctl, queueSongs, undo } from "../../shared/playback.js";
 import { isLiked, toggleLike } from "../../shared/likes.js";
 import { admin, feat } from "../../shared/house.js";
-import { toast, openDrawer } from "./ui.js";
+import { toast, openDrawer, dragAway } from "./ui.js";
 import { askPlay } from "./ask.js";
 import { openItem, goTo } from "./library.js";
 import { showList, pickFor, removeFromList } from "./playlists.js";
@@ -170,18 +170,23 @@ function render(head, list) {
 }
 
 function openMenu(el, x, y) {
-  const [head, list] = menuFor(el);
-  render(phone() ? head : null, list);             /* on a desktop the menu sits on the thing itself: no header */
-  box.classList.toggle("sheet", phone());
-  box.style.left = box.style.top = "";
-  box.classList.add("open"); back.classList.add("open");
-  if (!phone()) {
-    const r = box.getBoundingClientRect(), m = 8;
-    box.style.left = Math.max(m, Math.min(x, innerWidth - r.width - m)) + "px";
-    box.style.top = Math.max(m, y + r.height > innerHeight - m ? y - r.height : y) + "px";
+  const [head, list] = menuFor(el), sheet = phone();
+  render(sheet ? head : null, list);               /* on a desktop the menu sits on the thing itself: no header */
+  box.classList.toggle("sheet", sheet);
+  box.style.left = box.style.top = box.style.transformOrigin = "";
+  /* measured while still closed (its size, not its rectangle: closed, it is scaled down), so it opens from there */
+  if (sheet) box.classList.toggle("fits", box.scrollHeight <= box.clientHeight);
+  else {
+    const w = box.offsetWidth, h = box.offsetHeight, m = 8;
+    const left = Math.max(m, Math.min(x, innerWidth - w - m)), top = Math.max(m, y + h > innerHeight - m ? y - h : y);
+    box.style.left = left + "px"; box.style.top = top + "px";
+    box.style.transformOrigin = `${x - left}px ${y - top}px`;   /* it grows out of the spot that was clicked */
   }
+  box.classList.add("open"); back.classList.add("open");
   box.querySelector("button")?.focus({ preventScroll: true });
 }
+/* the phone's sheet can be dragged back down, when it has nothing to scroll */
+dragAway(box, { axis: "y", when: () => box.matches(".sheet.fits"), close: () => closeMenu(), dim: () => back });
 
 function closeMenu() {
   box.classList.remove("open"); back.classList.remove("open");

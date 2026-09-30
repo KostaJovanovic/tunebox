@@ -1,0 +1,47 @@
+/* What a press looks like, and what changes when the device asks for less motion. Loaded last, so these win.
+   The panels' own transitions are with the panels; the springs behind the drags are in shared/motion.js. */
+
+/* ---------- a press shows the moment it lands, and lets go gently ---------- */
+/* a button that stands alone gives a little */
+:is(.btn, .qbtn, .ctrls .sq, .cctrls .sq, .acts button, .volrow button, .vol button.vp, .likers button, .sems button, .emojis button, .swatches button, .recap .x) {
+  transition: scale .25s var(--ease-out), background .15s, color .15s, border-color .15s, opacity .15s; }
+:is(.btn, .qbtn, .ctrls .sq, .cctrls .sq, .acts button, .volrow button, .vol button.vp, .likers button, .sems button, .emojis button, .swatches button, .recap .x):active {
+  scale: .95; transition-duration: .08s; }
+.play { transition: transform .25s var(--ease-out), background .2s; }
+.play:active { transition-duration: .08s; }
+
+/* one that is a cell of a bar or a grid stays put and darkens */
+:is(.nav button, .tabs button, .atabs button, .dhead button, .dtools button, .qtools button, .presets button:not(.on), .seg2 button:not(.on),
+  .chips button, .top .home, .top .me, .top .adminbadge, .back, .pick, #ctx button, .aperson):active { background: var(--s2); transition-duration: 0s; }
+
+/* rows and cards scroll under the finger: they wait a moment, so a scroll doesn't flash them */
+.row:active:not(:has(button:active, .grip:active)), .card:active { background: var(--s2); transition: background 0s .07s; }
+.card :is(img, .mosaic, .blank) { transition: scale .25s var(--ease-out); }
+.card:active > :is(img, .mosaic, .blank) { scale: .97; transition: scale .1s .07s; }
+
+/* a switch: the knob stretches towards where it is going */
+.tog i::after { transition: transform .25s var(--ease-out), width .2s var(--ease-out), background .15s; }
+.tog:active i::after { width: 20px; }
+.tog[aria-checked="true"]:active i::after { transform: translateX(16px); }
+
+/* ---------- less motion: panels fade where they are instead of travelling, a press dims instead of shrinking.
+   What shows that something is going on (the spinner, the loading bar, the recap's bars) stays. ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+  .drawer, .canvas, .ctx.sheet { transform: none; opacity: 0; transition: opacity .2s, visibility 0s .2s; }
+  .drawer.open, .canvas.open, .ctx.sheet.open { opacity: 1; transition: opacity .2s, visibility 0s; }
+  .modal { transform: translate(-50%, -50%); }
+  .ctx { transform: none; }
+  .toast { transform: translate(-50%, 0); }
+  @media (max-width: 760px) {
+    .modal { transform: none; opacity: 0; }
+    .modal.open { opacity: 1; }
+  }
+  .adminp.open, .recap.open, .recap .slide, body.vol-open .vol, .nav button.on::after, .tabs button.on::after { animation: none; }
+  .clyr p.on { transform: none; }
+  :is(.btn, .qbtn, .ctrls .sq, .cctrls .sq, .acts button, .volrow button, .vol button.vp, .likers button, .sems button, .emojis button, .swatches button, .recap .x):active {
+    scale: none; opacity: .6; }
+  .card:active > :is(img, .mosaic, .blank) { scale: none; }
+  .play:active { transform: none; opacity: .8; }
+  .tog i::after { transition: background .15s; }
+}

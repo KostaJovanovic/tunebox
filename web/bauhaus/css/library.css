@@ -29,7 +29,9 @@
 .nav button b { font: 700 11px var(--display); color: var(--faint); letter-spacing: .06em; }
 .nav button.on, .tabs button.on { color: var(--text); }
 .nav button.on b { color: var(--red); }
-.nav button.on::after, .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--red); }
+.nav button.on::after, .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--red);
+  transform-origin: left; animation: underline .3s var(--ease-out); }
+@keyframes underline { from { transform: scaleX(0); } }
 .tabs { background: var(--s1); }
 
 main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16px); }

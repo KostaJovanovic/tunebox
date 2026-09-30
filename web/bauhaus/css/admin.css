@@ -1,6 +1,7 @@
 /* The admin panel: a full screen over the page. Pop-ups (the password, a pass phrase) open on top of it. */
 .adminp { position: fixed; inset: 0; z-index: 25; display: none; flex-direction: column; background: var(--bg); }
-.adminp.open { display: flex; }
+.adminp.open { display: flex; animation: risein var(--t-in) var(--ease-out); }
+@keyframes risein { from { opacity: 0; transform: translateY(24px); } }
 body.admin-open { overflow: hidden; }
 .adminp .dhead { flex: none; }
 .adminp .dhead button.txt { width: auto; padding: 0 18px; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }

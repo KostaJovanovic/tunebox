@@ -24,6 +24,10 @@
 .erow .btn { height: 36px; padding: 0 12px; }
 .dtools button.on { color: var(--text); background: var(--s1); }
 .dtools button:disabled { opacity: .35; pointer-events: none; }
-#queue .row { transition: transform .15s var(--ease), background .12s var(--ease); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#queue .row { transition: transform .2s var(--ease-out), background .12s var(--ease), scale .2s var(--ease-out), box-shadow .2s; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #queue .row + .row { cursor: grab; }
-#queue .row.dragging { transition: none; z-index: 3; background: var(--s2); box-shadow: 0 8px 24px #0006; cursor: grabbing; }
+#queue .row.swiping { transition: none; }   /* glued to the finger, then on a spring (queue-gestures.js) */
+/* picked up: it lifts a little, and follows the pointer; put down: it travels to its place */
+#queue .row.dragging { transition: scale .2s var(--ease-out), box-shadow .2s; z-index: 3; background: var(--s2); box-shadow: 0 8px 24px #0006; scale: 1.02; cursor: grabbing; }
+#queue .row.dragging.dropping { transition: transform .2s var(--ease-out), scale .2s var(--ease-out), box-shadow .2s; box-shadow: none; scale: 1; }
+#queue .closing { transition: transform .25s var(--ease-out); }   /* what is under a removed row moves up */

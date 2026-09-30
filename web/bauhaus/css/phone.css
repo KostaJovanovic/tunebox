@@ -1,4 +1,4 @@
-/* Phones and narrow windows (and reduced motion). Loaded last, so these win. */
+/* Phones and narrow windows. Loaded after the parts, so these win (only motion.css comes later). */
 @media (max-width: 760px) {
   .volbtn { display: grid !important; }
   :root { --player-h: 72px; }
@@ -9,8 +9,7 @@
   .nav button b { display: none; }
   /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
   .player .in { grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; padding: 6px 8px 6px 6px; touch-action: none; }
-  .now { grid-column: 1; grid-row: 1; gap: 10px; transition: transform .2s var(--ease); }
-  .now.swiping { transition: none; }
+  .now { grid-column: 1; grid-row: 1; gap: 10px; transition: opacity .15s; }
   .now img { width: 48px; height: 48px; }
   .now .time > span:not(.st) { display: none; }
   .now .time { font-size: 0; }
@@ -27,7 +26,8 @@
   .vol { display: none; }
   /* the volume button opens this small bar over the player */
   body.vol-open .vol { display: grid; grid-template-columns: var(--hit) minmax(0, 1fr) var(--hit) 52px auto; position: fixed; left: 8px; right: 8px;
-    bottom: calc(var(--player-h) + env(safe-area-inset-bottom) + 8px); padding: 6px; background: var(--s1); border: 1px solid var(--line-2); color: var(--text); }
+    bottom: calc(var(--player-h) + env(safe-area-inset-bottom) + 8px); padding: 6px; background: var(--s1); border: 1px solid var(--line-2); color: var(--text);
+    transform-origin: 72% 100%; animation: volpop .22s var(--ease-out); }   /* it grows out of its button */
   body.vol-open .vol svg { display: none; }
   body.vol-open .vol .vp { display: block; }
   .vol button.vp { height: var(--hit); border: 1px solid var(--line-2); font-size: 18px; }
@@ -35,7 +35,8 @@
   .vol b.vp { font: 700 15px var(--display); text-align: right; font-variant-numeric: tabular-nums; }
   .vol b.vp small { display: block; font: 600 10px var(--display); color: var(--faint); }
   body.vol-open .vol input.vr { width: 100%; }
-  .canvas { bottom: 0 !important; z-index: 12; }
+  /* the canvas is a sheet: it comes up from the bar and goes back down into it */
+  .canvas { bottom: 0 !important; z-index: 12; opacity: 1; transform: translateY(100%); }
   .chead #cLyrToggle { display: none; }
   .cbody { display: flex; flex-direction: column; justify-content: center; padding: 0 24px calc(12px + env(safe-area-inset-bottom)); gap: 0; }
   .cmain { max-width: 480px; gap: 14px; }
@@ -52,10 +53,14 @@
   .hide-sm { display: none; }
   .hero > img, .hero > .mosaic, .hero > .blank { width: 96px; height: 96px; }
   .daygroup { top: 56px; }
-  .modal { top: auto; bottom: 0; left: 0; width: 100%; transform: translateY(24px); max-height: 80vh; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  /* a pop-up is a sheet too: up from the bottom, and its heading drags it back down (ui.js) */
+  .modal { top: auto; bottom: 0; left: 0; width: 100%; transform: translateY(100%); opacity: 1; max-height: 80vh; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .modal.open { transform: none; }
+  .modal > .dhead { position: relative; }
+  .modal > .dhead, .modal > .dhead * { touch-action: none; }
+  .modal > .dhead::before { content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 3px; margin-left: -18px; background: var(--line-2); }
   .eqplot { height: 176px; }
   .eqfoot b { font-size: 11px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@keyframes volpop { from { opacity: 0; transform: translateY(8px) scale(.96); } }
 @media (max-width: 600px) { #queue .row { min-height: 68px; } }

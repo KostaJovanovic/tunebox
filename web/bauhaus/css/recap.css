@@ -1,6 +1,7 @@
 /* ---------- the recap: full-screen story slides in the Bauhaus colours ---------- */
 .recap { position: fixed; inset: 0; z-index: 40; display: none; background: #111; color: #EDEAE3; touch-action: none; }
-.recap.open { display: block; }
+.recap.open { display: block; animation: fadein .25s var(--ease); }
+@keyframes fadein { from { opacity: 0; } }
 body.recap-open { overflow: hidden; }
 .recap .bars { position: absolute; z-index: 3; left: 12px; right: 56px; top: calc(12px + env(safe-area-inset-top)); display: flex; gap: 4px; height: 3px; padding: 0; }
 .recap .bars i { flex: 1; background: #ffffff40; overflow: hidden; }

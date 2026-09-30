@@ -9,6 +9,7 @@ import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyr
 import { people, syncPeople } from "../../shared/people.js";
 import { house, fresh, feat, syncAdmin, syncHouse, onHouse } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
+import "../../shared/motion.js";              /* for its touch listener: a press shows on iOS too */
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
@@ -117,7 +118,7 @@ onState(s => {
   $("#next").innerHTML = "<b>Up next</b>" + next.map(t => `<span>${esc(t.title)} <i>${esc(t.artist)}</i></span>`).join(""); $("#next").hidden = !next.length;
   $("#playBtn").innerHTML = s.paused || !c ? ICON_PLAY : ICON_PAUSE;
   const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
-  $("#fill").style.width = dur ? `${Math.min(100, s.position / dur * 100)}%` : "0";
+  $("#fill").style.transform = `scaleX(${dur ? Math.min(1, s.position / dur) : 0})`;
   $("#pos").textContent = fmt(s.position); $("#dur").textContent = fmt(dur);
   if (Date.now() - volTouch > 2000) $("#vol").textContent = Math.round(s.volume ?? 0);
   syncLikes(s.listsRev);

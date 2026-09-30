@@ -7,6 +7,8 @@
   --display: "Jost", "Futura", "Century Gothic", sans-serif;
   --ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --hit: 44px; --player-h: 104px; --ease: cubic-bezier(.2, 0, 0, 1);
+  /* panels: quick off the mark, then a long settle; coming in takes longer than going out (motion.css) */
+  --ease-out: cubic-bezier(.32, .72, 0, 1); --t-in: .38s; --t-out: .26s;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {

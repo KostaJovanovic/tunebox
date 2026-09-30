@@ -4,9 +4,10 @@
   padding-bottom: env(safe-area-inset-bottom); }
 .prog { position: relative; height: 16px; margin-top: -8px; cursor: pointer; }
 .prog .rail { position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--line-2); }
-.prog .fill { position: absolute; left: 0; top: 6px; height: 4px; background: var(--yellow); width: 0; transition: width .9s linear; }
-.prog.loading .fill { width: 30% !important; transition: none; animation: slide 1.1s var(--ease) infinite; }
-@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.prog .fill { position: absolute; left: 0; right: 0; top: 6px; height: 4px; background: var(--yellow); transform-origin: left; transform: scaleX(0); transition: transform .9s linear; }
+.prog.seeking .fill { transition: none; }   /* under the pointer it keeps up */
+.prog.loading .fill { transition: none; animation: slide 1.1s var(--ease) infinite; }
+@keyframes slide { from { transform: translateX(-30%) scaleX(.3); } to { transform: translateX(102%) scaleX(.3); } }
 .prog input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; margin: 0; }
 .player .in { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 4px 12px 10px; }
 .now { display: flex; gap: 12px; align-items: center; min-width: 0; text-align: left; }

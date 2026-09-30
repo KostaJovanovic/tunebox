@@ -2,7 +2,8 @@
    bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
 import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
-import { state, ctl } from "../../shared/playback.js";
+import { state, ctl, poll } from "../../shared/playback.js";
+import { spring, tracker, project, rubberband, letGo } from "../../shared/motion.js";
 import { fetchLyrics, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { store } from "../../shared/device.js";
 import { house, feat } from "../../shared/house.js";
@@ -34,50 +35,93 @@ export function paintBar(s) {
   $("#tPos").textContent = fmt(s.position); $("#tDur").textContent = fmt(dur);
   if (!seeking) {
     $("#seek").max = Math.max(1, dur); $("#seek").value = s.position;
-    $("#fill").style.width = dur ? `${Math.min(100, (s.position / dur) * 100)}%` : "0";
+    $("#fill").style.transform = `scaleX(${dur ? Math.min(1, s.position / dur) : 0})`;
   }
   countBadge($("#qCount"), upcoming(s));
   document.title = c ? `${s.paused ? "❚❚" : "▶"} ${c.title} · ${house.name}` : house.name;
 }
 
 $("#seek").addEventListener("input", () => {
-  seeking = true; $("#tPos").textContent = fmt($("#seek").value);
-  $("#fill").style.width = `${($("#seek").value / $("#seek").max) * 100}%`;
+  seeking = true; $("#prog").classList.add("seeking"); $("#tPos").textContent = fmt($("#seek").value);
+  $("#fill").style.transform = `scaleX(${$("#seek").value / $("#seek").max})`;
 });
-$("#seek").addEventListener("change", async () => { await ctl("seek", +$("#seek").value); seeking = false; });
+$("#seek").addEventListener("change", async () => { await ctl("seek", +$("#seek").value); seeking = false; $("#prog").classList.remove("seeking"); });
 
-/* the song opens the canvas; on a phone the whole bar does, a sideways swipe skips and a swipe up opens it */
+/* ---------- swipes (touch) ---------- */
+const cv = $("#canvas");
+export const canvasOpen = () => cv.classList.contains("open");
+
+/* A sideways swipe on the cover or the mini bar skips. There is nothing to pull into view, so it follows
+   the finger with some give; on release a flick counts as much as the distance. A skip sends it off the
+   way it was going, and the next song comes in from the other side. */
+function skipper(el) {
+  const sp = spring(x => { el.style.transform = x ? `translateX(${x}px)` : ""; });
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function skip(dir, v) {
+    navigator.vibrate?.(10);
+    const far = el.offsetWidth / 2, changed = ctl(dir < 0 ? "next" : "prev").then(poll);
+    el.style.opacity = 0; sp.to(dir * far, { velocity: v });
+    await Promise.all([wait(180), Promise.race([changed, wait(700)])]);
+    sp.jump(-dir * far); el.style.opacity = ""; sp.to(0);
+  }
+  return {
+    drag(dx) { sp.jump(rubberband(dx, el.offsetWidth)); },
+    /* the finger lifted, dx from where it started, at vx px/s: true if that was a skip */
+    release(dx, vx, cancel) {
+      const far = dx + project(vx, .99);
+      if (!cancel && Math.abs(far) > 70 && far * dx > 0) { skip(Math.sign(dx), vx / 2); return true; }
+      sp.to(0, { velocity: vx / 2, damping: .8 });
+      return false;
+    },
+  };
+}
+
+/* On a phone the canvas is a sheet. It follows the finger up from the mini bar and back down, and on
+   release it goes where the movement was heading, open or shut, at the speed it was let go. */
+const sheet = spring(y => { cv.style.transform = `translateY(${y}px)`; });
+function holdSheet(y) { cv.classList.add("dragging"); sheet.jump(Math.max(0, y)); }
+function dropSheet(v, cancel, was) {
+  const h = cv.offsetHeight, far = sheet.value + project(v);
+  /* a quarter of the way, or a flick, is enough to change it; otherwise it goes back to what it was */
+  const open = cancel ? was : was ? !(v > -100 && far > h / 4) : v < 100 && far < h * 3 / 4;
+  if (open !== canvasOpen()) toggleCanvas(open);
+  sheet.to(open ? 0 : h, { velocity: v, then: () => letGo(cv) });
+}
+
+/* the song opens the canvas; on a phone the whole bar does, a sideways swipe skips and a swipe up pulls it open */
 let barSwipe = null, barSwiped = 0;
-const bar = $(".player .in"), now = $(".player .now");
+const bar = $(".player .in"), now = $(".player .now"), nowSkip = skipper(now);
 bar.addEventListener("click", e => {
   if (Date.now() - barSwiped < 400 || e.target.closest(".artlink")) return;
   if (e.target.closest(".now") || (phone() && !e.target.closest("button, input, .vol"))) toggleCanvas(phone() ? true : undefined);
 });
 bar.addEventListener("pointerdown", e => {
   if (!phone() || e.button > 0 || (e.target.closest("button, input, .vol") && !e.target.closest(".now"))) return;
-  barSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, dy: 0 };
+  barSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, dy: 0, way: "", trk: tracker() };
 });
 addEventListener("pointermove", e => {
   if (!barSwipe || e.pointerId !== barSwipe.id) return;
-  barSwipe.dx = e.clientX - barSwipe.x; barSwipe.dy = e.clientY - barSwipe.y;
-  if (Math.abs(barSwipe.dx) > 8 && Math.abs(barSwipe.dx) > Math.abs(barSwipe.dy)) {
-    now.classList.add("swiping"); now.style.transform = `translateX(${barSwipe.dx * .6}px)`;
+  const b = barSwipe;
+  b.trk.add(e); b.dx = e.clientX - b.x; b.dy = e.clientY - b.y;
+  if (!b.way) {                                /* which way it goes is settled once, after the first few pixels */
+    if (Math.hypot(b.dx, b.dy) < 10) return;
+    b.way = Math.abs(b.dx) > Math.abs(b.dy) ? "side" : b.dy < 0 ? "up" : "none";
+    if (b.way === "up") { placeCanvas(); paintCanvas(true); }
   }
+  if (b.way === "side") nowSkip.drag(b.dx);
+  else if (b.way === "up") holdSheet(cv.offsetHeight + b.dy);
 });
 function endBarSwipe(e, cancel) {
   if (!barSwipe || e.pointerId !== barSwipe.id) return;
-  const { dx, dy } = barSwipe; barSwipe = null;
-  now.classList.remove("swiping"); now.style.transform = "";
-  if (cancel) return;
-  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy)) { barSwiped = Date.now(); if (navigator.vibrate) navigator.vibrate(10); ctl(dx < 0 ? "next" : "prev"); }
-  else if (dy < -40 && Math.abs(dy) > Math.abs(dx)) { barSwiped = Date.now(); toggleCanvas(true); }
+  const b = barSwipe, v = b.trk.velocity(); barSwipe = null;
+  if (b.way) barSwiped = Date.now();
+  if (b.way === "side") nowSkip.release(b.dx, v.x, cancel);
+  else if (b.way === "up") dropSheet(v.y, cancel, false);
 }
 addEventListener("pointerup", e => endBarSwipe(e));
 addEventListener("pointercancel", e => endBarSwipe(e, true));
 
 /* ---------- the canvas ---------- */
-const cv = $("#canvas");
-export const canvasOpen = () => cv.classList.contains("open");
 
 /* on a desktop it sits above the bar */
 function placeCanvas() { cv.style.bottom = phone() ? "" : $(".player").offsetHeight + "px"; }
@@ -104,7 +148,7 @@ export const canvasLyrics = () => canvasOpen() && !phone();
 export function syncLyrBtn() { $("#lyrBtn").classList.toggle("on", canvasLyrics() ? lyrOn : $("#lyrics").classList.contains("open")); }
 
 export function paintCanvas(force) {
-  if (!canvasOpen()) return;
+  if (!canvasOpen() && !force) return;         /* forced while still shut: it is being pulled open */
   const s = state, c = s.current;
   if ((c?.thumb || "") !== $("#cImg").dataset.src) {
     $("#cImg").dataset.src = c?.thumb || "";
@@ -152,30 +196,26 @@ $("#cVol").addEventListener("input", () => setVol(+$("#cVol").value));
 
 /* touch: a swipe down closes it; a swipe sideways on the cover skips (left: next, right: previous) */
 let cDrag = null, artSwiped = 0;
-const art = $("#cImg");
+const art = $("#cImg"), artSkip = skipper(art);
 cv.addEventListener("pointerdown", e => {
   if (e.pointerType === "mouse" || e.target.closest("input, .clyr")) return;
-  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dy: 0, dx: 0, on: false, side: false, art: e.target === art };
+  cDrag = { y: e.clientY, x: e.clientX, id: e.pointerId, dx: 0, base: 0, on: false, side: false, art: e.target === art, was: canvasOpen(), trk: tracker() };
+  if (sheet.moving) { cDrag.on = true; cDrag.base = sheet.value; holdSheet(sheet.value); }   /* caught on its way: it goes on from where it is */
 });
 addEventListener("pointermove", e => {
   if (!cDrag || e.pointerId !== cDrag.id) return;
   const dy = e.clientY - cDrag.y, dx = e.clientX - cDrag.x;
-  if (!cDrag.on && !cDrag.side && cDrag.art && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { cDrag.side = true; art.classList.add("swiping"); }
-  if (cDrag.side) { cDrag.dx = dx; art.style.transform = `translateX(${dx * .6}px)`; return; }
-  if (!cDrag.on && dy > 10 && dy > Math.abs(dx)) { cDrag.on = true; cv.classList.add("dragging"); }
-  if (cDrag.on) { cDrag.dy = Math.max(0, dy); cv.style.transform = `translateY(${cDrag.dy}px)`; }
+  cDrag.trk.add(e);
+  if (!cDrag.on && !cDrag.side && cDrag.art && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) cDrag.side = true;
+  if (cDrag.side) { cDrag.dx = dx; artSkip.drag(dx); return; }
+  if (!cDrag.on && dy > 10 && dy > Math.abs(dx)) { cDrag.on = true; cDrag.y = e.clientY; holdSheet(0); return; }
+  if (cDrag.on) holdSheet(cDrag.base + dy);
 });
 function endCanvasDrag(e, cancel) {
   if (!cDrag || e.pointerId !== cDrag.id) return;
-  const d = cDrag; cDrag = null;
-  if (d.side) {
-    art.classList.remove("swiping"); art.style.transform = ""; artSwiped = Date.now();
-    if (!cancel && Math.abs(d.dx) > 70) { if (navigator.vibrate) navigator.vibrate(10); ctl(d.dx < 0 ? "next" : "prev"); }
-    return;
-  }
-  if (!d.on) return;
-  cv.classList.remove("dragging"); cv.style.transform = "";
-  if (d.dy > 110) toggleCanvas(false);
+  const d = cDrag, v = d.trk.velocity(); cDrag = null;
+  if (d.side) { artSwiped = Date.now(); artSkip.release(d.dx, v.x, cancel); return; }
+  if (d.on) dropSheet(v.y, cancel, d.was);
 }
 addEventListener("pointerup", e => endCanvasDrag(e));
 addEventListener("pointercancel", e => endCanvasDrag(e, true));

@@ -4,12 +4,18 @@
    setupQueueGestures(listEl, { remove(i), promote(i), move(from, to), redraw() })
      i, from and to are row positions in the list (0 = playing now).
    queueBusy() is true while a finger or mouse is down on the list: the page must not redraw it then,
-   or the row or button being pressed is swapped out and the tap gets lost. */
+   or the row or button being pressed is swapped out and the tap gets lost.
+
+   A swiped row is glued to the finger and let go on a spring at the finger's speed, so a flick counts
+   as much as the distance. A removed row keeps going and what is under it closes up; a dropped row
+   travels to its place. Both happen before the list is redrawn, so nothing jumps. */
+import { spring, tracker, project } from "./motion.js";
 
 const SWIPE = 90;                              /* px sideways that count as a swipe */
-let drag = null, dragEnd = 0, pressed = false;
+const DROP = 200;                              /* ms a dropped row takes to reach its place (queue.css) */
+let drag = null, dragEnd = 0, pressed = false, dropping = false;
 
-export const queueBusy = () => !!drag || pressed;
+export const queueBusy = () => !!drag || pressed || dropping;
 
 export function setupQueueGestures(list, on) {
   list.addEventListener("pointerdown", () => pressed = true, true);
@@ -22,7 +28,7 @@ export function setupQueueGestures(list, on) {
     if (!row || e.target.closest("button") || e.button > 0) return;
     const rows = [...list.querySelectorAll(".row")], i = rows.indexOf(row);
     if (i < 1) return;                         /* the playing song stays on top */
-    drag = { row, rows, i, to: i, x0: e.clientX, y0: e.clientY, dx: 0, id: e.pointerId, on: false, swipe: false, touch: e.pointerType !== "mouse" };
+    drag = { row, rows, i, to: i, x0: e.clientX, y0: e.clientY, dx: 0, id: e.pointerId, on: false, swipe: false, touch: e.pointerType !== "mouse", trk: tracker() };
     if (e.target.closest(".grip")) { e.preventDefault(); startDrag(); }
     else if (drag.touch) drag.hold = setTimeout(startDrag, 300);
   });
@@ -30,9 +36,10 @@ export function setupQueueGestures(list, on) {
   addEventListener("pointermove", e => {
     if (!drag || e.pointerId !== drag.id) return;
     const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    drag.trk.add(e);
     if (!drag.on) {
       if (drag.touch) {
-        if (!drag.swipe && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) { drag.swipe = true; clearTimeout(drag.hold); }
+        if (!drag.swipe && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) { drag.swipe = true; clearTimeout(drag.hold); drag.row.classList.add("swiping"); }
         if (drag.swipe) {
           drag.dx = dx; drag.row.style.transform = `translateX(${dx}px)`;
           drag.row.dataset.swipe = dx < 0 ? (dx < -SWIPE ? "remove" : "left") : (dx > SWIPE ? "next" : "right");
@@ -62,17 +69,39 @@ export function setupQueueGestures(list, on) {
     const d = drag; drag = null;
     if (d.swipe) {
       dragEnd = Date.now();
-      d.row.style.transform = ""; delete d.row.dataset.swipe;
-      if (cancel || Math.abs(d.dx) < SWIPE) return;
+      const row = d.row, v = d.trk.velocity().x, far = d.dx + project(v, .99);
+      const sp = spring(x => { row.style.transform = x ? `translateX(${x}px)` : ""; });
+      const home = () => { delete row.dataset.swipe; sp.to(0, { velocity: v, damping: .8, then: () => row.classList.remove("swiping") }); };
+      sp.jump(d.dx);
+      if (cancel || Math.abs(far) < SWIPE || far * d.dx < 0) return home();
       if (navigator.vibrate) navigator.vibrate(10);
-      return d.dx < 0 ? on.remove(d.i) : on.promote(d.i);
+      if (d.dx > 0) { home(); return on.promote(d.i); }
+      /* removed: it keeps going, and the rest closes up. The redraw that follows finds everything in place;
+         if none comes (the server said no), it all goes back */
+      const under = [];
+      for (let el = row.nextElementSibling; el; el = el.nextElementSibling) under.push(el);
+      row.dataset.swipe = "remove";
+      sp.to(-row.offsetWidth, { velocity: v });
+      under.forEach(el => { el.classList.add("closing"); el.style.transform = `translateY(${-row.offsetHeight}px)`; });
+      setTimeout(() => {
+        if (!row.isConnected) return;
+        under.forEach(el => { el.style.transform = ""; el.classList.remove("closing"); });
+        home();
+      }, 900);
+      return on.remove(d.i);
     }
     if (!d.on) return;
     dragEnd = Date.now();
-    d.row.classList.remove("dragging");
-    d.rows.forEach(r => r.style.transform = "");
-    if (cancel || d.to === d.i) return on.redraw();
-    on.move(d.i, d.to);
+    const to = cancel ? d.i : d.to;
+    dropping = true;
+    d.row.classList.add("dropping");
+    d.rows.forEach((r, k) => { if (k === d.i) r.style.transform = `translateY(${d.mids[to] - d.mids[d.i]}px)`; else if (cancel) r.style.transform = ""; });
+    setTimeout(() => {
+      dropping = false;
+      d.row.classList.remove("dragging", "dropping");
+      d.rows.forEach(r => r.style.transform = "");
+      if (to === d.i) on.redraw(); else on.move(d.i, to);
+    }, DROP);
   }
   addEventListener("pointerup", e => endDrag(e));
   addEventListener("pointercancel", e => endDrag(e, true));
