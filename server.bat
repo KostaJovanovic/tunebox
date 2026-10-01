@@ -3,7 +3,8 @@ setlocal
 cd /d "%~dp0"
 
 rem Runs Tunebox on this PC the way ele serves it (under /music/), for working on it.
-rem dev\emulate.py has the details. Opens the browser when it is up.
+rem dev\emulate.py has the details. Opens the browser when it is up. A Tunebox
+rem dev server already on the port (an old window) is stopped first.
 rem
 rem   server.bat                http://localhost:8000/music/, through this PC's speakers
 rem   server.bat --silent       without sound (fake player)

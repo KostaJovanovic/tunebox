@@ -15,14 +15,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Jost:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="web/shared/wallpaper.css">
 <link rel="stylesheet" href="web/wall/css/wall.css">
+<script src="web/shared/qrcode.js"></script>
 <script type="module" src="web/wall/js/wall.js"></script>
 </head>
 <body class="idle">
-<div class="bg" id="bg"></div>
+<div class="wp" id="wp" aria-hidden="true"></div>
+<div class="grain" id="grain" aria-hidden="true"></div>
 <div class="stage nolyrics" id="stage">
   <div class="left">
-    <img class="cover" id="cover" alt="">
+    <div class="art" id="art"><img class="cover" id="cover" alt=""><i class="hint" id="hint"></i></div>
     <div><h1 class="title" id="title"></h1><div class="artist" id="artist"></div><div class="by" id="by" hidden></div></div>
     <div class="prog"><i id="fill"></i></div>
     <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
@@ -40,10 +43,22 @@
   <div class="lyr" id="lyr" hidden><div class="in" id="lyrIn"></div></div>
 </div>
 <div class="clock" id="clock"><b id="time">--:--</b><span id="date"></span><small id="idleNote"></small></div>
+<div class="join" id="join" hidden><div class="qr" id="qr"></div><span>Scan to add songs</span></div>
 <div class="dim"></div>
+<!-- top right, icons only: add songs, lyrics on or off, full screen, and leave (4 presses, so a passing hand doesn't) -->
 <div class="corner">
-  <a href="./" aria-label="Open Tunebox" title="Open Tunebox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 12h10M4 18h10"/></svg></a>
-  <button data-act="fullscreen" aria-label="Full screen" title="Full screen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button class="find-btn" data-act="find-open" aria-label="Add songs" title="Add songs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button>
+  <button class="lyr-btn" id="lyrBtn" data-act="lyrics-toggle" aria-label="Lyrics" title="Lyrics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 11h8M4 16h6"/><circle cx="16.5" cy="17.5" r="2.5"/><path d="M19 17.5V8l2.5-1"/><path class="off" d="M3 3l18 18"/></svg></button>
+  <button data-act="fullscreen" id="fsBtn" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="fs-in" d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7M3 9V3h6M3 3l7 7M21 15v6h-6M21 21l-7-7"/><path class="fs-out" d="M14 4v6h6M14 10l7-7M10 20v-6H4M10 14l-7 7M4 10h6V4M10 10 3 3M20 14h-6v6M14 14l7 7"/></svg></button>
+  <button class="exit" id="exitBtn" data-act="exit" aria-label="Leave the wall (press 4 times)" title="Leave the wall (press 4 times)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg><b></b></button>
+</div>
+<div class="find" id="find" hidden role="dialog" aria-label="Add songs">
+  <div class="fhead">
+    <label class="fbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="fq" type="search" placeholder="Search for a song" autocomplete="off" enterkeyhint="search"></label>
+    <button class="fx" data-act="find-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="fwho"><div class="fwhom" id="fwho"></div><div class="fjoin" id="fjoin" hidden><span>Or add from your phone</span><div class="qr" id="fqr"></div></div></div>
+  <div class="fres" id="fres"></div>
 </div>
 <div class="msg" id="msg"></div>
 </body>

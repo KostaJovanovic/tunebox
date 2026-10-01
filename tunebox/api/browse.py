@@ -3,12 +3,12 @@ pasted links, and the house's own "For you" shelves."""
 import asyncio
 import random
 import re
-import time
 import urllib.parse
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, data, house, local, youtube
+from .. import admin, blocklist, data, house, local, youtube
+from .stats import on_this_day
 from ..config import LIKED_ID, STATS_DAYS
 from ..web import feature
 from ..youtube import album_card, cached, radio_for, thumb_of, track_from, yt_get
@@ -209,27 +209,34 @@ async def mood(params: str):
 # ---------- for you: shelves from what the house plays and likes ----------
 @router.get("/api/forme", dependencies=[feature("browse")])
 async def for_me(request: Request):
-    now = time.time()
-    counts = []
-    for vid, s in data.stats.items():
-        recent = [t for t in s["plays"] if now - t < STATS_DAYS * 86400]
-        if recent:
-            counts.append((len(recent), max(recent), s["track"]))
-    counts.sort(key=lambda c: (-c[0], -c[1]))
-    most = [c[2] for c in counts[:24]]
+    most = [t for _, t in data.most_played(24)]
     likes = [{**{k: t.get(k, "") for k in data.TRACK_KEYS}, "likedBy": t.get("likedBy") or []}
              for t in data.playlists[LIKED_ID]["tracks"]]
     random.shuffle(likes)
     shelves = []
     if most:
         shelves.append({"key": "most", "title": "Most played", "subtitle": f"The house, last {STATS_DAYS} days", "items": most})
+    if house.on("stats") or admin.is_admin(request, touch=False):
+        day = await asyncio.to_thread(on_this_day)
+        if day:
+            day["items"] = [t for t in day["items"] if not blocklist.blocked(t)]
+            shelves.append(day)
     if likes and (house.on("likes") or admin.is_admin(request, touch=False)):
         shelves.append({"key": "likedmix", "title": "Liked mix", "subtitle": "Everyone's likes, shuffled", "items": likes[:30]})
-    seeds = [c[2]["videoId"] for c in counts[:5]] or [t["videoId"] for t in likes[:5]]
-    if seeds:
-        seed = random.choice(seeds)
-        mix = await cached("housemix:" + seed, lambda: radio_for(seed, 40))
-        if mix:
-            shelves.append({"key": "housemix", "title": "House mix", "subtitle": "New songs like the ones you play", "items": mix[:30]})
+    seeds = [t["videoId"] for t in most[:5]] or [t["videoId"] for t in likes[:5]]
+    seed = random.choice(seeds) if seeds else None
+    # Recommended: YouTube Music's radio of a song played lately (not the House mix's seed), less what the
+    # house already plays a lot, so there is always a row of songs to discover even when YouTube's own
+    # home (not signed in) has only playlists and albums
+    recent = [h for h in data.history[:15] if h.get("videoId") and h["videoId"] != seed and not local.is_local(h["videoId"])]
+    pick = random.choice(recent) if recent else None
+    mix, recs = await asyncio.gather(cached("housemix:" + seed, lambda: radio_for(seed, 40)) if seed else asyncio.sleep(0, []),
+                                     cached("recs:" + pick["videoId"], lambda: radio_for(pick["videoId"], 40)) if pick else asyncio.sleep(0, []))
+    if mix:
+        shelves.append({"key": "housemix", "title": "House mix", "subtitle": "New songs like the ones you play", "items": mix[:30]})
+    known = {t["videoId"] for t in most} | {t["videoId"] for t in (mix or [])[:30]}
+    recs = [t for t in recs or [] if t["videoId"] not in known]
+    if len(recs) >= 5:
+        shelves.append({"key": "recs", "title": "Recommended", "subtitle": f'Because you played {pick["title"]}', "items": recs[:30]})
     return shelves
 

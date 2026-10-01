@@ -44,7 +44,8 @@ class HouseBody(BaseModel):
     signups: str | None = None
     groups: dict | None = None                # one, many, required, create
     newPerson: dict | None = None             # groups: [ids]
-    wall: dict | None = None                  # lyrics, queue, who, clock, controls
+    wall: dict | None = None                  # lyrics, queue, who, clock, controls, qr (true/false), night ("23:00-07:00" or "")
+    quiet: dict | None = None                 # hours ("22:00-08:00" or ""), max (0-100)
 
 
 def word(v, fallback: str) -> str:
@@ -93,8 +94,22 @@ async def set_house(body: HouseBody, request: Request):
         h["newPerson"]["groups"] = [s for s in body.newPerson.get("groups") or [] if s in data.seminars][:12]
         what.append("a new person's groups")
     if body.wall is not None:
-        h["wall"].update({k: bool(v) for k, v in body.wall.items() if k in h["wall"]})
+        night = body.wall.pop("night", None)
+        if night is not None:
+            if night and not house.HOURS.fullmatch(str(night)):
+                raise HTTPException(400, "Night hours look like 23:00-07:00")
+            h["wall"]["night"] = str(night)
+        h["wall"].update({k: bool(v) for k, v in body.wall.items() if k in h["wall"] and k != "night"})
         what.append("the wall screen")
+    if body.quiet is not None:
+        q, hours = h["quiet"], body.quiet.get("hours")
+        if hours is not None:
+            if hours and not house.HOURS.fullmatch(str(hours)):
+                raise HTTPException(400, "Quiet hours look like 22:00-08:00")
+            q["hours"] = str(hours)
+        if body.quiet.get("max") is not None:
+            q["max"] = max(0, min(100, int(body.quiet["max"])))
+        what.append(f'quiet hours {q["hours"]} at most {q["max"]}' if q["hours"] else "no quiet hours")
     return saved(request, "house", "House: " + ", ".join(what or ["nothing"]))
 
 
@@ -133,7 +148,7 @@ async def export_setup():
     """The house's setup as a file, to load into another Tunebox."""
     h = house.house
     setup = {"tunebox_setup": 1, "name": h["name"], "accent": h["accent"], "features": h["features"],
-             "groups": h["groups"], "wall": h["wall"], "signups": h["signups"]}
+             "groups": h["groups"], "wall": h["wall"], "signups": h["signups"], "quiet": h["quiet"]}
     return Response(json.dumps(setup, indent=1), media_type="application/json",
                     headers={"Content-Disposition": 'attachment; filename="tunebox-setup.json"'})
 
@@ -143,11 +158,11 @@ async def import_setup(body: SetupBody, request: Request):
     s = body.setup
     if s.get("tunebox_setup") != 1:
         raise HTTPException(400, "That isn't a Tunebox setup file")
-    new = house.merged({k: s[k] for k in ("name", "accent", "features", "groups", "wall", "signups") if k in s})
+    new = house.merged({k: s[k] for k in ("name", "accent", "features", "groups", "wall", "signups", "quiet") if k in s})
     new["features"] = {k: bool(new["features"].get(k, True)) for k in house.FEATURES}
     if new["accent"] not in house.ACCENTS or new["signups"] not in ("open", "closed"):
         raise HTTPException(400, "That setup file has a value this Tunebox doesn't know")
-    for k in ("name", "accent", "features", "groups", "wall", "signups"):
+    for k in ("name", "accent", "features", "groups", "wall", "signups", "quiet"):
         house.house[k] = new[k]
     return saved(request, "features", "Loaded a setup file")
 
@@ -226,7 +241,8 @@ class BlockBody(BaseModel):
 async def get_blocks():
     b = blocklist.blocks
     return {"songs": [{"id": k, **v} for k, v in sorted(b["songs"].items(), key=lambda kv: -kv[1].get("at", 0))],
-            "artists": [{"key": k, **v} for k, v in sorted(b["artists"].items(), key=lambda kv: -kv[1].get("at", 0))]}
+            "artists": [{"key": k, **v} for k, v in sorted(b["artists"].items(), key=lambda kv: -kv[1].get("at", 0))],
+            "radio": [{"id": k, **v} for k, v in sorted(b["radio"].items(), key=lambda kv: -kv[1].get("at", 0))]}
 
 
 @router.post("/api/admin/blocks", dependencies=ADMIN)

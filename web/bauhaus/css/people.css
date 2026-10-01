@@ -28,6 +28,8 @@
   font: 700 10px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; font-style: normal; vertical-align: 1px; }
 .sem.sm { padding: 1px 3px; font-size: 8px; margin-right: 5px; }
 .sem.dark { color: #111; }
+/* who added a song, beside their icon (byChip) */
+.byname { font-weight: 600; color: var(--text); }
 .whoform .lbl { width: 100%; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .whoform .lbl span { text-transform: none; letter-spacing: 0; font-weight: 500; }
 .sems { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }

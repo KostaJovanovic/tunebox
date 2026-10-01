@@ -121,12 +121,12 @@ async def radio_for(vid: str, limit: int = 30) -> list[dict]:
         except Exception:
             match = None
         items = [match] + await radio_for(match["videoId"], limit) if match else []
-        return [t for t in items or local.shuffled(vid, limit) if not blocklist.blocked(t)]
+        return [t for t in items or local.shuffled(vid, limit) if blocklist.for_radio(t)]
     try:
         radio = await asyncio.to_thread(yt.get_watch_playlist, vid, radio=True, limit=limit)
     except Exception:
         return []
-    return [t for t in map(track_from, radio.get("tracks", [])) if t and t["videoId"] != vid and not blocklist.blocked(t)]
+    return [t for t in map(track_from, radio.get("tracks", [])) if t and t["videoId"] != vid and blocklist.for_radio(t)]
 
 
 class Resolver:

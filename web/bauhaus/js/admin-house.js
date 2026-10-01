@@ -93,7 +93,7 @@ export async function showHouse(target) {
   const [s, gs, bl] = await Promise.all([call("api/admin/house"), api("api/seminars"), call("api/admin/blocks")]);
   if (s === null || bl === null || !here("house")) return;
   setup = s; groups = gs; blocks = bl;
-  const h = house, g = G(), zones = Intl.supportedValuesOf?.("timeZone") || [];
+  const h = house, q = house.quiet || { hours: "", max: 30 }, g = G(), zones = Intl.supportedValuesOf?.("timeZone") || [];
   if (h.tz && !zones.includes(h.tz)) zones.unshift(h.tz);
   const accent = (k, name, c) => `<button class="acc${k ? "" : " all"}${h.accent === k ? " on" : ""}" data-act="adm-accent" data-k="${k}">${c ? `<i class="sw" style="background:${c}"></i>` : ""}${name}</button>`;
   const inGroup = id => Object.values(people).filter(p => p.seminars?.includes(id)).length;
@@ -107,8 +107,8 @@ export async function showHouse(target) {
       <div class="swatches">${COLORS.map(c => `<button type="button" class="${c === x.color ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="adm-group-color" data-c="${c}"></button>`).join("")}</div>
       ${optrow("adm-group-start", x.id, starts, "New people start here", "Someone who adds their name without picking one gets this one.")}</form>`;
   };
-  const blocked = (kind, key, title, sub) => `<div class="arow"><div class="min0"><div class="t">${esc(title)}</div><div class="s">${esc(sub)}</div></div>
-    <div class="acts"><button data-act="adm-unblock" data-kind="${kind}" data-key="${esc(key)}" data-name="${esc(title)}">Unblock</button></div></div>`;
+  const blocked = (kind, key, title, sub, label = "Unblock") => `<div class="arow"><div class="min0"><div class="t">${esc(title)}</div><div class="s">${esc(sub)}</div></div>
+    <div class="acts"><button data-act="adm-unblock" data-kind="${kind}" data-key="${esc(key)}" data-name="${esc(title)}">${label}</button></div></div>`;
 
   el.innerHTML = `<div class="sec"><h2>Name and look</h2></div>
     <div class="body">
@@ -138,6 +138,15 @@ export async function showHouse(target) {
       <form class="aform" id="admNewGroup"><input class="field" placeholder="A new one's name" maxlength="24" autocomplete="off"><button class="btn">Add</button></form>
     </div>
 
+    <div class="sec"><h2>Quiet hours</h2><span class="aside">${q.hours ? esc(q.hours.replace("-", " to ")) : "off"}</span></div>
+    <div class="body"><p>In these hours, by the house's clock, nobody can turn the volume above the limit, and a louder volume comes down to it when they begin. The admin isn't held to it.</p>
+      <form class="aform" id="admQuiet">
+        <input class="field" type="time" id="admQuietFrom" value="${esc(q.hours.split("-")[0] || "22:00")}" aria-label="From">
+        <input class="field" type="time" id="admQuietTo" value="${esc(q.hours.split("-")[1] || "08:00")}" aria-label="To">
+        <input class="field" type="number" id="admQuietMax" min="0" max="100" value="${q.max}" aria-label="Most volume" title="Most volume">
+        <button class="btn">Save</button>${q.hours ? '<button class="btn ghost" type="button" data-act="adm-quiet-off">Off</button>' : ""}</form>
+    </div>
+
     <div class="sec"><h2>Wall screen</h2></div>
     <div class="body">
       ${optrow("adm-wall", "lyrics", h.wall.lyrics, "Lyrics", "Beside the cover, line by line.")}
@@ -145,6 +154,11 @@ export async function showHouse(target) {
       ${optrow("adm-wall", "who", h.wall.who, "Who added it", "The name of whoever added the song.")}
       ${optrow("adm-wall", "clock", h.wall.clock, "Clock", "The time and date while nothing plays.")}
       ${optrow("adm-wall", "controls", h.wall.controls, "Buttons", "Off: the wall only shows; nobody skips or changes the volume on it.")}
+      ${optrow("adm-wall", "qr", h.wall.qr ?? true, "Join code", "A QR code in the corner: a phone scans it to open Tunebox, no address to type.")}
+      <form class="aform" id="admNight"><label for="admNightFrom">Night: the wall dims to the clock and the song${h.wall.night ? ` (now ${esc(h.wall.night.replace("-", " to "))})` : " (off)"}</label>
+        <input class="field" type="time" id="admNightFrom" value="${esc(h.wall.night.split("-")[0] || "23:00")}" aria-label="From">
+        <input class="field" type="time" id="admNightTo" value="${esc(h.wall.night.split("-")[1] || "07:00")}" aria-label="To">
+        <button class="btn">Save</button>${h.wall.night ? '<button class="btn ghost" type="button" data-act="adm-night-off">Off</button>' : ""}</form>
     </div>
 
     <div class="sec"><h2>Blocked</h2><span class="aside">${blocks.songs.length + blocks.artists.length}</span></div>
@@ -152,11 +166,26 @@ export async function showHouse(target) {
       <form class="aform" id="admBlock"><input class="field" placeholder="An artist's name" maxlength="100" autocomplete="off"><button class="btn">Block</button></form>
       ${blocks.artists.map(a => blocked("artists", a.key, a.name, "Artist · blocked " + day(a.at))).join("")}
       ${blocks.songs.map(t => blocked("songs", t.id, t.title, `${t.artist} · blocked ${day(t.at)}`)).join("")}
+    </div>
+
+    <div class="sec"><h2>Not for the radio</h2><span class="aside">${(blocks.radio || []).length}</span></div>
+    <div class="body"><p>Anyone can leave a song out of the radio from its menu. It can still be added by hand; only the radio stops picking it.</p>
+      ${(blocks.radio || []).map(t => blocked("radio", t.id, t.title, `${t.artist} · ${day(t.at)}${people[t.by] ? " · " + people[t.by].name : ""}`, "Back on the radio")).join("") || "<p>None.</p>"}
     </div>`;
 
   const submit = (id, fn) => $(id)?.addEventListener("submit", e => { e.preventDefault(); fn($(id + " input").value.trim()); });
   submit("#admHouse", name => name && save(() => call("api/admin/house", { name }, "PATCH"), "Saved"));
   submit("#admNet", network => save(() => call("api/admin/house", { network }, "PATCH"), network ? `Network: ${network}` : "Network: detected"));
+  $("#admQuiet")?.addEventListener("submit", e => {
+    e.preventDefault();
+    const hours = `${$("#admQuietFrom").value}-${$("#admQuietTo").value}`, max = +$("#admQuietMax").value;
+    save(() => call("api/admin/house", { quiet: { hours, max } }, "PATCH"), `Quiet hours: ${hours.replace("-", " to ")}, at most ${max}`);
+  });
+  $("#admNight")?.addEventListener("submit", e => {
+    e.preventDefault();
+    const night = `${$("#admNightFrom").value}-${$("#admNightTo").value}`;
+    save(() => call("api/admin/house", { wall: { night } }, "PATCH"), `Night: ${night.replace("-", " to ")}`);
+  });
   submit("#admWords", () => save(() => call("api/admin/house", { groups: { one: $("#admOne").value, many: $("#admMany").value } }, "PATCH"), "Saved"));
   submit("#admNewGroup", name => name && save(() => call("api/admin/groups", { name }), `Added ${name}`));
   submit("#admGroup", name => name && save(() => call(`api/admin/groups/${editing}`, { name }, "PATCH"), "Renamed"));
@@ -187,6 +216,8 @@ on("adm-house", b => {
   save(() => call("api/admin/house", k === "signups" ? { signups: v ? "open" : "closed" } : { groups: k === "create" ? { create: v ? "open" : "admin" } : { required: v } }, "PATCH"));
 });
 on("adm-wall", b => save(() => call("api/admin/house", { wall: { [b.dataset.k]: flip(b) } }, "PATCH")));
+on("adm-quiet-off", () => save(() => call("api/admin/house", { quiet: { hours: "" } }, "PATCH"), "Quiet hours off"));
+on("adm-night-off", () => save(() => call("api/admin/house", { wall: { night: "" } }, "PATCH"), "Night off"));
 on("adm-group-edit", b => { editing = editing === b.dataset.id ? null : b.dataset.id; showHouse(el); });
 on("adm-group-color", b => save(() => call(`api/admin/groups/${editing}`, { color: b.dataset.c }, "PATCH")));
 on("adm-group-start", b => {
@@ -197,4 +228,4 @@ on("adm-group-del", b => {
   const x = groups.find(s => s.id === b.dataset.id);
   if (confirm(`Remove ${x.name}? Its people stay, without it.`)) save(() => call(`api/admin/groups/${x.id}`, undefined, "DELETE"), `Removed ${x.name}`);
 });
-on("adm-unblock", b => save(() => call(`api/admin/blocks/${b.dataset.kind}/${encodeURIComponent(b.dataset.key)}`, undefined, "DELETE"), `Unblocked ${b.dataset.name}`));
+on("adm-unblock", b => save(() => call(`api/admin/blocks/${b.dataset.kind}/${encodeURIComponent(b.dataset.key)}`, undefined, "DELETE"), b.dataset.kind === "radio" ? `Back on the radio: ${b.dataset.name}` : `Unblocked ${b.dataset.name}`));

@@ -5,6 +5,7 @@
 .qhead h3 { margin: 0; font: 700 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qhead span { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .qtools { margin-left: auto; display: flex; flex: none; }
+.qtools button.on { color: var(--red); }
 .qtools button { height: 32px; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 @media (hover: hover) { .qtools button:hover { color: var(--text); background: var(--s1); } }
 .qempty { padding: 14px 16px; color: var(--faint); font-size: 12.5px; border-bottom: 1px solid var(--line); }

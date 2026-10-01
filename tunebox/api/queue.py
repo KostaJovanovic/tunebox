@@ -5,7 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, blocklist, house, local
+from .. import admin, blocklist, here, house, local, wall
 from ..data import clean_track, people
 from ..player import player
 from ..settings import save_settings_soon, settings
@@ -17,6 +17,7 @@ router = APIRouter()
 @router.get("/api/state")
 async def state(request: Request):
     # looking only: this is polled every second and must not keep an admin session alive
+    here.saw(request, who(request))
     return {**player.state(), "admin": admin.is_admin(request, touch=False), "houseRev": house.rev}
 
 
@@ -25,6 +26,7 @@ class PlayBody(BaseModel):
     start: int = 0
     mode: str = "replace"                     # add | next | now | replace (see Player.add / Player.replace)
     label: str | None = None                  # what was added, for the undo list ("Album name")
+    wall: bool = False                        # added on the wall screen: nobody's song, counted for the house
 
 
 class QueueBody(BaseModel):                   # older pages; new ones use /api/play with a mode
@@ -38,6 +40,7 @@ class ControlBody(BaseModel):
     videoId: str | None = None                # jump/remove/move: the track the client saw at `value`
     to: int | None = None                     # move: its new queue index
     id: str | None = None                     # restore: the snapshot
+    videoIds: list[str] | None = None         # remove_ids / promote_ids: the songs picked (every upcoming copy of each)
 
 
 def queue_at(i: int, vid: str | None) -> int:
@@ -67,7 +70,11 @@ def may_add(by: str, n: int, replacing: bool = False):
 
 @router.post("/api/play")
 async def play(body: PlayBody, request: Request):
-    by = need_who(request)
+    if body.wall:                             # the wall's songs are nobody's: no name asked, no one's stats
+        need_feature(request, "wall")
+        if not house.house["wall"]["controls"] and not admin.is_admin(request, touch=False):
+            raise HTTPException(403, "The wall only shows here")
+    by = "" if body.wall else need_who(request)
     tracks = [t for t in map(clean_track, body.tracks) if t]
     if not tracks:
         raise HTTPException(400, "no tracks")
@@ -82,6 +89,8 @@ async def play(body: PlayBody, request: Request):
     label = (body.label or "").strip()[:60]
     if body.mode in ("add", "next", "now"):
         pos = await player.add(tracks, by, body.mode, f'Added "{label}"' if label else "")
+        if body.wall:
+            wall.added(len(tracks))
         msg = ("Playing now" if pos == 0 else "Plays next" if pos == 1 or body.mode == "next" else f"Added · {nth(pos)} in queue")
         return {"ok": True, "position": pos, "message": msg + left_out(skipped)}
     if body.mode != "replace":
@@ -114,6 +123,39 @@ async def enqueue(body: QueueBody, request: Request):
     return {"ok": True, "position": pos}
 
 
+# ---------- not for the radio: anyone's say, the radio stops picking a song (it can still be added) ----------
+class RadioSkipBody(BaseModel):
+    track: dict
+
+
+@router.get("/api/radio/skips")
+async def radio_skips():
+    return [{"videoId": k, **v} for k, v in sorted(blocklist.blocks["radio"].items(), key=lambda kv: -kv[1].get("at", 0))]
+
+
+@router.post("/api/radio/skips")
+async def radio_skip(body: RadioSkipBody, request: Request):
+    """Leaves a song out of the radio for the house, and takes it out of the radio part of up next."""
+    t = clean_track(body.track)
+    if not t:
+        raise HTTPException(400, "not a track")
+    blocklist.blocks["radio"][t["videoId"]] = {"title": t["title"], "artist": t["artist"], "at": int(time.time()), "by": who(request)}
+    blocklist.save()
+    p, end = player, player.user_end()
+    gone = [x for x in p.queue[end:] if x["videoId"] == t["videoId"]]
+    if gone:
+        p.queue[end:] = [x for x in p.queue[end:] if x["videoId"] != t["videoId"]]
+    return {"ok": True, "message": f"The radio won't pick \"{t['title']}\" again" + (" · taken out of up next" if gone else "")}
+
+
+@router.delete("/api/radio/skips/{video_id}")
+async def radio_unskip(video_id: str):
+    if blocklist.blocks["radio"].pop(video_id, None) is None:
+        raise HTTPException(404, "The radio already plays that one")
+    blocklist.save()
+    return {"ok": True, "message": "Back on the radio"}
+
+
 @router.get("/api/queue/history")
 async def queue_history():
     """Earlier queues (undo snapshots), newest first."""
@@ -144,7 +186,10 @@ async def control(body: ControlBody, request: Request):
     elif a == "seek" and v is not None:
         await p.mpv.send("seek", v, "absolute")
     elif a == "volume" and v is not None:
-        settings["volume"] = round(max(0, min(100, v)))
+        v, cap = round(max(0, min(100, v))), house.quiet_cap()
+        if cap is not None and v > cap and not admin.is_admin(request):
+            v, msg = cap, f"Quiet hours: the volume goes up to {cap}"
+        settings["volume"] = v
         if p.ramp:                            # touching the volume ends an alarm ramp
             p.ramp, p.fade_db = None, 0.0
         await p.apply_volume()
@@ -196,6 +241,33 @@ async def control(body: ControlBody, request: Request):
             del p.queue[p.index + 1:end]
             p.follow(gone)
             msg = "Cleared"
+    elif a in ("remove_ids", "promote_ids") and body.videoIds:
+        # songs picked in Up next: taken out, or moved (in their order) to the front of the songs people added
+        ids, start = set(body.videoIds), p.index + 1
+        picked = [t for t in p.queue[start:] if t["videoId"] in ids]
+        if picked:
+            n = len(picked)
+            p.snapshot(f"{'Removed' if a == 'remove_ids' else 'Moved up'} {n} song{'s' if n != 1 else ''}", by)
+            rest = [t for t in p.queue[start:] if t["videoId"] not in ids]
+            if a == "remove_ids":
+                p.queue[start:] = rest
+                p.follow(picked)
+                msg = f"Removed {n} song{'s' if n != 1 else ''}"
+            else:
+                for t in picked:
+                    if t.get("src") != "user":
+                        t.update(src="user", by=by, at=int(time.time()))
+                p.queue[start:] = picked + rest
+                p.follow()
+                msg = f"{n} song{'s' if n != 1 else ''} up next"
+    elif a == "clear_mine":                   # your own songs out of the ones people added
+        end = p.user_end()
+        gone = [t for t in p.queue[p.index + 1:end] if by and t.get("by") == by]
+        if gone:
+            p.snapshot("Took their songs out", by)
+            p.queue[p.index + 1:end] = [t for t in p.queue[p.index + 1:end] if t.get("by") != by]
+            p.follow(gone)
+            msg = f"Took out {len(gone)} song{'s' if len(gone) != 1 else ''}"
     elif a == "clear_auto":
         end = p.user_end()
         if end < len(p.queue):

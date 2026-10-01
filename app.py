@@ -12,13 +12,15 @@ This file only puts the app together (systemd runs `uvicorn app:app`). The code 
   lyrics.py    LRCLIB + YouTube lyrics          web.py       same-site guard, errors, who's asking
   auth.py      pass phrases and device keys     admin.py     the admin's sessions, lockout, local token
   house.py     house.json: features, groups...  audit.py     the admin's audit log
-  plays.py     the play log (Stats, recap)      blocklist.py songs and artists the admin blocked
+  plays.py     the play log (Stats, recap)      blocklist.py blocked songs and artists; "not for the radio"
   local.py     uploaded songs: tags, converting, room
   network.py   the server's LAN address and Wi-Fi name, for the bottom of Settings
+  here.py      who's here: the devices that asked for the state in the last minute (admin)
   cli.py       the tunebox command: a client over HTTP, on its own (no other module here, no package)
   tui.py       tunebox tui: the same client as a full-screen terminal program (standard library only)
   api/         the HTTP routes, one file per area (pages, browse, queue, lists, people, admin, settings, lyrics...)
 """
+import asyncio
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -38,7 +40,9 @@ from tunebox.settings import flush_settings  # noqa: E402
 async def lifespan(_app):
     local_songs.tidy()
     await player.start()
+    nightly = asyncio.get_running_loop().create_task(backup.nightly())
     yield
+    nightly.cancel()
     player.save_session()
     data.save_stats()
     plays.finish()

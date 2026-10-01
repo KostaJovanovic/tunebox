@@ -1,12 +1,15 @@
 """What the admin set for the whole house, kept in house.json: its name and accent, the time zone,
 which features are on, what groups are called and how they work, what the wall screen shows,
-the Wi-Fi's name for Settings, whether anyone may add a name, and how much room local songs may take.
+the Wi-Fi's name for Settings, whether anyone may add a name, how much room local songs may take,
+and the quiet hours (a volume cap at night).
 
 A feature that is off is hidden from everyone and its routes answer only the admin (web.feature).
 Nothing is deleted: switching it back on brings everything back.
 
 `house` is changed in place, never replaced. `rev` is replaced on every change, so read it as house.rev."""
 import copy
+import datetime
+import re
 import time
 from zoneinfo import ZoneInfo
 
@@ -39,10 +42,14 @@ DEFAULTS = {
     # what groups are called here, whether everyone must be in one, and who may make a new one ("open" or "admin")
     "groups": {"one": "Seminar", "many": "Seminars", "required": True, "create": "open"},
     "newPerson": {"groups": []},              # the groups a new person starts in when they pick none
-    "wall": {"lyrics": True, "queue": False, "who": False, "clock": True, "controls": True},
+    # night: "23:00-07:00" (the wall dims to the clock and the song in those hours, by the wall device's clock), "" off
+    "wall": {"lyrics": True, "queue": False, "who": False, "clock": True, "controls": True, "night": "", "qr": True},
     # local songs: the most they may take in all (None: no cap), the free space always left on the disk, the biggest file
     "local": {"capGB": None, "reserveGB": 2, "maxMB": 200},
+    # quiet hours: "22:00-08:00" by the house's clock, when the volume stays at most `max`; "" off
+    "quiet": {"hours": "", "max": 30},
 }
+HOURS = re.compile(r"([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)")
 
 
 def merged(saved) -> dict:
@@ -58,6 +65,7 @@ def merged(saved) -> dict:
 
 house: dict = merged(read_json(HOUSE_FILE, {}))
 rev = time.time_ns() // 1_000_000             # bumped on every change, so pages fetch it again
+watchers: list = []                           # called after every change (the player's alarm loop wakes)
 
 
 def load():
@@ -71,6 +79,23 @@ def save_house():
     global rev
     rev += 1
     write_json(HOUSE_FILE, house)
+    for fn in watchers:
+        fn()
+
+
+def within(hours: str, now: datetime.datetime) -> bool:
+    """Whether now falls in "22:00-08:00" (which may run past midnight)."""
+    m = HOURS.fullmatch(hours or "")
+    if not m:
+        return False
+    n, a, b = now.hour * 60 + now.minute, int(m[1]) * 60 + int(m[2]), int(m[3]) * 60 + int(m[4])
+    return a <= n < b if a <= b else n >= a or n < b
+
+
+def quiet_cap() -> int | None:
+    """The most the volume may be right now: house["quiet"]["max"] in the quiet hours, else None."""
+    q = house["quiet"]
+    return int(q["max"]) if within(q["hours"], datetime.datetime.now(tz())) else None
 
 
 def on(name: str) -> bool:
@@ -102,4 +127,4 @@ def public() -> dict:
     """What every page needs to know."""
     return {"name": house["name"], "accent": house["accent"], "tz": tz_name(), "signups": house["signups"], "network": house["network"],
             "off": [k for k in FEATURES if not on(k)], "groups": house["groups"], "newPerson": house["newPerson"],
-            "wall": house["wall"], "local": {"maxMB": house["local"]["maxMB"]}, "rev": rev}
+            "wall": house["wall"], "local": {"maxMB": house["local"]["maxMB"]}, "quiet": house["quiet"], "rev": rev}

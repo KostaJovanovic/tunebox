@@ -12,7 +12,8 @@ import { canvasLyrics, toggleCanvasLyrics, syncLyrBtn, coverSwiped } from "./pla
    down the box that line sits; a scroll by hand pauses the following for 4 seconds. */
 export function follower(box, where, smooth) {
   let lines = null, active = -1, scrolled = 0;
-  box.addEventListener("click", e => { const p = e.target.closest("p[data-t]"); if (p) ctl("seek", +p.dataset.t); });
+  /* a tap on a line plays from there, and the lines follow again at once */
+  box.addEventListener("click", e => { const p = e.target.closest("p[data-t]"); if (p) { scrolled = 0; ctl("seek", +p.dataset.t); } });
   box.addEventListener("wheel", () => scrolled = Date.now(), { passive: true });
   box.addEventListener("touchmove", () => scrolled = Date.now(), { passive: true });
   return {

@@ -9,6 +9,8 @@
   tunebox lists, like, history, people, groups, local upload FILE..., backup, restore FILE
   tunebox admin login, features off lyrics, house set name Studio, block add --artist NAME
   tunebox tui                        the full-screen interface: tabs, lists and keys (? shows them)
+  tunebox now --short                "Song - Artist" and nothing else, quickly: for a shell prompt or a status bar
+  tunebox tray                       Windows: an icon in the notification area, and the media keys play the house
   tunebox COMMAND -h                 everything a command takes
 
 It talks to a running Tunebox over HTTP, like a browser does, and keeps its cookies (who you are, the
@@ -442,6 +444,21 @@ def cmd_status(c, a):
     if s["error"]:
         lines.append(f"Problem: {s['error']}")
     show(s, "\n".join(lines))
+
+
+def cmd_now(c, a):
+    """--short: one line, fast, and silent when there is nothing to say (no song, no Tunebox), so a
+    prompt or a status bar can call it every few seconds."""
+    if not a.short:
+        return cmd_status(c, a)
+    try:
+        s = c.call("GET", "api/state", timeout=2, again=False)
+    except (Unreachable, Refused):
+        return 0
+    t = s.get("current")
+    if t:
+        print(("|| " if s.get("paused") else "") + song(t))
+    return 0
 
 
 def control(c, action, **more):
@@ -1161,6 +1178,18 @@ def cmd_restore(c, a):
          + ("\nThe local songs' audio is not restored from here: unzip the local folder into Tunebox's data folder." if path.suffix.lower() == ".zip" else ""))
 
 
+# ---------- the notification area icon and the media keys (Windows) ----------
+def cmd_tray(c, a):
+    """tray.py sits next to this file and is handed this module, like tui.py."""
+    if sys.platform != "win32":
+        raise Usage("tunebox tray is for Windows. Elsewhere, bind the media keys to tunebox toggle, tunebox next and tunebox prev")
+    if not (HERE / "tray.py").exists():
+        raise Usage("tunebox tray needs tray.py next to cli.py (copy the three files)")
+    sys.path.insert(0, str(HERE))
+    import tray
+    return tray.run(sys.modules[__name__], c, a)
+
+
 # ---------- the full-screen interface ----------
 def cmd_tui(c, a):
     """tui.py sits next to this file and is handed this module: it uses the client, the cookies and
@@ -1198,6 +1227,10 @@ def build() -> argparse.ArgumentParser:
     cmd("iam", cmd_iam, "say who you are (the songs you add carry your name)", arg("name", nargs="?"), arg("--none", action="store_true", help="nobody"),
         arg("--new", action="store_true", help="add the name if nobody has it"), arg("--group", "-g", action="append", help="with --new: its group"))
     cmd("status", cmd_status, "what is playing")
+    cmd("now", cmd_now, "what is playing; --short: one line for a prompt or a status bar",
+        arg("--short", "-s", action="store_true", help='"Song - Artist" only (|| first when paused), nothing when nothing plays'))
+    cmd("tray", cmd_tray, "Windows: an icon in the notification area; the media keys play, pause and skip on the house's speakers",
+        arg("--volume", action="store_true", help="the volume keys too (else they stay this PC's)"))
     for name, text in (("play", "carry on"), ("pause", "pause"), ("toggle", "play or pause"), ("next", "the next song"),
                        ("prev", "the song's start, or the one before"), ("stop", "stop and empty the player")):
         cmd(name, cmd_transport, text)

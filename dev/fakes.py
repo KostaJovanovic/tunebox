@@ -47,6 +47,7 @@ def install_tunebox(speed: float = 1.0):
         self._cur = i
         e = self._pl[i]
         self.props.update({"idle-active": False, "time-pos": e["start"], "duration": e["dur"]})
+        self.stirred.set()                    # real mpv reports idle-active as a property change
         event(self, event="start-file", playlist_entry_id=e["id"])
         asyncio.get_running_loop().call_later(0.2, lambda: event(self, event="file-loaded"))
 
@@ -60,6 +61,7 @@ def install_tunebox(speed: float = 1.0):
         else:
             self._cur = None
             self.props.update({"idle-active": True, "time-pos": None, "duration": None})
+            self.stirred.set()
 
     async def tick(self):
         step = 0.25
@@ -75,6 +77,7 @@ def install_tunebox(speed: float = 1.0):
 
     async def start(self):
         self.props = {"pause": False, "time-pos": 0, "duration": 0, "volume": 70, "idle-active": True}
+        self.stirred.set()
         self.eq_chain = self.eq_live = self.started = None
         self._pl, self._cur, self._eid = [], None, 0
         if getattr(self, "_ticker", None):
@@ -93,8 +96,11 @@ def install_tunebox(speed: float = 1.0):
         if name == "set_property":
             if args[0] in ("pause", "volume"):
                 self.props[args[0]] = args[1]
+                if args[0] == "pause":
+                    self.stirred.set()
         elif name == "cycle" and args[0] == "pause":
             self.props["pause"] = not self.props.get("pause")
+            self.stirred.set()
         elif name == "seek" and self._cur is not None:
             self.props["time-pos"] = max(0.0, min(float(args[0]), self._pl[self._cur]["dur"] - 0.5))
         elif name == "loadfile":

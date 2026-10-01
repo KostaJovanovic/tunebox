@@ -5,7 +5,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from .. import admin, audit, auth, data, plays
+from .. import admin, audit, auth, data, here, plays
 from ..config import HISTORY_FILE, LIKED_ID
 from ..data import list_summary, people, playlists, save_lists, save_people
 from ..files import write_json
@@ -305,3 +305,9 @@ async def delete_plays(body: PlaysBody, request: Request):
         if n:
             audit.log("plays.delete", f"Removed {n} play{'s' if n != 1 else ''} from the log", request)
     return {"removed": n}
+
+
+# ---------- who's here: the devices with Tunebox open right now ----------
+@router.get("/api/admin/here", dependencies=ADMIN)
+async def here_now():
+    return [{**d, "name": (people.get(d["who"]) or {}).get("name", "")} for d in here.now()]

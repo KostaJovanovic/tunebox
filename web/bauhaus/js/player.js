@@ -1,13 +1,15 @@
 /* The player bar at the bottom, and the now playing canvas (big cover). On a phone the bar is a mini
    bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
-import { $, esc, fmt, secs, cssUrl } from "../../shared/dom.js";
-import { state, ctl, poll, position } from "../../shared/playback.js";
+import { $, esc, fmt, secs, art as cover, sharpen } from "../../shared/dom.js";
+import { state, ctl, poll, position, waits, inTime } from "../../shared/playback.js";
+import { me } from "../../shared/people.js";
 import { spring, tracker, project, rubberband, letGo } from "../../shared/motion.js";
 import { fetchLyrics, syncedHtml, plainHtml } from "../../shared/lyrics.js";
 import { store, lite } from "../../shared/device.js";
 import { house, feat } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
+import { setupWallpaper, wallpaperFor } from "../../shared/wallpaper.js";
 import * as icon from "./icons.js";
 import { follower } from "./lyrics.js";
 import { setVol, volumeTouched } from "./settings.js";
@@ -18,7 +20,16 @@ const playIcon = s => s.paused || !s.current ? icon.PLAY : icon.PAUSE;
 const subtitle = c => c ? [c.artist && `<button class="artlink" data-act="goto" data-to="artist">${esc(c.artist)}</button>`,
   c.album && `<button class="artlink" data-act="goto" data-to="album">${esc(c.album)}</button>`].filter(Boolean).join(" · ") : "Search for something to play";
 const setHtml = (el, html) => { if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; } };
-const upcoming = s => Math.max(0, (s.queue || []).length - 1);
+/* the songs people queued after the one playing; the radio's are left out */
+const upcoming = s => Math.max(0, s.userCount || 0);
+/* when this device's next song comes on: "Yours in 8 min" (only songs people added count) */
+function yours(s) {
+  const id = feat("people") && me()?.id, q = s.queue || [];
+  const i = id ? q.findIndex((t, k) => k > 0 && k <= (s.userCount || 0) && t.by === id) : -1;
+  if (i < 0) return "";
+  const w = inTime(waits()[i]);
+  return w === "next" ? "Yours is next" : `Yours ${w}`;
+}
 const countBadge = (el, n) => { el.hidden = !n; el.textContent = n > 99 ? "99+" : n; };
 
 /* ---------- the bar ---------- */
@@ -27,9 +38,9 @@ export function paintBar(s) {
   const c = s.current;
   $("#pTitle").textContent = c ? c.title : "Nothing playing";
   setHtml($("#pSub"), subtitle(c));
-  if (c && $("#pImg").dataset.src !== c.thumb) { $("#pImg").src = c.thumb; $("#pImg").dataset.src = c.thumb; }
+  if (c && $("#pImg").dataset.src !== cover(c)) { $("#pImg").src = $("#pImg").dataset.src = cover(c); }
   $("#pBtn").innerHTML = playIcon(s);
-  $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : ""));
+  $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : yours(s)));
   $("#prog").classList.toggle("loading", !!s.loading);
   const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
   $("#tPos").textContent = fmt(s.position); $("#tDur").textContent = fmt(dur);
@@ -114,7 +125,7 @@ addEventListener("pointermove", e => {
   if (!b.way) {                                /* which way it goes is settled once, after the first few pixels */
     if (Math.hypot(b.dx, b.dy) < 10) return;
     b.way = Math.abs(b.dx) > Math.abs(b.dy) ? "side" : b.dy < 0 ? "up" : "none";
-    if (b.way === "up") { placeCanvas(); paintCanvas(true); }
+    if (b.way === "up") paintCanvas(true);
   }
   if (b.way === "side") nowSkip.drag(b.dx);
   else if (b.way === "up") holdSheet(cv.offsetHeight + b.dy);
@@ -130,10 +141,6 @@ addEventListener("pointerup", e => endBarSwipe(e));
 addEventListener("pointercancel", e => endBarSwipe(e, true));
 
 /* ---------- the canvas ---------- */
-
-/* on a desktop it sits above the bar */
-function placeCanvas() { cv.style.bottom = phone() ? "" : $(".player").offsetHeight + "px"; }
-addEventListener("resize", placeCanvas);
 
 /* The canvas came to rest: open and not moving, the blurred cover behind it may show (canvas.css). Nothing
    here touches <body>: a class there restyles the whole page, which a phone pays for with a dropped frame. */
@@ -155,7 +162,7 @@ export function toggleCanvas(open = !canvasOpen()) {
   /* a desktop's wheel and keys would scroll the page behind it; a phone's canvas takes every touch, and
      there the class (which restyles the whole page) would cost a frame mid-swipe */
   if (!phone()) document.body.classList.toggle("canvas-open", open);
-  if (open) { if (!moving) { placeCanvas(); paintCanvas(true); } history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
+  if (open) { if (!moving) paintCanvas(true); history.pushState({ canvas: 1 }, ""); }   /* Back (Android) closes it */
   else if (history.state?.canvas) history.back();
   syncLyrBtn();
 }
@@ -171,13 +178,15 @@ export function toggleCanvasLyrics(open = !lyrOn) { if (!feat("lyrics")) return;
 export const canvasLyrics = () => canvasOpen() && !phone();
 export function syncLyrBtn() { $("#lyrBtn").classList.toggle("on", canvasLyrics() ? lyrOn : $("#lyrics").classList.contains("open")); }
 
+setupWallpaper($("#cWp"), $("#cGrain"));   /* the wall's, behind the canvas */
+
 export function paintCanvas(force) {
   if (!canvasOpen() && !force) return;         /* forced while still shut: it is being pulled open */
   const s = state, c = s.current;
-  if ((c?.thumb || "") !== $("#cImg").dataset.src) {
-    $("#cImg").dataset.src = c?.thumb || "";
-    if (c?.thumb) $("#cImg").src = c.thumb; else $("#cImg").removeAttribute("src");
-    $("#cBg").style.backgroundImage = c?.thumb ? cssUrl(c.thumb) : "";
+  if ((c ? cover(c) : "") !== $("#cImg").dataset.src) {
+    $("#cImg").dataset.src = c ? cover(c) : "";
+    if (c) { $("#cImg").src = cover(c); sharpen($("#cImg"), c); } else $("#cImg").removeAttribute("src");
+    if (c) wallpaperFor(c);
   }
   $("#cTitle").textContent = c ? c.title : "Nothing playing";
   setHtml($("#cSub"), subtitle(c));

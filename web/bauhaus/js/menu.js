@@ -2,11 +2,12 @@
    player and the canvas have one for the song playing now, and anywhere else gets the player's own.
    Shift + right-click, and fields you type in, keep the browser's menu. On a phone the menu is a sheet
    at the bottom. The Up next drawer uses a long press to drag, so on touch it keeps its swipes instead. */
-import { $, $$, esc, plural } from "../../shared/dom.js";
+import { $, $$, esc, plural, art } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
-import { state, lists, ctl, queueSongs, undo } from "../../shared/playback.js";
+import { state, lists, ctl, queueSongs, undo, poll } from "../../shared/playback.js";
 import { isLiked, toggleLike } from "../../shared/likes.js";
 import { admin, feat } from "../../shared/house.js";
+import { people } from "../../shared/people.js";
 import { toast, openDrawer, dragAway } from "./ui.js";
 import { askPlay } from "./ask.js";
 import { openItem, goTo } from "./library.js";
@@ -33,12 +34,27 @@ export function copyText(text, said = "Link copied") {
   ta.remove();
 }
 
+/* The songs the house left out of the radio (anyone may; the admin's Blocked list shows them), so the
+   menu can offer the way back. Fetched once, and again after every change from here. */
+let radioOff = new Set();
+const syncRadioOff = () => api("api/radio/skips").then(ls => { radioOff = new Set(ls.map(x => x.videoId)); }).catch(() => {});
+syncRadioOff();
+async function toggleRadio(t) {
+  try {
+    const r = radioOff.has(t.videoId) ? await api(`api/radio/skips/${encodeURIComponent(t.videoId)}`, undefined, "DELETE")
+      : await api("api/radio/skips", { track: t });
+    toast(r.message);
+  } catch (e) { toast(errText(e)); }
+  syncRadioOff(); poll();
+}
+
 /* the "about this song" part every song menu ends with; while the admin is unlocked, blocking too.
    A local song has no artist or album page and no link: it has its place on the Local page. */
 const isLocal = t => String(t.videoId).startsWith("local:");
 const songTail = t => [
   feat("playlists") && { label: "Add to playlist…", run: () => pickFor(t) },
   feat("likes") && { label: isLiked(t.videoId) ? "Unlike" : "Like", run: () => toggleLike(t) },
+  feat("radio") && { label: radioOff.has(t.videoId) ? "Back on the radio" : "Not for the radio", run: () => toggleRadio(t) },
   SEP,
   !isLocal(t) && t.artist && { label: "Go to artist", hint: t.artist.split(",")[0], run: () => goTo("artist", t) },
   !isLocal(t) && t.album && { label: "Go to album", hint: t.album, run: () => goTo("album", t) },
@@ -118,7 +134,7 @@ function queueMenu(i) {
 
 /* The menu for whatever el is (or sits in). Returns [head, items]; head is {thumb, title, sub} or null. */
 function menuFor(el) {
-  const songHead = t => ({ thumb: t.thumb, title: t.title, sub: [t.artist, t.album].filter(Boolean).join(" · ") });
+  const songHead = t => ({ thumb: art(t), title: t.title, sub: [t.artist, t.album].filter(Boolean).join(" · "), vid: t.videoId });
 
   const qrow = el.closest("#queue .row");
   if (qrow) {
@@ -184,6 +200,21 @@ function openMenu(el, x, y) {
   }
   box.classList.add("open"); back.classList.add("open");
   box.querySelector("button")?.focus({ preventScroll: true });
+  if (head?.vid && feat("stats")) songInfo(head.vid);
+}
+
+/* A song's own numbers, under the menu's header: "Played 12 times · first on 3 March 2025 · mostly Ana's" */
+async function songInfo(vid) {
+  const line = Object.assign(document.createElement("div"), { className: "cinfo", textContent: "…" });
+  const at = box.querySelector(".chead");
+  at ? at.after(line) : box.prepend(line);
+  let d;
+  try { d = await api(`api/stats/song/${encodeURIComponent(vid)}`); } catch { return line.remove(); }
+  if (!line.isConnected) return;
+  const day = t => new Date(t * 1000).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
+  line.textContent = !d.plays ? "Not played here yet"
+    : [`Played ${d.plays === 1 ? "once" : d.plays + " times"}`, `first on ${day(d.first)}`,
+       people[d.by] ? `mostly ${people[d.by].name}'s` : d.radio === d.plays ? "always from the radio" : ""].filter(Boolean).join(" · ");
 }
 /* the phone's sheet can be dragged back down, when it has nothing to scroll */
 dragAway(box, { axis: "y", when: () => box.matches(".sheet.fits"), close: () => closeMenu(), dim: () => back });

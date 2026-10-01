@@ -72,7 +72,7 @@ def sorted_lists():
 
 def list_summary(p: dict) -> dict:
     return {"id": p["id"], "name": p["name"], "count": len(p["tracks"]), "updated": p["updated"],
-            "thumbs": [t["thumb"] for t in p["tracks"][:4]], "liked": p["id"] == LIKED_ID, "owner": p.get("owner", "")}
+            "thumbs": [t["thumb"] for t in p["tracks"][:4]], "liked": p["id"] == LIKED_ID, "owner": p.get("owner", ""), "auto": bool(p.get("auto"))}
 
 
 # ---------- people: names picked per device ----------
@@ -140,6 +140,18 @@ def count_play(track: dict, when: float | None = None):
     s["track"] = clean_track(track)
     s["plays"].append(int(when or time.time()))
     _stats_dirty = True
+
+
+def most_played(n: int) -> list[tuple[int, dict]]:
+    """The n songs played most in the last STATS_DAYS days, as (plays, track); on a tie, the one played last first."""
+    now = time.time()
+    counts = []
+    for s in stats.values():
+        recent = [t for t in s["plays"] if now - t < STATS_DAYS * 86400]
+        if recent and s.get("track"):
+            counts.append((len(recent), max(recent), s["track"]))
+    counts.sort(key=lambda c: (-c[0], -c[1]))
+    return [(c[0], c[2]) for c in counts[:n]]
 
 
 def save_stats(force: bool = False):

@@ -5,6 +5,7 @@ import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal, weak } from "../../shared/device.js";
 import { house } from "../../shared/house.js";
+import { VERSION } from "../../shared/version.js";
 import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
 import { withAdmin } from "./phrase.js";
@@ -318,6 +319,8 @@ export function renderDevice() {
     + (pm !== "auto" ? "" : weak() ? "Auto: on here; this device is low on memory or cores." : `Auto: off here; it comes on by itself on a device with 2 GB of memory or less${navigator.deviceMemory ? "" : " (this browser doesn't say how much it has)"} or 2 cores or fewer.`);
   $$("#accents button").forEach(b => b.classList.toggle("on", b.dataset.a === a));
 }
+
+$("#verN").textContent = VERSION;
 
 /* ---------- wiring ---------- */
 on("settings-open", () => { volPop(false); toggleSettings(true); });

@@ -32,6 +32,8 @@ class Player:
         self.fade_db = 0.0                    # extra attenuation for sleep fade-out / alarm ramp
         self.sleep = None                     # {"until": ts} or {"mode": "track", "entry": id}
         self.ramp = None                      # (start_ts, seconds) of an alarm volume ramp
+        self.fading = asyncio.Event()         # wakes the volume loop, which sleeps while there's no sleep timer or ramp
+        self.clock = asyncio.Event()          # wakes the alarm loop, which sleeps while there's no alarm or quiet hours
         self.restarting = False               # mpv is being restarted after a crash
         self.gen = 0                          # bumped by every play request; only the newest loads
         self.fails = 0                        # streams that failed in a row
@@ -137,6 +139,7 @@ class Player:
         loop = asyncio.get_running_loop()
         loop.create_task(self._preload_loop())
         loop.create_task(self._volume_loop())
+        house.watchers.append(self.clock.set)
         loop.create_task(self._alarm_loop())
         self.load_session()
         loop.create_task(self._session_loop())
@@ -231,8 +234,20 @@ class Player:
                 pass
 
     async def _preload_loop(self):
+        """Once a second while a song plays: the heard time, the next track's preload, the EQ. While nothing
+        plays it bakes a live EQ change into the chain once, then sleeps until mpv starts or unpauses."""
         last = time.monotonic()
         while True:
+            if self.mpv.props.get("pause") or self.mpv.props.get("idle-active"):
+                try:
+                    await self.mpv.eq_sync()
+                except Exception:
+                    pass
+                self.mpv.stirred.clear()
+                if self.mpv.props.get("pause") or self.mpv.props.get("idle-active"):
+                    await self.mpv.stirred.wait()
+                last = time.monotonic()
+                continue
             await asyncio.sleep(1)
             now = time.monotonic()
             p = self.mpv.props
@@ -508,9 +523,11 @@ class Player:
         if track:
             await self.disarm()               # no gapless hand-over: playback stops after this track
             self.sleep = {"mode": "track"}
+            self.fading.set()
         elif minutes and minutes > 0:
             minutes = min(minutes, 24 * 60)
             self.sleep = {"until": time.time() + minutes * 60, "minutes": minutes}
+            self.fading.set()
         else:
             await self.end_sleep()
 
@@ -529,8 +546,12 @@ class Player:
         return max(0.0, s["until"] - time.time())
 
     async def _volume_loop(self):
-        """Drives the sleep fade-out and the alarm ramp-up (4 steps a second)."""
+        """Drives the sleep fade-out and the alarm ramp-up (4 steps a second). With neither set, and the
+        volume back where it belongs, it sleeps until set_sleep or fire_alarm wakes it."""
         while True:
+            if not (self.sleep or self.ramp or self.fade_db):
+                self.fading.clear()
+                await self.fading.wait()
             await asyncio.sleep(0.25)
             try:
                 await self._volume_tick()
@@ -560,8 +581,21 @@ class Player:
             await self.apply_volume()
 
     async def _alarm_loop(self):
+        """Every 15 seconds: the quiet hours' volume cap, and the alarm. With no quiet hours set and no alarm
+        on, it sleeps until a change to the house (save_house) or the alarm (api/alarm) wakes it."""
         while True:
+            if not (house.house["quiet"]["hours"] or (house.on("alarm") and settings["alarm"]["enabled"])):
+                self.clock.clear()
+                await self.clock.wait()
             await asyncio.sleep(15)
+            try:                              # the quiet hours began: a louder volume comes down to the cap
+                cap = house.quiet_cap()
+                if cap is not None and settings["volume"] > cap and not self.ramp:
+                    settings["volume"] = cap
+                    await self.apply_volume()
+                    save_settings()
+            except Exception:
+                pass
             try:                              # nothing may end this loop, or the alarm never rings again
                 a = settings["alarm"]
                 now = datetime.datetime.now(house.tz())
@@ -581,6 +615,7 @@ class Player:
         save_settings()
         self.ramp = (time.time(), ramp_s or max(0.2, float(a.get("ramp") or 0)) * 60)
         self.fade_db = -VOL_RANGE_DB
+        self.fading.set()
         await self.apply_volume()
         tracks = (data.playlists.get(a.get("list") or "") or {}).get("tracks")
         if tracks:

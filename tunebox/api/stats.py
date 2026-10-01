@@ -1,11 +1,15 @@
-"""Stats and the recap, from the play log: for any period, for the house, one person or one group."""
+"""Stats and the recap, from the play log: for any period, for the house, one person or one group.
+Also a song's own numbers (its menu), the log as CSV, last week's digest and "On this day" (Home)."""
+import csv
 import datetime
+import io
 import time
 from collections import Counter, defaultdict
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 
-from .. import admin, data, house, plays
+from .. import admin, data, house, plays, wall
 from ..plays import counted
 from ..web import feature, need_feature
 
@@ -167,4 +171,111 @@ async def stats(request: Request, since: float = 0, until: float = 0, who: str =
     elif who and not who.startswith("sem:"):
         out["fun"]["awards"] = []             # one person wins everything they are in
     out["first"] = min((p["t"] for p in everything), default=None)   # the log's first play, for "All time"
+    out["wallAdds"] = wall.count(since, until) if not who else 0      # songs added on the wall: the house's, nobody's
     return out
+
+
+# ---------- a song's own numbers, for its menu ----------
+_log = {"at": 0.0, "plays": []}
+
+
+def counted_log() -> list[dict]:
+    """Every counted play, oldest first; read again at most every 30 s (a menu opens often)."""
+    if time.time() - _log["at"] > 30:
+        _log.update(at=time.time(), plays=[p for p in plays.read(0) if counted(p)])
+    return _log["plays"]
+
+
+@router.get("/api/stats/song/{video_id}")
+async def song_stats(video_id: str, request: Request):
+    ps = [p for p in counted_log() if p["v"] == video_id]
+    if not ps:
+        return {"plays": 0}
+    adders = Counter(p["by"] for p in ps if p["src"] == "user" and p["by"] in data.people)
+    top = adders.most_common(1)[0][0] if adders and (house.on("people") or admin.is_admin(request, touch=False)) else ""
+    return {"plays": len(ps), "first": ps[0]["t"], "last": ps[-1]["t"], "by": top, "radio": sum(1 for p in ps if p["src"] == "auto")}
+
+
+# ---------- the play log as CSV, for a period and whoever Stats shows ----------
+@router.get("/api/stats/export.csv")
+async def export_csv(request: Request, since: float = 0, until: float = 0, who: str = ""):
+    tz, until = house.tz(), until or time.time() + 1
+    names = house.on("people") or admin.is_admin(request, touch=False)
+
+    def mine(p):
+        if not who:
+            return True
+        return who[4:] in (p.get("sem") or []) if who.startswith("sem:") else p["by"] == who
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["time", "title", "artist", "album", "seconds heard", "length", "added by", "from", "ended"])
+    for p in plays.read(since, until):
+        if not mine(p):
+            continue
+        by = (data.people.get(p["by"]) or {}).get("name", "") if names else ""
+        w.writerow([datetime.datetime.fromtimestamp(p["t"], tz).strftime("%Y-%m-%d %H:%M"), p["ti"], p["ar"], p["al"],
+                    round(p["s"]), p["d"] or "", by, "radio" if p["src"] == "auto" else "added", p.get("x") or "played"])
+    day = datetime.datetime.now(tz).strftime("%Y-%m-%d")
+    return Response("\ufeff" + out.getvalue(), media_type="text/csv; charset=utf-8",   # the BOM: Excel reads the accents right
+                    headers={"Content-Disposition": f'attachment; filename="tunebox-plays-{day}.csv"'})
+
+
+# ---------- last week, for the card on Home ----------
+def week_bounds(tz) -> tuple[float, float]:
+    """Monday 00:00 of last week and of this week, by the house's clock."""
+    now = datetime.datetime.now(tz)
+    this = (now - datetime.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (this - datetime.timedelta(days=7)).timestamp(), this.timestamp()
+
+
+@router.get("/api/digest")
+async def digest(request: Request):
+    tz = house.tz()
+    since, until = week_bounds(tz)
+    log = counted_log()
+    ps = [p for p in log if since <= p["t"] < until]
+    if not ps:
+        return {"since": since, "plays": 0}
+    before = {p["v"] for p in log if p["t"] < since}
+    songs = Counter(p["v"] for p in ps)
+    first = {}
+    for p in ps:
+        first.setdefault(p["v"], p)
+    new = [v for v, _ in songs.most_common() if v not in before]
+    by_min = Counter()
+    for p in ps:
+        if p["src"] == "user" and p["by"] in data.people:
+            by_min[p["by"]] += p["s"] / 60
+    top_v, n = songs.most_common(1)[0]
+    new = [v for v in new if v != top_v]       # the top song isn't also the new find
+    out = {"since": since, "until": until, "plays": len(ps), "minutes": round(sum(p["s"] for p in ps) / 60),
+           "song": {**track_of(first[top_v]), "plays": n},
+           "found": {**track_of(first[new[0]]), "plays": songs[new[0]]} if new else None, "person": None}
+    if by_min and (house.on("people") or admin.is_admin(request, touch=False)):
+        pid, m = by_min.most_common(1)[0]
+        out["person"] = {"id": pid, "minutes": round(m)}
+    return out
+
+
+# ---------- On this day: what played on this date a year ago (or a month ago), for Home ----------
+def on_this_day() -> dict | None:
+    tz = house.tz()
+    now = datetime.datetime.now(tz)
+    for months, label in ((12, "A year ago today"), (1, "A month ago today")):
+        y, m = now.year, now.month - months
+        while m < 1:
+            m, y = m + 12, y - 1
+        try:
+            day = now.replace(year=y, month=m, hour=0, minute=0, second=0, microsecond=0)
+        except ValueError:                    # the 31st, in a shorter month
+            continue
+        start = day.timestamp()
+        ps = [p for p in counted_log() if start <= p["t"] < start + 86400]
+        songs = Counter(p["v"] for p in ps)
+        if len(songs) >= 3:
+            first = {}
+            for p in ps:
+                first.setdefault(p["v"], p)
+            return {"key": "onthisday", "title": "On this day", "subtitle": f"{label}, {day.day} {day.strftime('%B %Y')}",
+                    "items": [track_of(first[v]) for v, _ in songs.most_common(30)]}
+    return None

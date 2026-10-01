@@ -53,11 +53,18 @@ function filters(d) {
   const me = myId();
   return `<div class="statbar">
     <div class="likers">${PERIODS.map(([k, t]) => chip("stats-period", k, period, t)).join("")}</div>
+    ${csvLink()}
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
     ${ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
       ${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>` : ""}
   </div>`;
+}
+
+/* the plays in view as a spreadsheet: the same period and person as the page */
+function csvLink() {
+  const r = range();
+  return `<a class="btn ghost csv" href="api/stats/export.csv?since=${r.since}&until=${r.until}&who=${encodeURIComponent(who)}" download>Download as CSV</a>`;
 }
 
 /* one bar per slot (hours, weekdays, months): a single series, so one colour and no legend; hover says the value */
@@ -116,6 +123,7 @@ function render(d, r) {
     <div class="tile"><b>${num(d.artists)}</b><span>artists</span></div>
     <div class="tile"><b>${num(d.newSongs)}</b><span>new to ${who ? (who.startsWith("sem:") ? "the " + esc(G().a) : "them") : "the house"}</span></div>
     <div class="tile"><b>${d.streak}</b><span>days in a row, at best</span></div>
+    ${!who && d.wallAdds ? `<div class="tile"><b>${num(d.wallAdds)}</b><span>songs added on the wall</span></div>` : ""}
   </div>`;
   lists.stats = d.topSongs;
   html += section(++n, "Top songs", esc(title)) + `<div class="list">${d.topSongs.map((t, i) => songRow(t, "stats", i, { d: `${t.plays}×`, playing: false })).join("")}</div>`;

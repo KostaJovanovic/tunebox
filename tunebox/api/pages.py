@@ -1,4 +1,4 @@
-"""The pages: / (the player) and /wall, plus their CSS and JS under /web/, and the app manifest with
+"""The pages: / (the player), /wall and /patch (the patch notes), plus their CSS and JS under /web/, and the app manifest with
 the house's name in it.
 
 Everything is sent with Cache-Control: no-cache, so a phone checks for a newer file on every load
@@ -45,6 +45,12 @@ def wall(request: Request):
     if not house.on("wall") and not admin.is_admin(request, touch=False):
         return RedirectResponse("./", 302, headers=NO_CACHE)
     return page("wall")
+
+
+@router.get("/patch")
+def patch_notes():
+    """What changed, version by version (made by dev/patch.py from patch-notes.md)."""
+    return FileResponse(WEB_DIR / "patch.html", headers=NO_CACHE)
 
 
 @router.get("/web/manifest.webmanifest")

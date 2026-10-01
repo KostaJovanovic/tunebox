@@ -29,6 +29,7 @@ class Mpv:
         self.on_loaded = None                 # a started entry opened its stream and plays
         self.started = None                   # playlist entry id of the last start-file
         self.on_exit = None                   # called when the IPC connection to mpv is lost
+        self.stirred = asyncio.Event()        # set when pause or idle-active changes (the player's loop waits on it)
         self.eq_chain = None                  # (normalize, gains) written into the af string
         self.eq_live = None                   # gains currently applied (af string + af-command)
 
@@ -151,6 +152,8 @@ class Mpv:
                 fut.set_result(msg)
         elif msg.get("event") == "property-change":
             self.props[msg["name"]] = msg.get("data")
+            if msg["name"] in ("pause", "idle-active"):
+                self.stirred.set()
         elif msg.get("event") == "end-file" and msg.get("reason") in ("eof", "error"):
             if self.on_end:
                 asyncio.get_running_loop().create_task(self.on_end(msg.get("reason"), msg.get("playlist_entry_id")))

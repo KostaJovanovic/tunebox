@@ -20,6 +20,48 @@ ROOT = Path(__file__).resolve().parent.parent
 DEV = ROOT / "dev"
 
 
+FREE_PORT = r"""
+$own = Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+foreach ($id in $own) {{
+  $p = Get-CimInstance Win32_Process -Filter "ProcessId=$id"
+  if (-not $p) {{ continue }}
+  if ($p.CommandLine -notmatch 'emulate\.py') {{ "other $id $($p.Name)"; continue }}
+  # the venv's python.exe is a launcher that starts the real one: end the topmost emulator, whole tree
+  while ($p.ParentProcessId) {{
+    $up = Get-CimInstance Win32_Process -Filter "ProcessId=$($p.ParentProcessId)"
+    if (-not $up -or $up.CommandLine -notmatch 'emulate\.py') {{ break }}
+    $p = $up
+  }}
+  "ours $($p.ProcessId)"
+}}
+"""
+
+
+def free_port(port: int):
+    """Another copy of this emulator on the port (left running, or another window) is stopped, mpv and
+    all. Anything else holding the port is left alone, and we stop with a message. Windows only."""
+    if sys.platform != "win32":
+        return
+    import socket
+    import subprocess
+    import time
+    out = subprocess.run(["powershell", "-NoProfile", "-Command", FREE_PORT.format(port=port)],
+                         capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW).stdout
+    found = [line.split(maxsplit=2) for line in out.splitlines() if line.strip()]   # "ours PID" or "other PID NAME"
+    for kind, pid, *name in found:
+        if kind == "other":
+            sys.exit(f"port {port} is taken by {' '.join(name)} (pid {pid}), not by Tunebox: pick another with --port")
+    for _, pid, *_ in found:
+        print(f"  stopping the Tunebox already on port {port} (pid {pid})")
+        subprocess.run(["taskkill", "/PID", pid, "/T", "/F"], capture_output=True)
+    for _ in range(50):                        # the port comes free a moment after the process ends
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", port)):
+                return
+        time.sleep(0.1)
+    sys.exit(f"port {port} is still taken: pick another with --port")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", type=int, default=8000)
@@ -29,6 +71,7 @@ def main():
     ap.add_argument("--no-browser", action="store_true", help="don't open the browser")
     ap.add_argument("--data", type=Path, help="Tunebox's data folder, instead of dev/data (for tests)")
     args = ap.parse_args()
+    free_port(args.port)
     data = args.data.resolve() if args.data else DEV / "data"
     (data / "run").mkdir(parents=True, exist_ok=True)
     os.environ.update(TUNEBOX_DATA=str(data), TUNEBOX_RUN=str(data / "run"))

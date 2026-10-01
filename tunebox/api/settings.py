@@ -111,6 +111,7 @@ async def set_alarm(body: AlarmBody):
              list=body.playlist if body.playlist in data.playlists else None, level=max(1, min(100, body.level)),
              ramp=max(0, min(30, body.ramp)))
     save_settings()
+    player.clock.set()
     if body.test:
         await player.fire_alarm(ramp_s=TEST_RAMP)   # the full ramp starts 50 dB down: minutes of near-silence
     return await get_settings()

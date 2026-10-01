@@ -919,7 +919,7 @@ class Lists(View):
 
 
 class ListPage(View):
-    """One of the house's playlists, or Liked songs."""
+    """One of the house's playlists, Liked songs, or Top 30 (which nobody edits)."""
     hints = "Enter add   d take out   J K move   e rename   D delete the playlist   N next   P now"
 
     def __init__(self, app, ident):
@@ -938,15 +938,16 @@ class ListPage(View):
         if not p:
             return
         owner = a.name_of(p.get("owner"))
-        rows = [head(p["name"], a.cli.plural(len(p["tracks"]), "song") + (f" {g('dot')} {owner}'s" if owner else "")), self.play_all(p["tracks"], p["name"])]
+        rows = [head(p["name"], a.cli.plural(len(p["tracks"]), "song") + (f" {g('dot')} {owner}'s" if owner else "")
+                     + (f" {g('dot')} most played, last {p['days']} days" if p.get("auto") else "")), self.play_all(p["tracks"], p["name"])]
         for i, t in enumerate(p["tracks"]):
             by = ", ".join(filter(None, (a.name_of(x) for x in t.get("likedBy") or [])))
-            rows.append(self.track(t, (by + "  " if by else "") + t.get("duration", ""), at=i))
+            rows.append(self.track(t, a.cli.plural(t["plays"], "play") if p.get("auto") else (by + "  " if by else "") + t.get("duration", ""), at=i))
         self.set_rows([r for r in rows if r], "Empty. Press A on any song to add it here.")
 
     def key(self, k):
         a, r, p = self.app, self.row(), self.list
-        if not p:
+        if not p or p.get("auto"):
             return super().key(k)
         if k == "e" and self.id != "liked":
             a.ask("Rename the playlist", [{"key": "name", "label": "Name", "value": p["name"]}],
@@ -1554,7 +1555,7 @@ class Admin(View):
 
 # ---------- the app ----------
 TABS = [("home", "Home", ("browse",), Home), ("search", "Search", (), Search), ("queue", "Queue", (), Queue), ("lists", "Playlists", ("playlists", "likes"), Lists),
-        ("history", "History", (), History), ("local", "Local", ("local",), Local), ("stats", "Stats", ("stats",), Stats), ("lyrics", "Lyrics", ("lyrics",), Lyrics),
+        ("local", "Local", ("local",), Local), ("history", "History", (), History), ("stats", "Stats", ("stats",), Stats), ("lyrics", "Lyrics", ("lyrics",), Lyrics),
         ("settings", "Settings", (), Settings), ("admin", "Admin", (), Admin)]
 KEYS = [("head", "Anywhere"), "1 to 9, 0    the tabs", "Space        play or pause", "Left Right   back or ahead 10 seconds", "n p          next song, previous",
         "+ -          volume;  m  mute", "f            like the song playing", "z            undo the last queue change", "/            search",
@@ -1848,7 +1849,7 @@ class App:
             self.ask("New playlist", [{"key": "name", "label": "Name", "value": ""}],
                      lambda f, v: self.send("POST", "api/lists", {"name": v["name"], "tracks": [t]}, lambda p: (f.close(), self.say(f'Added to "{p["name"]}"')), fail=f.fail), button="Create")
         self.get("api/lists", lambda ls: self.menu("Add to a playlist", [item(f"New playlist{g('dots')}", run=new)] + [
-            item(p["name"], self.cli.plural(p["count"], "song"), run=lambda p=p: put(p)) for p in ls if not p["liked"]], note=t["title"]))
+            item(p["name"], self.cli.plural(p["count"], "song"), run=lambda p=p: put(p)) for p in ls if not p["liked"] and not p.get("auto")], note=t["title"]))
 
     def volume(self, d):
         v = max(0, min(100, self.state.get("volume", 50) + d))

@@ -11,6 +11,7 @@ import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 
 let el = null;                                 /* the tab's body */
 let all = [];
+let hereNow = [];                              /* the devices with Tunebox open right now (api/admin/here) */
 let open = null;                               /* the person on screen (id), or null for the list */
 let detail = null, plays = [];                 /* theirs */
 let pick = { color: "", emoji: "", sems: new Set() };   /* the details form, before it is saved */
@@ -25,9 +26,9 @@ export function showPeople(target) { el = target; open = null; load(); }
 
 async function load() {
   if (!all.length) el.innerHTML = loading("Loading");
-  const ps = await call("api/admin/people");
+  const [ps, hs] = await Promise.all([call("api/admin/people"), call("api/admin/here").catch(() => [])]);
   if (ps === null || el.dataset.tab !== "people") return;
-  all = ps;
+  all = ps; hereNow = hs || [];
   if (!person()) { open = null; return renderList(); }
   const p = person();
   [detail, plays] = await Promise.all([call(`api/admin/people/${p.id}/detail`), call(`api/admin/plays?who=${p.id}&limit=50`)]);
@@ -51,8 +52,14 @@ const needGroup = () => isOn("groups") && house.groups.required;
 const marks = p => (p.locked ? `<span class="lock" title="Has a pass phrase">${LOCK}</span>` : "")
   + (p.noAdd ? '<i class="mark">can\'t add songs</i>' : "") + (p.cap ? `<i class="mark">max ${p.cap} waiting</i>` : "");
 
+/* who has Tunebox open: a name (or none picked), the kind of device, its address */
+const hereRows = () => hereNow.map(d => `<div class="arow"><div class="min0"><div class="t">${d.name ? esc(d.name) : "<i>No name picked</i>"}${d.wall ? ' <i class="mark">wall</i>' : ""}</div>
+  <div class="s">${esc(d.device)} · ${esc(d.ip)} · ${Math.max(0, Math.round(Date.now() / 1000 - d.at))} s ago</div></div></div>`).join("");
+
 function renderList() {
-  el.innerHTML = `<div class="sec"><h2>People</h2><span class="aside">${plural(all.length, "name")}</span></div>
+  el.innerHTML = `<div class="sec"><h2>Here now</h2><span class="aside">${plural(hereNow.length, "device")}</span></div>
+    <div class="body"><p>Every device with Tunebox open in the last minute, and the name it picked.</p>${hereRows() || "<p>Nobody.</p>"}</div>
+    <div class="sec"><h2>People</h2><span class="aside">${plural(all.length, "name")}</span></div>
     <div class="body">${house.signups === "open" ? "" : "<p>Sign-ups are closed (House tab): new names are added here.</p>"}
       <form class="aform" id="admNew"><input class="field" placeholder="A new person's name" maxlength="24" autocomplete="off">
         <select class="field" aria-label="${esc(G().one)}">${needGroup() ? "" : `<option value="">No ${esc(G().a)}</option>`}${Object.values(seminars).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select>

@@ -62,5 +62,6 @@ export function semTag(sid, cls = "") {
 }
 export const semTags = (p, cls = "") => (p?.seminars || []).map(sid => semTag(sid, cls)).join("");
 
-/* The small badge on a queued song: who added it (and their groups), or a dot for the radio */
-export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>` : people[id] && feat("people") ? avatar(people[id], "sm") + semTags(people[id], "sm") : "";
+/* The small badge on a queued song: who added it (their icon and name), or a dot for the radio */
+export const byChip = id => id === "radio" ? `<i class="av sm radio" title="Radio">•</i>`
+  : people[id] && feat("people") ? `${avatar(people[id], "sm")}<b class="byname">${esc(people[id].name)}</b> · ` : "";

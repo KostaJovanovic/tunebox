@@ -59,6 +59,11 @@ save() {
   if git diff --cached --quiet; then
     echo "[git]   nothing new to commit"
   else
+    # the version (commit N is 0.NN, in web/shared/version.js) and web/patch.html, rebuilt from
+    # patch-notes.md with it; only now, so a save with nothing to commit doesn't raise the count
+    env_ok || return 1
+    "$PY" dev/patch.py bump || { echo "[err]   could not stamp the version or build the patch notes - not saving"; return 1; }
+    git add web/shared/version.js web/patch.html web/patch.json
     git status --short
     def="update $(date '+%Y-%m-%d %H:%M')"
     if [ "$QUICK" = 1 ]; then
@@ -66,7 +71,7 @@ save() {
     else
       printf 'commit message [%s]: ' "$def"; read -r msg
     fi
-    git commit -m "${msg:-$def}" || { echo "[err]   git commit failed"; return 1; }
+    git commit -m "${msg:-$def}" || { "$PY" dev/patch.py unbump >/dev/null; echo "[err]   git commit failed"; return 1; }
   fi
   if [ "$COMMIT_ONLY" = 1 ]; then
     echo "[git]   committed locally, not pushed"

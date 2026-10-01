@@ -121,6 +121,16 @@ if not errorlevel 1 (
   echo [git]  nothing new to commit
   goto aftercommit
 )
+rem The version (commit N is 0.NN, in web\shared\version.js) and web\patch.html, rebuilt from
+rem patch-notes.md with it. Only now: a save with nothing to commit must not raise the count.
+call dev\env.bat || (set "SAVE_ERROR=1" & goto end)
+"%PY%" dev\patch.py bump
+if errorlevel 1 (
+  echo [err]  could not stamp the version or build the patch notes - not saving
+  set "SAVE_ERROR=1"
+  goto end
+)
+git add web\shared\version.js web\patch.html web\patch.json
 git status --short
 
 echo.
@@ -141,6 +151,7 @@ powershell -NoProfile -Command "[IO.File]::WriteAllText($env:MSGFILE, $env:MSG)"
 git commit -F "%MSGFILE%"
 if errorlevel 1 (
   del "%MSGFILE%" >nul 2>nul
+  "%PY%" dev\patch.py unbump >nul
   echo [err]  git commit failed
   set "SAVE_ERROR=1"
   goto end

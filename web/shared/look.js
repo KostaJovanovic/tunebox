@@ -21,7 +21,7 @@
   /* a Tunebox nobody set up: what the pages assume until the server answers */
   const HOUSE = { name: "Tunebox", accent: "", tz: "", signups: "open", off: [],
     groups: { one: "Seminar", many: "Seminars", required: true, create: "open" }, newPerson: { groups: [] },
-    wall: { lyrics: true, queue: false, who: false, clock: true, controls: true } };
+    wall: { lyrics: true, queue: false, who: false, clock: true, controls: true, night: "", qr: true }, quiet: { hours: "", max: 30 } };
 
   /* auto: a device with 2 GB of memory or less (only Chrome-based browsers say), or 2 cores or fewer */
   const weak = () => (navigator.deviceMemory > 0 && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2);

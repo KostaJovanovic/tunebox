@@ -27,12 +27,15 @@ PLAYS_DIR = DATA / "plays"                 # the play log, a file per month, kep
 SEMINARS_FILE = DATA / "seminars.json"     # the groups people are in (a house calls them what it likes; here they began as seminars)
 HOUSE_FILE = DATA / "house.json"           # what the admin set for the whole house
 BLOCK_FILE = DATA / "blocklist.json"       # songs and artists the admin blocked
+WALL_FILE = DATA / "wall.json"              # when songs were added from the wall screen (wall.py), for Stats
 AUDIT_FILE = DATA / "audit.json"           # what the admin did, and who tried to get in
 LOCAL_FILE = DATA / "local.json"            # the local songs: what each uploaded file is (local.py)
 LOCAL_DIR = DATA / "local"                  # the files themselves, their covers, and uploads on their way in
 TOKEN_FILE = DATA / "cli.token"            # written at every start: reading it proves you are on the server (admin.py)
 
 LIKED_ID = "liked"                          # the built-in "Liked songs" playlist: pinned first, can't be renamed or deleted
+TOP_ID = "top"                              # "Top 30": the most played songs of the last STATS_DAYS days, made on every read, never stored
+TOP_SIZE = 30
 URL_TTL = 4 * 3600                          # stream URLs expire after ~6 h; re-resolve well before that
 SESSION_EVERY = 60                          # save queue + position at most this often (seconds), spares the SD card
 PLAYED_KEEP = 50                            # played tracks kept in the queue before the current one

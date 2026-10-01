@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="web/bauhaus/css/base.css">
 <link rel="stylesheet" href="web/bauhaus/css/library.css">
 <link rel="stylesheet" href="web/bauhaus/css/player.css">
+<link rel="stylesheet" href="web/shared/wallpaper.css">
 <link rel="stylesheet" href="web/bauhaus/css/canvas.css">
 <link rel="stylesheet" href="web/bauhaus/css/drawers.css">
 <link rel="stylesheet" href="web/bauhaus/css/queue.css">
@@ -40,6 +41,7 @@
     <label class="search">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
       <input id="q" type="search" placeholder="Search, or paste a YouTube link" autocomplete="off" enterkeyhint="search">
+      <div class="recent" id="recent" hidden></div>
     </label>
     <button class="adminbadge" data-act="admin-open" title="The admin is unlocked on this device">Admin</button>
     <button class="me" id="meBtn" data-f="people" data-act="who-open" title="Who's listening" aria-label="Who's listening"><i class="av none">?</i></button>
@@ -48,7 +50,7 @@
   </div>
 </header>
 <nav class="nav" id="nav">
-  <button data-v="home" data-f="browse" class="on"><b></b>Home</button><button data-v="lists" data-fall="lists"><b></b>Playlists</button><button data-v="history"><b></b>History</button><button data-v="explore" data-f="browse"><b></b>Explore</button><button data-v="local" data-f="local"><b></b>Local</button><button data-v="stats" data-f="stats"><b></b>Stats</button>
+  <button data-v="home" data-f="browse" class="on"><b></b>Home</button><button data-v="lists" data-fall="lists"><b></b>Playlists</button><button data-v="local" data-f="local"><b></b>Local</button><button data-v="history"><b></b>History</button><button data-v="explore" data-f="browse"><b></b>Explore</button><button data-v="stats" data-f="stats"><b></b>Stats</button>
 </nav>
 <nav class="tabs" id="tabs" hidden>
   <button data-k="songs" class="on">Songs</button><button data-k="albums">Albums</button>
@@ -95,7 +97,7 @@
 
 <!-- now playing canvas: big cover (phone: every control; desktop: the bar keeps them, lyrics optional) -->
 <div class="canvas" id="canvas" aria-hidden="true">
-  <div class="cbg" id="cBg"></div>
+  <div class="wp" id="cWp" aria-hidden="true"></div><div class="grain" id="cGrain" aria-hidden="true"></div>
   <div class="chead">
     <button class="qbtn" data-act="canvas-close" title="Close (Esc)" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M5 9l7 7 7-7"/></svg></button>
     <div class="k">Now playing</div>
@@ -265,6 +267,12 @@
         <span class="lbl">Address</span><div class="netrow"><a id="netUrl" href="./"></a><button class="btn" data-act="net-copy">Copy</button></div>
         <span class="lbl" id="netWifiLbl">Wi-Fi</span><div class="netrow" id="netWifi"></div>
       </div>
+    </div>
+
+    <div class="sec"><b></b><h2>Version</h2></div>
+    <div class="body">
+      <p>Tunebox <b id="verN"></b>. What changed, and when, is in the patch notes.</p>
+      <div class="eqtools"><a class="btn" href="patch">Patch notes</a></div>
     </div>
   </div>
 </aside>

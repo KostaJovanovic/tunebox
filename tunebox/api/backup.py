@@ -3,21 +3,23 @@ history, play counts, the play log, settings, the house setup, the blocklist, th
 JSON file. The YouTube sign-in (browser.json) and the audit log are never in it. The local songs' audio is
 only in the admin's full backup, a zip with that JSON file and the local folder; putting the audio
 back is unzipping the local folder into Tunebox's data folder. A restore first saves what it replaces in backups/,
-so it can be undone.
+so it can be undone. Every night the server also writes a backup there itself (nightly()), keeping the last 14.
 
 Anyone may download a backup, but only the admin's has the secrets (keys.json and the pass phrase
 hashes). Restoring is the admin's, and it never changes the admin password."""
+import asyncio
 import datetime
 import json
+import sys
 import time
 import zipfile
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 
-from .. import admin, audit, auth, blocklist, data, house, local, plays
+from .. import admin, audit, auth, blocklist, data, house, local, plays, wall
 from ..config import (BLOCK_FILE, DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, LOCAL_DIR, LOCAL_FILE, PEOPLE_FILE,
-                      PLAYS_DIR, SEMINARS_FILE, SETTINGS_FILE, STATS_FILE)
+                      PLAYS_DIR, SEMINARS_FILE, SETTINGS_FILE, STATS_FILE, WALL_FILE)
 from ..files import read_json, write_json
 from ..player import player
 from ..settings import load_settings, settings
@@ -27,7 +29,7 @@ router = APIRouter()
 BACKUPS = DATA / "backups"
 FILES = {"settings": SETTINGS_FILE, "history": HISTORY_FILE, "playlists": LISTS_FILE, "people": PEOPLE_FILE,
          "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE,
-         "blocklist": BLOCK_FILE, "local": LOCAL_FILE}
+         "blocklist": BLOCK_FILE, "local": LOCAL_FILE, "wall": WALL_FILE}
 
 
 def snapshot(secrets: bool = True) -> dict:
@@ -45,6 +47,27 @@ def snapshot(secrets: bool = True) -> dict:
             p.pop("phrase", None)
             p.pop("kv", None)
     return out
+
+
+NIGHTLY_KEEP = 14
+
+
+async def nightly():
+    """A backup of the day, once a day after 04:00 by the house's clock (when the house is likely asleep):
+    backups/nightly-YYYY-MM-DD.json, with the secrets, so it restores fully. One write a day spares the SD
+    card; the oldest beyond 14 are deleted. Started by app.py's lifespan; nothing may end this loop."""
+    while True:
+        try:
+            now = datetime.datetime.now(house.tz())
+            f = BACKUPS / f"nightly-{now.date().isoformat()}.json"
+            if now.hour >= 4 and not f.exists():
+                BACKUPS.mkdir(parents=True, exist_ok=True)
+                write_json(f, snapshot())
+                for old in sorted(BACKUPS.glob("nightly-*.json"))[:-NIGHTLY_KEEP]:
+                    old.unlink(missing_ok=True)
+        except Exception as exc:
+            print(f"tunebox: nightly backup failed: {exc}", file=sys.stderr)
+        await asyncio.sleep(600)
 
 
 @router.get("/api/backup")
@@ -159,6 +182,7 @@ async def restore(body: RestoreBody, request: Request):
     house.save_house()                        # bumps its revision: every page reads the setup again
     blocklist.load()
     local.load()
+    wall.load()
     data.save_lists()                         # bumps the revisions: every page reloads names and likes
     data.save_people()
     await player.apply_volume()

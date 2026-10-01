@@ -37,3 +37,6 @@
 .artlink { color: inherit; font: inherit; padding: 0; text-align: left; }
 @media (hover: hover) { .artlink:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); } }
 @media (max-width: 760px) { .player .artlink { pointer-events: none; } }   /* the mini bar opens the canvas; its links are there */
+
+/* a song's own numbers (menu.js songInfo) */
+.ctx .cinfo { padding: 8px 14px; font: 500 12px var(--ui); color: var(--muted); border-bottom: 1px solid var(--line); }

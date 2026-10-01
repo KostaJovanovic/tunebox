@@ -1,4 +1,4 @@
-"""History, Tunebox playlists (one shared set for the whole house) and Liked songs.
+"""History, Tunebox playlists (one shared set for the whole house), Liked songs and Top 30.
 
 Everyone sees every playlist and may add, remove and reorder its songs. Renaming or deleting one is
 for whoever made it (its owner) and the admin; a playlist with no owner is the house's."""
@@ -8,8 +8,8 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from .. import admin, audit, data
-from ..config import HISTORY_MAX, LIKED_ID
+from .. import admin, audit, blocklist, data
+from ..config import HISTORY_MAX, LIKED_ID, STATS_DAYS, TOP_ID, TOP_SIZE
 from ..data import clean_track, list_summary, playlists, save_lists, sorted_lists
 from ..player import player
 from ..settings import save_settings, settings
@@ -37,9 +37,20 @@ def may_manage(p: dict, request: Request) -> bool:
     return bool(p.get("owner") and p["owner"] == who(request)) or admin.is_admin(request)
 
 
+def top_list() -> dict:
+    """Top 30: the house's most played songs of the last STATS_DAYS days, made fresh on every read.
+    Each track carries its play count; nobody edits it."""
+    now = int(time.time())
+    tracks = [{**t, "plays": n} for n, t in data.most_played(TOP_SIZE * 2) if not blocklist.blocked(t)][:TOP_SIZE]
+    return {"id": TOP_ID, "name": f"Top {TOP_SIZE}", "tracks": tracks, "created": now, "updated": now, "owner": "",
+            "auto": True, "days": STATS_DAYS}
+
+
 def get_list(list_id: str, request: Request) -> dict:
     """The playlist, if its feature is on (Liked songs belongs to likes, the rest to playlists)."""
     need_feature(request, "likes" if list_id == LIKED_ID else "playlists")
+    if list_id == TOP_ID:
+        raise HTTPException(400, f"Top {TOP_SIZE} makes itself from what plays here")
     if list_id not in playlists:
         raise HTTPException(404, "No such playlist")
     return playlists[list_id]
@@ -70,8 +81,11 @@ class ListEditBody(BaseModel):
 @router.get("/api/lists")
 async def all_lists(request: Request):
     is_admin = admin.is_admin(request, touch=False)
-    return [list_summary(p) for p in sorted_lists()
-            if is_admin or house.on("likes" if p["id"] == LIKED_ID else "playlists")]
+    ls = [p for p in sorted_lists() if is_admin or house.on("likes" if p["id"] == LIKED_ID else "playlists")]
+    top = top_list()
+    if top["tracks"] and (is_admin or house.on("playlists")):
+        ls.insert(1 if ls and ls[0]["id"] == LIKED_ID else 0, top)   # next to Liked songs
+    return [list_summary(p) for p in ls]
 
 
 @router.post("/api/lists", dependencies=[feature("playlists")])
@@ -89,6 +103,9 @@ async def create_list(body: ListBody, request: Request):
 
 @router.get("/api/lists/{list_id}")
 async def one_list(list_id: str, request: Request):
+    if list_id == TOP_ID:
+        need_feature(request, "playlists")
+        return top_list()
     return get_list(list_id, request)
 
 

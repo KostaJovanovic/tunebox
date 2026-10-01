@@ -2,7 +2,7 @@
    and section headings. Buttons carry data-act="..." (see shared/actions.js); a song button also says
    which list it's from and where (data-list, data-i), the song itself sits in lists[list][i]. What belongs to a feature the
    admin can switch off says so with data-f="..." (base.css hides it). */
-import { $, $$, esc, pad } from "../../shared/dom.js";
+import { $, $$, esc, pad, art } from "../../shared/dom.js";
 import { state } from "../../shared/playback.js";
 import { isLiked } from "../../shared/likes.js";
 import { byChip, people, avatar } from "../../shared/people.js";
@@ -148,9 +148,9 @@ export function songRow(t, key, i, o = {}) {
       <button title="Play" aria-label="Play" data-act="song" data-mode="now" ${at(key, i)}>${icon.PLAYS}</button>
       <button title="Add to playlist" aria-label="Add to playlist" data-f="playlists" data-act="pick" ${at(key, i)}>${icon.LIST}</button>
       ${likeBtn(key, i, t.videoId)}`;
-  return `<div class="row${cur}${o.cls ? " " + o.cls : ""}">
+  return `<div class="row${cur}${o.cls ? " " + o.cls : ""}" data-vid="${esc(t.videoId)}">
     <span class="n">${pad(o.num ?? i + 1)}</span>
-    <img loading="lazy" src="${esc(t.thumb)}" alt="">
+    <img loading="lazy" src="${esc(art(t))}" alt="">
     <div class="meta" ${meta}>
       <div class="t">${esc(t.title)}</div><div class="s">${o.likers ? o.likers.map(id => people[id] && feat("people") ? avatar(people[id], "sm") : "").join("") : o.by ? byChip(o.by) : ""}${localTag(t)}${esc([t.artist, t.album].filter(Boolean).join(" · "))}</div>
     </div>
@@ -162,13 +162,13 @@ export function songRow(t, key, i, o = {}) {
 export function card(it) {
   const act = it.type === "song" ? `data-act="add-track" data-track="${esc(JSON.stringify(it))}"`
     : `data-act="open" data-type="${esc(it.type)}" data-id="${esc(it.id)}"`;
-  return `<button class="card" ${act}><img loading="lazy" src="${esc(it.thumb)}" alt="">
+  return `<button class="card" ${act}><img loading="lazy" src="${esc(art(it))}" alt="">
     <div class="t">${esc(it.title)}</div><div class="s"><i class="kind ${esc(it.type)}"></i>${esc(it.subtitle || it.artist || it.type)}</div></button>`;
 }
 
 /* A card for song i of a list (the house's own shelves on Home); liked songs show who liked them */
 const likers = t => (t.likedBy || []).filter(id => people[id] && feat("people")).map(id => avatar(people[id], "sm")).join("");
-export const songCard = (t, key, i) => `<button class="card" data-act="song" ${at(key, i)}><img loading="lazy" src="${esc(t.thumb)}" alt="">
+export const songCard = (t, key, i) => `<button class="card" data-act="song" ${at(key, i)}><img loading="lazy" src="${esc(art(t))}" alt="">
     <div class="t">${esc(t.title)}</div><div class="s">${likers(t) || '<i class="kind song"></i>'}${localTag(t)}${esc(t.artist)}</div></button>`;
 
 /* A playlist cover: four covers in a square, one if there are fewer, a note icon if none */

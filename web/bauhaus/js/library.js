@@ -4,9 +4,11 @@ import { $, $$, esc, ago } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists, LINK } from "../../shared/playback.js";
 import { feat } from "../../shared/house.js";
+import { people } from "../../shared/people.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
-import { seq, back, setNav, bump, setBack, visit, previous } from "./nav.js";
+import { seq, back, setNav, bump, setBack, visit, previous, view } from "./nav.js";
+import { store } from "../../shared/device.js";
 import { askPlay } from "./ask.js";
 import { withAdmin } from "./phrase.js";
 import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, songCard, dayName } from "./ui.js";
@@ -20,21 +22,52 @@ let kind = "songs", lastQuery = "";
    switched on when Home isn't. */
 export const startPage = () => feat("browse") ? showHome() : feat("playlists") || feat("likes") ? showLists() : showHistory();
 
+/* Last week in one card at the top of Home (Monday to Sunday, by the house's clock), until this device closes it */
+function digestCard(d) {
+  if (!d || !d.plays || store.get("tb_digest", "") === String(d.since)) return "";
+  const hrs = d.minutes >= 120 ? `${Math.round(d.minutes / 60)} hours` : `${d.minutes} minutes`;
+  const who = d.person && people[d.person.id];
+  lists.digest = [d.song, d.found].filter(Boolean);
+  return `<div class="digest"><button class="x" data-act="digest-close" data-since="${esc(String(d.since))}" title="Close" aria-label="Close">×</button>
+    <div class="k">Last week</div><div class="big">${esc(hrs)} of music</div>
+    <div class="facts"><button data-act="song" data-list="digest" data-i="0"><b>Top song</b>${esc(d.song.title)} <i>${d.song.plays}×</i></button>
+      ${who ? `<div><b>Listened most</b>${esc(who.name)} <i>${who && d.person.minutes >= 60 ? Math.round(d.person.minutes / 60) + " h" : d.person.minutes + " min"}</i></div>` : ""}
+      ${d.found ? `<button data-act="song" data-list="digest" data-i="1"><b>New find</b>${esc(d.found.title)} <i>${esc(d.found.artist)}</i></button>` : ""}</div></div>`;
+}
+on("digest-close", el => { store.set("tb_digest", el.dataset.since); el.closest(".digest").remove(); });
+
 /* ---------- Home: the house's own shelves first, then YouTube's ---------- */
 export async function showHome() {
   setNav("home"); $("#q").value = ""; setBack(showHome);
   const my = seq;
   main(loading("Loading"));
-  const [mine, yt] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e }))]);
+  const [mine, yt, week] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e })),
+    feat("stats") ? api("api/digest").catch(() => null) : null]);
   if (my !== seq) return;
-  let n = 0, html = "";
-  for (const s of mine) {
-    const key = "fy_" + s.key; lists[key] = s.items;
-    html += section(++n, s.title, `<span class="hide-sm">${esc(s.subtitle)} · </span><button class="link" data-act="play-all" data-list="${esc(key)}" data-label="${esc(s.title)}">Play all</button>`)
-      + `<div class="shelf">${s.items.map((t, i) => songCard(t, key, i)).join("")}</div>`;
+  /* At least the first two rows are songs: the house's own, then YouTube's all-song rows, then the songs
+     picked out of its mixed rows, then what played lately. Mixes and albums come after. */
+  const songRows = mine.map(s => ({ ...s, key: "fy_" + s.key })), rest = [];
+  if (!yt.error) {
+    const allSongs = s => s.items.every(it => it.type === "song");
+    for (const s of yt) if (allSongs(s)) songRows.push({ title: s.title, items: s.items, key: "fy_yt" + songRows.length });
+    const loose = yt.filter(s => !allSongs(s)).flatMap(s => s.items.filter(it => it.type === "song"));
+    const pull = songRows.length < 2 && loose.length > 3;    /* those songs get a row of their own */
+    if (pull) songRows.push({ title: "Songs for you", subtitle: "From YouTube Music", items: loose, key: "fy_loose" });
+    for (const s of yt) if (!allSongs(s)) rest.push({ ...s, items: pull ? s.items.filter(it => it.type !== "song") : s.items });
+  }
+  if (songRows.length < 2) {
+    const seen = new Set(), lately = (await api("api/history?limit=100").catch(() => [])).filter(t => !seen.has(t.videoId) && seen.add(t.videoId)).slice(0, 24);
+    if (my !== seq) return;
+    if (lately.length > 3) songRows.push({ title: "Played lately", subtitle: "The house, most recent first", items: lately, key: "fy_lately" });
+  }
+  let n = 0, html = digestCard(week);
+  for (const s of songRows) {
+    lists[s.key] = s.items;
+    html += section(++n, s.title, `${s.subtitle ? `<span class="hide-sm">${esc(s.subtitle)} · </span>` : ""}<button class="link" data-act="play-all" data-list="${esc(s.key)}" data-label="${esc(s.title)}">Play all</button>`)
+      + `<div class="shelf">${s.items.map((t, i) => songCard(t, s.key, i)).join("")}</div>`;
   }
   if (yt.error) html += note(`Could not load YouTube's home: ${esc(errText(yt.error))}`);
-  else html += yt.map(s => section(++n, s.title) + `<div class="shelf">${s.items.map(card).join("")}</div>`).join("");
+  else html += rest.filter(s => s.items.length).map(s => section(++n, s.title) + `<div class="shelf">${s.items.map(card).join("")}</div>`).join("");
   main(html || note("Nothing here yet. Try searching."));
 }
 
@@ -171,10 +204,35 @@ on("back", () => { const p = previous(); p ? openItem(p.type, p.id, true) : back
 on("clear-history", clearHistory);
 on("add-track", el => askPlay([JSON.parse(el.dataset.track)]));
 
+/* ---------- recent searches: this device's last 8, shown under the empty search box ----------
+   A search is kept once it was meant: Enter, or a tap on one of its results (not every pause in typing). */
+const recent = () => { try { return JSON.parse(store.get("tb_searches", "[]")).filter(x => typeof x === "string"); } catch { return []; } };
+function remember(q) {
+  q = (q || "").trim();
+  if (q && !LINK.test(q)) store.set("tb_searches", JSON.stringify([q, ...recent().filter(x => x.toLowerCase() !== q.toLowerCase())].slice(0, 8)));
+}
+function showRecent() {
+  const box = $("#recent"), rs = $("#q").value.trim() ? [] : recent();
+  box.hidden = !rs.length;
+  box.innerHTML = rs.map(q => `<div class="rrow"><button class="rq" data-q="${esc(q)}">${esc(q)}</button><button class="rx" data-x="${esc(q)}" title="Forget" aria-label="Forget">×</button></div>`).join("")
+    + '<button class="rclear" data-clear="1">Clear recent searches</button>';
+}
+$("#recent").addEventListener("pointerdown", e => e.preventDefault());   /* keep the box focused, so the tap lands */
+$("#recent").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.q) { $("#q").value = b.dataset.q; $("#recent").hidden = true; remember(b.dataset.q); doSearch(); $("#q").blur(); return; }
+  store.set("tb_searches", JSON.stringify(b.dataset.clear ? [] : recent().filter(x => x !== b.dataset.x)));
+  showRecent();
+});
+$("#q").addEventListener("focus", showRecent);
+$("#q").addEventListener("blur", () => { $("#recent").hidden = true; });
+$("#view").addEventListener("click", e => { if (view === "search" && e.target.closest("[data-act]")) remember(lastQuery); }, true);
+
 let typing;
-$("#q").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(doSearch, 450); });
+$("#q").addEventListener("input", () => { showRecent(); clearTimeout(typing); typing = setTimeout(doSearch, 450); });
 $("#q").addEventListener("keydown", e => {
-  if (e.key === "Enter") { clearTimeout(typing); doSearch(); e.target.blur(); }
+  if (e.key === "Enter") { clearTimeout(typing); remember(e.target.value); doSearch(); e.target.blur(); }
   if (e.key === "Escape") e.target.blur();
 });
 $("#tabs").addEventListener("click", e => {

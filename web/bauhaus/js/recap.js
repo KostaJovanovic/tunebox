@@ -1,7 +1,7 @@
 /* The recap: Stats told as full-screen story slides, for the period and the person or group picked
    on the Stats page. Tap the right side (or →) for the next slide, the left side (or ←) to go back,
    hold to pause; each slide moves on by itself after a few seconds. */
-import { $, esc } from "../../shared/dom.js";
+import { $, esc, art } from "../../shared/dom.js";
 import { errText } from "../../shared/api.js";
 import { lists, queueSongs } from "../../shared/playback.js";
 import { people, seminars, avatar, semTag } from "../../shared/people.js";
@@ -17,7 +17,7 @@ let slides = [], at = 0, timer = null, started = 0, left = SLIDE_MS, held = fals
 
 const hm = min => min >= 120 ? `${Math.round(min / 60)} hours` : `${min} ${min === 1 ? "minute" : "minutes"}`;
 const num = n => n.toLocaleString();
-const img = u => u ? `<img src="${esc(u)}" alt="">` : `<div class="blank"></div>`;
+const img = t => `<img src="${esc(art(t))}" alt="">`;
 
 function build(d, who, label) {
   const name = whoName(who), you = who && !who.startsWith("sem:");
@@ -28,12 +28,12 @@ function build(d, who, label) {
   s.push({ cls: "black", html: `<div class="k">Time together</div><div class="huge">${num(d.minutes)}</div><p class="lead">minutes of music</p>
     <p>${d.minutes >= 120 ? `That's ${hm(d.minutes)}` : "Every minute counts"}, across ${d.days} ${d.days === 1 ? "day" : "days"} and ${num(d.plays)} plays.</p>` });
   const t = d.topSongs[0];
-  if (t) s.push({ cls: "cover", bg: t.thumb, html: `<div class="k">${you ? "Your" : "The"} number one</div>${img(t.thumb)}
+  if (t) s.push({ cls: "cover", bg: t.thumb, html: `<div class="k">${you ? "Your" : "The"} number one</div>${img(t)}
     <h2>${esc(t.title)}</h2><p class="lead">${esc(t.artist)}</p><p>Played ${t.plays} ${t.plays === 1 ? "time" : "times"}, ${hm(t.minutes)}.</p>` });
   if (d.topSongs.length > 1) s.push({ cls: "yellow", html: `<div class="k">Top songs</div><ol class="tops">${d.topSongs.slice(0, 5).map(x =>
-    `<li>${img(x.thumb)}<div><b>${esc(x.title)}</b><span>${esc(x.artist)} · ${x.plays}×</span></div></li>`).join("")}</ol>` });
+    `<li>${img(x)}<div><b>${esc(x.title)}</b><span>${esc(x.artist)} · ${x.plays}×</span></div></li>`).join("")}</ol>` });
   const a = d.topArtists[0];
-  if (a) s.push({ cls: "cover", bg: a.thumb, html: `<div class="k">Top artist</div>${img(a.thumb)}<h2>${esc(a.name)}</h2>
+  if (a) s.push({ cls: "cover", bg: a.thumb, html: `<div class="k">Top artist</div>${img(a)}<h2>${esc(a.name)}</h2>
     <p class="lead">${a.plays} plays · ${hm(a.minutes)}</p>${d.topArtists[1] ? `<p>Then ${esc(d.topArtists.slice(1, 3).map(x => x.name).join(" and "))}.</p>` : ""}` });
   s.push({ cls: "blue", html: `<div class="k">Range</div><div class="huge">${num(d.songs)}</div><p class="lead">different songs by ${num(d.artists)} artists</p>
     <p>${d.newSongs ? `${num(d.newSongs)} of them ${d.newSongs === 1 ? "was" : "were"} new${you ? " to you" : ""}.` : "Old favourites, all of them."}</p>` });

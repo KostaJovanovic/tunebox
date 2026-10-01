@@ -75,3 +75,9 @@ html[data-admin][data-off~="playlists"][data-off~="likes"] [data-fall="lists"] {
 svg { flex: none; }
 .min0 { min-width: 0; }
 .push { margin-left: auto; }
+
+/* the server stopped answering (shared/playback.js): a bar along the top, and the controls rest until it's back */
+#offline { display: none; }
+html[data-offline] #offline { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+  background: var(--yellow); color: #111; font: 600 13px var(--ui); text-align: center; }
+html[data-offline] :is(.player, .canvas, #drawer) { opacity: .5; pointer-events: none; transition: opacity .3s; }
