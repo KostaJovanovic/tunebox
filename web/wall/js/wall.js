@@ -13,7 +13,7 @@ import "../../shared/motion.js";              /* for its touch listener: a press
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
-const IDLE_AFTER = 120, AWAKE_FOR = 30;        /* paused this long counts as idle; a tap keeps it awake this long */
+const IDLE_AFTER = 30, AWAKE_FOR = 30;         /* paused this long counts as idle; a tap keeps it awake this long */
 
 let pausedSince = null, touched = 0, volTouch = 0, msgT;
 
