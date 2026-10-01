@@ -2,6 +2,6 @@
    on every commit, counting up from this file, never from git (a shallow clone counts wrong).
    RELEASE_COMMITS lists the commits crowned as major releases (1.0, 2.0, ...); empty for now.
    patch-notes.md says how the version and the patch notes fit together. */
-export const COMMIT_COUNT = 61;
+export const COMMIT_COUNT = 62;
 export const RELEASE_COMMITS = [];
-export const VERSION = "0.61";
+export const VERSION = "0.62";

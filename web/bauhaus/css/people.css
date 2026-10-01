@@ -64,6 +64,9 @@
 
 /* the names as tiles: lines between them, this device's first with a ring, a lock on a name this device hasn't unlocked */
 #who { width: min(480px, calc(100% - 32px)); }
+#who.form { max-height: min(760px, calc(100% - 64px)); }   /* the form is long: room for all of it before it scrolls */
+#who .emojis { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); }
+#who .emojis button { width: auto; aspect-ratio: 1; height: auto; }
 .whonow { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-bottom: 1px solid var(--line);
   background: var(--s1); color: var(--muted); font-size: 13px; }
 .whonow[hidden] { display: none; }

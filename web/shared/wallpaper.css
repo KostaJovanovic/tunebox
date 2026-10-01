@@ -1,36 +1,11 @@
-/* The wallpaper (after Nothing OS 5's), laid out by shared/wallpaper.js for each song. Behind everything, three to
-   five big soft lights in the cover's colours drifting slowly over near-black; over them a few soft discs
-   in muted colours, spread evenly round the screen, each floating on its own slow path; hairline circles
-   (never crossing: apart, one inside another, or just touching; they turn slowly together) and two
-   dashed lines gliding, like a drafting sheet; then a fine static grain. The pieces stay from song to
-   song: each moves, grows or shrinks and changes colour to its new place, and the ones a song has more
-   or fewer of fade in or out. --c is registered so the colour inside a gradient can change smoothly.
-   --move is how long a piece takes to get to its new place: as long as its way is at one slow, even
-   speed (wallpaper.js), so a long way is slow too. A circle's way may bend: --ex and --ey give its two
-   directions mirrored curves, one speeding up as the other slows, so it goes round in an arc at about
-   the same speed. */
-@property --c { syntax: "<color>"; inherits: false; initial-value: #000; }
-.wp { position: fixed; inset: 0; background: #060606; overflow: hidden; }
-.wp i { position: absolute; border-radius: 50%; opacity: 0; will-change: transform; animation: wpfloat 60s ease-in-out infinite alternate;
-  transition: left var(--move) linear, top var(--move) linear, width var(--move) linear, height var(--move) linear, --c 10s ease, background-color 10s ease, opacity 10s ease; }
-.wp .light { background: radial-gradient(closest-side, var(--c), transparent); }
-.wp .light.on { opacity: .8; }
-/* a disc blurred: its colour, under a mask that fades the way a blur does (a disc of 45% of the size,
-   its edge spread like a Gaussian blur of 45% of its radius). Nothing to work out while it moves. */
-.wp .disc { background-color: var(--c); -webkit-mask-image: var(--soft); mask-image: var(--soft);
-  --soft: radial-gradient(closest-side, rgb(0 0 0 / 1.000) 0%, rgb(0 0 0 / 0.989) 5%, rgb(0 0 0 / 0.971) 10%, rgb(0 0 0 / 0.943) 15%, rgb(0 0 0 / 0.903) 20%, rgb(0 0 0 / 0.849) 25%, rgb(0 0 0 / 0.781) 30%, rgb(0 0 0 / 0.698) 35%, rgb(0 0 0 / 0.605) 40%, rgb(0 0 0 / 0.507) 45%, rgb(0 0 0 / 0.408) 50%, rgb(0 0 0 / 0.315) 55%, rgb(0 0 0 / 0.232) 60%, rgb(0 0 0 / 0.164) 65%, rgb(0 0 0 / 0.110) 70%, rgb(0 0 0 / 0.070) 75%, rgb(0 0 0 / 0.043) 80%, rgb(0 0 0 / 0.024) 85%, rgb(0 0 0 / 0.013) 90%, rgb(0 0 0 / 0.007) 95%, rgb(0 0 0 / 0.003) 100%); }
-.wp .disc.on { opacity: .75; }
-.wp svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.wp circle { opacity: 0; transition: cx var(--move) var(--ex, linear), cy var(--move) var(--ey, linear), r var(--move) linear, opacity 10s ease; }
-.wp circle.on { opacity: 1; }
-.wp .dash { transition: transform var(--move) linear; }
-/* the circles turn together round the middle, so they never cross; the lines glide their own way */
-.wp .rings { transform-box: view-box; transform-origin: 50% 50%; animation: wpturn 480s ease-in-out infinite alternate; }
-.wp .dashes { animation: wpslide 400s ease-in-out infinite alternate; }
-@keyframes wpturn { from { transform: rotate(-2.5deg) translate(-.8vmax, .5vmax); } to { transform: rotate(2.5deg) translate(.8vmax, -.5vmax); } }
-@keyframes wpslide { from { transform: translate(-1.2vmax, .6vmax); } to { transform: translate(1.2vmax, -.6vmax); } }
+/* The wallpaper (after Nothing OS 5's): shared/wallpaper.js draws it on two canvases in .wp, the soft
+   lights on a small one stretched over the screen and the hairlines on one at full size; then a fine
+   static grain over it, and a vignette.
+   --wp tells wallpaper.js how to move it: run, still (nothing drifts; a new song's pieces still glide to
+   their places) or hold (nothing is drawn: shut or being dragged). */
+.wp { --wp: run; position: fixed; inset: 0; background: #060606; overflow: hidden; }
+.wp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .wp::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, #0000 30%, #0009), linear-gradient(#0003, #0006); }
-@keyframes wpfloat { from { transform: translate(calc(var(--dx) * -1), calc(var(--dy) * -1)); } to { transform: translate(var(--dx), var(--dy)) scale(var(--ds)); } }
 .grain { position: fixed; inset: 0; pointer-events: none; opacity: .045; background-size: 256px; }
 /* less motion: the pieces stay put (they still go to a new song's places) */
-@media (prefers-reduced-motion: reduce) { .wp i, .wp .rings, .wp .dashes { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .wp { --wp: still; } }

@@ -12,7 +12,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 
 /* the wallpaper and grain: shared/wallpaper.css. While the idle clock shows, nothing in it drifts */
-body.idle .wp i, body.idle .wp .rings, body.idle .wp .dashes { animation-play-state: paused; }
+body.idle .wp { --wp: still; }
 .stage { position: fixed; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 5vw; align-items: center;
   padding: max(5vh, env(safe-area-inset-top)) 5vw max(5vh, env(safe-area-inset-bottom)); transition: opacity .6s; }
 .stage.nolyrics { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }

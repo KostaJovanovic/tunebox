@@ -14,7 +14,7 @@
 .canvas .wp, .canvas .grain { position: absolute; }
 .canvas .wp { opacity: 0; }
 .canvas.still .wp { opacity: 1; transition: opacity .35s var(--ease); }
-.canvas:not(.still) .wp :is(i, .rings, .dashes) { animation-play-state: paused; }
+.canvas:not(.still) .wp { --wp: hold; }
 .chead { position: relative; display: flex; align-items: center; height: 56px; padding: 0 8px; flex: none; margin-top: env(safe-area-inset-top); }
 .chead .cright { display: flex; margin-left: auto; }
 .chead .k { position: absolute; left: 0; right: 0; pointer-events: none; text-align: center;   /* the screen's centre, whatever buttons are beside it */ font: 600 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: #EDEAE3a8; }

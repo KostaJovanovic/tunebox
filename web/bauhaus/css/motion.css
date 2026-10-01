@@ -30,7 +30,7 @@
    3 seconds (playback.js). ---------- */
 html[data-lite] *, html[data-lite] *::before, html[data-lite] *::after { transition: none !important; box-shadow: none !important; backdrop-filter: none !important; }
 html[data-lite] :is(.adminp.open, .recap.open, .recap .slide, body.vol-open .vol, .nav button.on::after, .tabs button.on::after) { animation: none !important; }
-html[data-lite] .canvas .wp :is(i, .rings, .dashes) { animation: none; }   /* the wallpaper holds still */
+html[data-lite] .canvas.still .wp { --wp: still; }   /* the wallpaper holds still */
 html[data-lite] .prog .fill { transition: transform 2.9s linear !important; }
 html[data-lite] .prog.seeking .fill, html[data-lite] .prog.loading .fill { transition: none !important; }
 
