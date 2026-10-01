@@ -60,6 +60,7 @@
   .modal > .dhead, .modal > .dhead * { touch-action: none; }
   .modal > .dhead::before { content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 3px; margin-left: -18px; background: var(--line-2); }
   /* ...except adding or editing a name, which takes the whole screen */
+  #who { width: 100%; }
   #who.form { top: 0; height: calc(100% - var(--kb, 0px)); max-height: none; border-width: 0; padding-top: env(safe-area-inset-top); }
   #who.form > .dhead::before { display: none; }
   .eqplot { height: 176px; }

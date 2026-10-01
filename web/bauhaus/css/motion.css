@@ -12,7 +12,7 @@
 
 /* one that is a cell of a bar or a grid stays put and darkens */
 :is(.nav button, .tabs button, .atabs button, .dhead button, .dtools button, .qtools button, .presets button:not(.on), .seg2 button:not(.on),
-  .chips button, .top .home, .top .me, .top .adminbadge, .back, .pick, #ctx button, .aperson):active { background: var(--s2); transition-duration: 0s; }
+  .chips button, .top .home, .top .me, .top .adminbadge, .back, .pick, .wtile, #ctx button, .aperson):active { background: var(--s2); transition-duration: 0s; }
 
 /* rows and cards scroll under the finger: they wait a moment, so a scroll doesn't flash them */
 .row:active:not(:has(button:active, .grip:active)), .card:active { background: var(--s2); transition: background 0s .07s; }

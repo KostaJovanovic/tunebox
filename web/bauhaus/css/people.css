@@ -10,8 +10,6 @@
 @media (hover: hover) { .top .me:hover { background: var(--s1); } }
 .top .me .av { width: 28px; height: 28px; font-size: 13px; }
 .top .me .av.none { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
-.pick .av { width: 44px; height: 44px; font-size: 18px; }
-.pick.on .ok::before { content: "This device"; }
 .swatches, .emojis { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
 .swatches button.on { border-color: var(--text); }
@@ -56,7 +54,6 @@
 .whoform .link { align-self: flex-start; }
 .whofoot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--s1); }
 .whofoot .btn { gap: 8px; }
-#whoPick .whofoot .btn { flex: 1; justify-content: center; }
 .whofoot .msg { width: 100%; margin: 0; }
 .whofoot .msg:empty { display: none; }
 .whoview .mbody { flex: 1; min-height: 0; }
@@ -64,3 +61,44 @@
 /* the pass phrase pop-up: one row for field and button, the message and link under them */
 #phraseForm { border-bottom: 0; }
 #phraseForm .msg { width: 100%; margin: 0; }
+
+/* the names as tiles: lines between them, this device's first with a ring, a lock on a name this device hasn't unlocked */
+#who { width: min(480px, calc(100% - 32px)); }
+.whonow { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-bottom: 1px solid var(--line);
+  background: var(--s1); color: var(--muted); font-size: 13px; }
+.whonow[hidden] { display: none; }
+.whonow b { color: var(--text); }
+.whonow .av.sm { width: 22px; height: 22px; font-size: 11px; margin: 0; }
+.whonow .link { margin-left: auto; padding: 6px 0 6px 12px; color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+@media (hover: hover) { .whonow .link:hover { text-decoration: underline; } }
+.whofind { position: relative; display: block; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.whofind[hidden] { display: none; }
+.whofind svg { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.whofind .field { width: 100%; padding-left: 36px; }
+.whogroups { display: flex; gap: 6px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+.whofind:not([hidden]):has(+ .whogroups:not([hidden])) { border-bottom: 0; }
+.whogroups[hidden] { display: none; }
+.whogroups button { flex: none; height: 30px; padding: 0 12px; border: 2px solid var(--c, var(--line-2)); font: 700 12px var(--display);
+  letter-spacing: .08em; text-transform: uppercase; }
+.whogroups button.on { background: var(--c, var(--text)); color: #fff; }
+.whogroups button:not([style]) { --c: var(--text); }
+.whogroups button:not([style]).on { color: var(--bg); }
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.wtile { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 18px 8px 12px; text-align: center;
+  box-shadow: 1px 0 0 var(--line), 0 1px 0 var(--line); transition: background .12s; }
+@media (hover: hover) { .wtile:hover { background: var(--s1); } }
+.wtile:focus-visible { outline-offset: -3px; }
+.wav { position: relative; margin-bottom: 8px; }
+.wtile .av { width: 60px; height: 60px; font-size: 24px; }
+.wtile.on .av { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--yellow); }
+.wtile .t { max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtile .s { max-width: 100%; min-height: 16px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtile .s .sem.sm { margin: 0 2px; }
+.wtile.on .s { color: var(--yellow); font: 700 10px/16px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.wlock { position: absolute; right: -4px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--s2); border: 2px solid var(--bg); }
+.wlock .lockic { width: 12px; height: 12px; color: var(--text); }
+.wtile.add .av { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
+.wtile.add .av svg { width: 40%; height: 40%; }
+.wtile.add .t { color: var(--muted); }
+.wnone { grid-column: 1 / -1; padding: 16px 16px 4px; color: var(--muted); }

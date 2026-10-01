@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## House Rules
-version: 0.44 - 0.59
+version: 0.44 - 0.61
 date: 30 September 2026
 
 - **The house gets an admin, and Tunebox reaches past the browser.** One
@@ -232,6 +232,17 @@ date: 30 September 2026
   screen.
 - [fix] **A pop-up's buttons stay above the keyboard** in Firefox and Safari.
 
+### Who's listening
+- [new] **Names are big tiles,** yours first with a ring around it, so most
+  houses fit without scrolling.
+- [new] **Find your name** in a search box that ignores accents and matches
+  groups too, or **filter by group** with a row of chips. When nothing matches,
+  one tap adds what you typed as a new name.
+- [new] **A padlock on a name** says it has a pass phrase before you tap it.
+- [new] **`Listening as` sits at the top with an `Edit` link,** in place of
+  `Edit my profile`.
+- [new] **A new group is made with `+ New`** in the name form.
+
 ### Settings
 - [new] **Performance mode** for devices with little power: no movement, blur
   or shadows, and fewer requests to the server. `Auto` turns it on for a slow
@@ -249,8 +260,6 @@ date: 30 September 2026
 - [new] **Fun stats:** skips, songs cut short with Play now, and awards for the
   house - The DJ, On repeat, Itchy finger, Can't wait, Tough crowd, Night owl
   and Explorer. One person's Stats and recap show their own habits instead.
-- [new] **Last week in a card on Home:** the hours of music, the top song, who
-  listened most and the newest find. Close it and it waits for next week.
 - [new] **On this day,** a row on Home with what the house played on this date
   a year ago, or a month ago.
 - [new] **A song's menu says how often the house played it,** since when, and

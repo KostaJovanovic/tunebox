@@ -184,13 +184,3 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
   background: var(--s2); border: 1px solid var(--line-2); box-shadow: 0 16px 40px #0008; }
 .selbar span { font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
 
-/* last week's digest on Home (library.js) */
-.digest { position: relative; margin: 14px 0 6px; padding: 16px 18px; background: var(--s1); border: 1px solid var(--line); border-left: 4px solid var(--red); }
-.digest .k { font: 600 11px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.digest .big { font: 700 26px/1.15 var(--display); margin: 4px 0 12px; }
-.digest .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 18px; }
-.digest .facts > * { text-align: left; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.digest .facts b { display: block; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 2px; }
-.digest .facts i { font-style: normal; color: var(--muted); }
-.digest .x { position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; color: var(--faint); font-size: 20px; }
-@media (hover: hover) { .digest .facts button:hover { color: var(--red); } .digest .x:hover { color: var(--text); } }

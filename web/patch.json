@@ -1,11 +1,11 @@
 {
  "app": "Tunebox",
- "version": "0.60",
+ "version": "0.61",
  "page": "patch",
  "releases": [
   {
    "name": "House Rules",
-   "version": "0.44 - 0.59",
+   "version": "0.44 - 0.61",
    "date": "30 September 2026",
    "items": [
     {
@@ -143,6 +143,29 @@
      "html": "<strong>A pop-up&rsquo;s buttons stay above the keyboard</strong> in Firefox and Safari."
     },
     {
+     "h": "Who&rsquo;s listening"
+    },
+    {
+     "tag": "new",
+     "html": "<strong>Names are big tiles,</strong> yours first with a ring around it, so most houses fit without scrolling."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>Find your name</strong> in a search box that ignores accents and matches groups too, or <strong>filter by group</strong> with a row of chips. When nothing matches, one tap adds what you typed as a new name."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A padlock on a name</strong> says it has a pass phrase before you tap it."
+    },
+    {
+     "tag": "new",
+     "html": "<strong><code>Listening as</code> sits at the top with an <code>Edit</code> link,</strong> in place of <code>Edit my profile</code>."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A new group is made with <code>+ New</code></strong> in the name form."
+    },
+    {
      "h": "Settings"
     },
     {
@@ -171,10 +194,6 @@
     {
      "tag": "new",
      "html": "<strong>Fun stats:</strong> skips, songs cut short with Play now, and awards for the house - The DJ, On repeat, Itchy finger, Can&rsquo;t wait, Tough crowd, Night owl and Explorer. One person&rsquo;s Stats and recap show their own habits instead."
-    },
-    {
-     "tag": "new",
-     "html": "<strong>Last week in a card on Home:</strong> the hours of music, the top song, who listened most and the newest find. Close it and it waits for next week."
     },
     {
      "tag": "new",

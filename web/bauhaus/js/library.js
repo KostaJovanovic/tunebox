@@ -4,7 +4,6 @@ import { $, $$, esc, ago } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists, LINK } from "../../shared/playback.js";
 import { feat } from "../../shared/house.js";
-import { people } from "../../shared/people.js";
 import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { seq, back, setNav, bump, setBack, visit, previous, view } from "./nav.js";
@@ -22,27 +21,12 @@ let kind = "songs", lastQuery = "";
    switched on when Home isn't. */
 export const startPage = () => feat("browse") ? showHome() : feat("playlists") || feat("likes") ? showLists() : showHistory();
 
-/* Last week in one card at the top of Home (Monday to Sunday, by the house's clock), until this device closes it */
-function digestCard(d) {
-  if (!d || !d.plays || store.get("tb_digest", "") === String(d.since)) return "";
-  const hrs = d.minutes >= 120 ? `${Math.round(d.minutes / 60)} hours` : `${d.minutes} minutes`;
-  const who = d.person && people[d.person.id];
-  lists.digest = [d.song, d.found].filter(Boolean);
-  return `<div class="digest"><button class="x" data-act="digest-close" data-since="${esc(String(d.since))}" title="Close" aria-label="Close">×</button>
-    <div class="k">Last week</div><div class="big">${esc(hrs)} of music</div>
-    <div class="facts"><button data-act="song" data-list="digest" data-i="0"><b>Top song</b>${esc(d.song.title)} <i>${d.song.plays}×</i></button>
-      ${who ? `<div><b>Listened most</b>${esc(who.name)} <i>${who && d.person.minutes >= 60 ? Math.round(d.person.minutes / 60) + " h" : d.person.minutes + " min"}</i></div>` : ""}
-      ${d.found ? `<button data-act="song" data-list="digest" data-i="1"><b>New find</b>${esc(d.found.title)} <i>${esc(d.found.artist)}</i></button>` : ""}</div></div>`;
-}
-on("digest-close", el => { store.set("tb_digest", el.dataset.since); el.closest(".digest").remove(); });
-
 /* ---------- Home: the house's own shelves first, then YouTube's ---------- */
 export async function showHome() {
   setNav("home"); $("#q").value = ""; setBack(showHome);
   const my = seq;
   main(loading("Loading"));
-  const [mine, yt, week] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e })),
-    feat("stats") ? api("api/digest").catch(() => null) : null]);
+  const [mine, yt] = await Promise.all([api("api/forme").catch(() => []), api("api/home").catch(e => ({ error: e }))]);
   if (my !== seq) return;
   /* At least the first two rows are songs: the house's own, then YouTube's all-song rows, then the songs
      picked out of its mixed rows, then what played lately. Mixes and albums come after. */
@@ -60,7 +44,7 @@ export async function showHome() {
     if (my !== seq) return;
     if (lately.length > 3) songRows.push({ title: "Played lately", subtitle: "The house, most recent first", items: lately, key: "fy_lately" });
   }
-  let n = 0, html = digestCard(week);
+  let n = 0, html = "";
   for (const s of songRows) {
     lists[s.key] = s.items;
     html += section(++n, s.title, `${s.subtitle ? `<span class="hide-sm">${esc(s.subtitle)} · </span>` : ""}<button class="link" data-act="play-all" data-list="${esc(s.key)}" data-label="${esc(s.title)}">Play all</button>`)

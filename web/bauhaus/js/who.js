@@ -15,6 +15,8 @@ let fromList = false;                          /* the form was opened from the l
 let finishing = false;                         /* editing only because the name has no group yet: saving picks it */
 let typedNow = null;                           /* the name whose pass phrase was just typed to unlock it */
 let justTyped = null;                          /* ...and opened for editing: its Phrase button needn't ask again */
+let query = "", group = "";                    /* what's typed in Find your name, and the group chip picked ("": all) */
+const FIND_FROM = 2;                           /* this many names or more: the field and the group chips */
 
 export function paintMe() {
   const p = me();
@@ -24,6 +26,7 @@ export function paintMe() {
 
 /* opens on the list of names, or straight on the form when there are none yet */
 function openWho() {
+  query = ""; group = ""; $("#whoSearch").value = "";
   resetForm(); renderWho(); showForm(!sortedPeople().length);
   $("#who").classList.add("open"); $("#scrim").classList.add("open");
 }
@@ -34,7 +37,6 @@ function showForm(on) {
   $("#who").classList.toggle("form", on);      /* a phone shows the form full-screen (phone.css) */
   $("#whoBack").textContent = editing && !fromList ? "Cancel" : "Back";
   $("#whoBack").hidden = !editing && !sortedPeople().length;
-  $("#whoNew").hidden = house.signups !== "open" && !admin;   /* the admin may have closed sign-ups: then only the admin adds names */
   if (!on) $("#whoTitle").textContent = "Who's listening?";
   else if (!editing) setTimeout(() => $("#whoName").focus(), 50);
 }
@@ -44,7 +46,7 @@ function closeWho(chosen = false) {
   if (waiting) { waiting(chosen); waiting = null; }
 }
 onCloseAll(() => { if (waiting) { waiting(false); waiting = null; } });
-setNameAsker(() => { openWho(); return new Promise(r => waiting = r); });
+setNameAsker(() => new Promise(r => { waiting = r; openWho(); }));   /* waiting first: the strip says why it asks */
 
 /* a name with a pass phrase: this device types it once */
 async function unlocked(id) {
@@ -64,13 +66,56 @@ async function choose(id) {
   toast(`Listening as ${people[id].name}`);
 }
 
+const mayAddName = () => house.signups === "open" || admin;   /* the admin may have closed sign-ups: then only the admin adds names */
+const fold = s => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();   /* "zeljko" finds "Željko" */
+
+/* The names as tiles, this device's first; a name with a pass phrase this device hasn't typed wears a lock.
+   With many names a field finds yours (by name or group), and the last tile adds a new one. */
 export function renderWho() {
-  const cur = me()?.id, ps = sortedPeople();
-  $("#whoEditMe").hidden = !cur;
-  $("#whoList").innerHTML = ps.length ? ps.map(p => `<button class="pick${p.id === cur ? " on" : ""}" data-act="who-set" data-id="${esc(p.id)}">${avatar(p)}
-    <div class="min0"><div class="t">${esc(p.name)}</div><div class="s">${semTags(p)}</div></div><span class="ok"></span></button>`).join("")
-    : '<div class="note tight">No names yet. Add yours below.</div>';
+  const cur = me(), all = sortedPeople(), q = fold(query.trim());
+  $("#whoFind").hidden = all.length < FIND_FROM;
+  /* the chips: the groups that have names, only when there are two or more to tell apart */
+  const used = feat("groups") ? Object.values(seminars).filter(x => all.some(p => p.seminars?.includes(x.id))) : [];
+  if (!used.some(x => x.id === group)) group = "";
+  $("#whoGroups").hidden = all.length < FIND_FROM || used.length < 2;
+  $("#whoGroups").innerHTML = `<button type="button" class="${group ? "" : "on"}" aria-pressed="${!group}" data-act="who-group" data-s="">All</button>`
+    + used.map(x => `<button type="button" class="${group === x.id ? "on" : ""}" style="--c:${esc(x.color)}" aria-pressed="${group === x.id}" data-act="who-group" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("");
+  const hit = p => (!group || p.seminars?.includes(group))
+    && (!q || fold(p.name).includes(q) || (feat("groups") && (p.seminars || []).some(s => seminars[s] && fold(seminars[s].name).includes(q))));
+  const ps = (cur ? [cur, ...all.filter(p => p !== cur)] : all).filter(hit);
+  const tile = p => `<button class="wtile${p === cur ? " on" : ""}" data-act="who-set" data-id="${esc(p.id)}">
+    <span class="wav">${avatar(p)}${p.locked && !p.mine ? `<span class="wlock" title="Has a pass phrase">${LOCK}</span>` : ""}</span>
+    <span class="t">${esc(p.name)}</span><span class="s">${p === cur ? "This device" : semTags(p, "sm")}</span></button>`;
+  const typed = query.trim();
+  const add = mayAddName() ? `<button class="wtile add" data-act="who-new"><span class="wav"><i class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg></i></span>
+    <span class="t">${q ? `Add ${esc(typed)}` : "Add a name"}</span><span class="s">${q ? "as a new name" : "New here?"}</span></button>` : "";
+  const none = ps.length ? "" : q ? `<p class="wnone">No name matches “${esc(typed)}”${group ? ` in ${esc(seminars[group].name)}` : ""}.</p>`
+    : group ? `<p class="wnone">No names in ${esc(seminars[group].name)}.</p>` : "";
+  $("#whoList").innerHTML = none + ps.map(tile).join("") + add;
+  $("#whoNow").innerHTML = cur
+    ? `${avatar(cur, "sm")}<span class="min0">Listening as <b>${esc(cur.name)}</b></span><button type="button" class="link" data-act="who-edit-me">Edit</button>`
+    : waiting ? "<span>Pick your name first.</span>" : "";
+  $("#whoNow").hidden = !cur && !waiting;
 }
+
+$("#whoSearch").addEventListener("input", () => { query = $("#whoSearch").value; renderWho(); });
+$("#whoSearch").addEventListener("keydown", e => {
+  const first = $("#whoList .wtile");
+  if (e.key === "Enter" && query.trim() && first) { e.preventDefault(); first.click(); }
+  else if (e.key === "ArrowDown" && first) { e.preventDefault(); first.focus(); }
+});
+/* the arrows walk the tiles (not the player's seek and volume); typing goes to the field */
+$("#whoList").addEventListener("keydown", e => {
+  const tiles = [...$("#whoList").querySelectorAll(".wtile")], i = tiles.indexOf(document.activeElement);
+  if (i < 0 || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key.length === 1 && e.key !== " " && !$("#whoFind").hidden) { e.stopPropagation(); $("#whoSearch").focus(); return; }
+  const cols = getComputedStyle($("#whoList")).gridTemplateColumns.split(" ").length;
+  const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.key];
+  if (!step) return;
+  e.preventDefault(); e.stopPropagation();
+  if (i + step < 0 && !$("#whoFind").hidden) return $("#whoSearch").focus();
+  tiles[Math.max(0, Math.min(tiles.length - 1, i + step))].focus();
+});
 
 /* the form adds a name, or edits person p */
 function resetForm(p = null) {
@@ -91,7 +136,7 @@ function paintForm() {
   $("#whoSemLbl").innerHTML = `${esc(G().one)} <span>pick one or more</span>`;
   $("#whoSems").innerHTML = Object.values(seminars).map(x => `<button type="button" class="${pickSems.has(x.id) ? "on" : ""}" style="--c:${esc(x.color)}"
     aria-pressed="${pickSems.has(x.id)}" data-act="who-sem" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("")
-    + (mayAdd ? `<button type="button" class="${other ? "on" : ""}" aria-pressed="${other}" data-act="who-sem-other">Other</button>` : "");
+    + (mayAdd ? `<button type="button" class="${other ? "on" : ""}" aria-pressed="${other}" data-act="who-sem-other">+ New</button>` : "");
   $("#whoOther").hidden = !groups || !mayAdd || !other;
   $("#whoColors").innerHTML = COLORS.map(c => `<button type="button" class="${c === pickColor ? "on" : ""}" style="background:${c}" aria-label="Colour ${c}" data-act="who-color" data-c="${c}"></button>`).join("");
   paintPreview();
@@ -207,7 +252,8 @@ on("person-edit", async el => {
   justTyped = typedNow;
 });
 on("who-edit-me", () => { if (me()) { resetForm(me()); fromList = true; showForm(true); } });
-on("who-new", () => { resetForm(); showForm(true); });
+on("who-group", el => { group = el.dataset.s; renderWho(); });
+on("who-new", () => { resetForm(); $("#whoName").value = query.trim(); paintPreview(); showForm(true); });   /* what was typed to find it */
 on("who-back", () => editing && !fromList ? closeWho() : (resetForm(), showForm(false)));
 on("person-remove", el => remove(el.dataset.id));
 on("person-phrase", el => editPhrase(el.dataset.id));
