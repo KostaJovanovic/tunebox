@@ -8,7 +8,7 @@ import { api, errText } from "../../shared/api.js";
 import { state, position, ctl, onState } from "../../shared/playback.js";
 import { admin, syncAdmin } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
-import { toast, closeAll, loading } from "./ui.js";
+import { toast, closeAll, holdOpen, loading } from "./ui.js";
 import { askPhrase, longEnough, unlockAdmin, withAdmin } from "./phrase.js";
 import { setVol } from "./settings.js";
 import { showPeople } from "./admin-people.js";
@@ -97,12 +97,13 @@ document.addEventListener("keydown", e => {
   openAdmin();
 }, true);
 
-/* ...and on a touch screen: ten quick taps on the Settings heading */
+/* ...and on a touch screen: ten quick taps on the Settings heading. For a second after, taps around
+   the password pop-up don't close it (the tapping rarely stops at exactly ten) */
 let taps = 0, lastTap = 0;
 $("#settings > .dhead h2").addEventListener("pointerup", () => {
   const now = Date.now();
   taps = now - lastTap < 700 ? taps + 1 : 1; lastTap = now;
-  if (taps >= 10) { taps = 0; openAdmin(); }
+  if (taps >= 10) { taps = 0; holdOpen(1000); openAdmin(); }
 });
 
 /* Esc closes the panel (a pop-up on top of it closes first); the player's shortcuts wait meanwhile */

@@ -676,7 +676,23 @@ def cmd_stats(c, a):
         lines += ["", "Top artists"] + [f"{i:>3}  {x['name']}  x{x['plays']}" for i, x in enumerate(st["topArtists"], 1)]
     if st["people"]:
         lines += ["", "Who played the most"] + [f"     {c.name_of(p['id'])}  {p['minutes']} min" for p in st["people"]]
+    lines += fun_lines(st.get("fun"), bool(a.who), c.name_of)
     show(st, "\n".join(lines))
+
+
+def fun_lines(f: dict | None, one: bool, name_of) -> list[str]:
+    """Stats' fun part: one person's habits, or the awards (the terminal interface shows them too)."""
+    if not f or not f["people"]:
+        return []
+    if one:
+        r = f["people"][0]
+        t = r["againTrack"]
+        return ["", "Fun stats", f"     {plural(r['added'], 'song')} added" + (f", one of them {r['again']} times: {t['title']}" if t else ""),
+                f"     {plural(r['skips'], 'skip')} ({r['ownSkips']} of their own), {plural(r['cuts'], 'song')} cut short with Play now",
+                f"     {plural(r['skipped'], 'song')} of theirs skipped by others, {r['night']} min after midnight, {plural(r['artists'], 'artist')}"]
+    return ["", f"Fun stats ({plural(f['skips'], 'skip')}, {plural(f['cuts'], 'song')} cut short)"] + [
+        f"     {x['title']}: {' and '.join(name_of(i) for i in x['ids'])}, {plural(x['n'], x['unit'])}" + (f" ({x['track']['title']})" if x["track"] else "")
+        for x in f["awards"]]
 
 
 # ---------- playlists, likes, history ----------

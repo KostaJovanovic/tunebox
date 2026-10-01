@@ -10,7 +10,7 @@ import time
 from . import blocklist, data, house, plays
 from .audio import level_to_mpv
 from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_REFILL_AT, SESSION_EVERY,
-                     SESSION_FILE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
+                     SESSION_FILE, SKIP_GRACE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
 from .files import read_json, write_json
 from .mpv import Mpv
 from .settings import save_settings, settings
@@ -302,6 +302,16 @@ class Player:
             self.resolver.prefetch(nxt["videoId"])
         await self.refill()
 
+    def cut_short(self, how: str, by: str):
+        """The song playing is about to be skipped (how "skip") or cut off by one played now ("cut"):
+        the play log keeps who did it, for Stats. Paused counts; its last seconds, or nothing playing, don't."""
+        p = self.mpv.props
+        if not self.current or self.loading or p.get("idle-active"):
+            return
+        dur, pos = p.get("duration") or 0, p.get("time-pos") or 0
+        if not dur or dur - pos > SKIP_GRACE:
+            plays.mark(self.current["videoId"], how, by)
+
     async def stop(self):
         self.gen += 1                         # cancels a play request still resolving
         self.armed, self.cur_entry, self.loading = None, None, False
@@ -350,11 +360,13 @@ class Player:
         """add: each song at its turn at the end of the added songs; next: in front of them, in order;
         now: in front, and the first one plays at once. The radio follows whichever added song now
         plays last (see follow). Returns the first song's place in the queue (1 = next, 0 = playing now)."""
-        items = [{**t, "by": by, "src": "user"} for t in tracks if not blocklist.blocked(t)]
+        items = [{**t, "by": by, "src": "user", "at": int(time.time())} for t in tracks if not blocklist.blocked(t)]
         if not items:
             return 0
         self.snapshot(label or (f'Added "{items[0]["title"]}"' if len(items) == 1 else f"Added {len(items)} songs"), by)
         start_now = mode == "now" or self.finished()
+        if mode == "now":
+            self.cut_short("cut", by)
         if self.current is None:
             self.queue, self.index = [], -1
         if mode in ("next", "now") or start_now:
@@ -379,10 +391,11 @@ class Player:
     async def replace(self, tracks: list[dict], start: int = 0, by: str = "", label: str = ""):
         """Plays a list now; it becomes the songs up next (the radio follows its last song). What played
         before stays behind the current song, so Previous still goes back to it."""
-        items = [{**t, "by": by, "src": "user"} for t in tracks if t and not blocklist.blocked(t)]
+        items = [{**t, "by": by, "src": "user", "at": int(time.time())} for t in tracks if t and not blocklist.blocked(t)]
         if not items:
             return
         self.snapshot(label or f'Played "{items[0]["title"]}"', by)
+        self.cut_short("cut", by)
         keep = self.queue[:self.index + 1] if self.current else []
         await self.disarm()
         self.queue, self.fails = keep + items, 0   # a fresh run of FAIL_LIMIT tries

@@ -3,7 +3,10 @@
 One JSON line per play, in a file per month (plays/2026-09.jsonl), only ever appended to:
   {"t": started, "v": videoId, "ti": title, "ar": artist, "al": album, "th": thumb, "ai": artistId,
    "d": length (s), "s": seconds actually heard (pauses don't count), "by": person id or "",
-   "sem": their seminars then, "src": "user" or "auto" (radio)}
+   "sem": their seminars then, "src": "user" or "auto" (radio), "a": when it was added (with "by" and "v",
+   one add: Previous or an undo playing it again is no new add; 0 for a radio song),
+   and only when it was cut short: "x": "skip" (Next, or a later song picked) or "cut" (another song
+   played now), "xb": who did it}
 The song playing is counted in memory; finished plays are written with the session, at most once a
 minute (spares an SD card). Only the admin changes what is already written (rewrite)."""
 import json
@@ -44,7 +47,13 @@ def begin(track: dict):
     _open = {"t": int(time.time()), "v": track["videoId"], "ti": track.get("title", ""), "ar": track.get("artist", ""),
              "al": track.get("album", ""), "th": track.get("thumb", ""), "ai": track.get("artistId", ""),
              "d": secs(track.get("duration")), "s": 0.0, "by": by, "sem": data.seminars_of(by),
-             "src": track.get("src") or "user"}
+             "src": track.get("src") or "user", "a": int(track.get("at") or 0)}
+
+
+def mark(vid: str, how: str, by: str):
+    """The song playing now is being cut short (how: "skip" or "cut") by `by`. The first one counts."""
+    if _open and _open["v"] == vid and "x" not in _open:
+        _open["x"], _open["xb"] = how, by
 
 
 def heard(vid: str, seconds: float):

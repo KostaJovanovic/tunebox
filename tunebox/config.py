@@ -42,6 +42,7 @@ RADIO_REFILL_AT = 3                         # refill when this few tracks remain
 UNDO_KEEP = 15                              # queue snapshots kept for undo (saved with the session)
 UNDO_TRACKS = 200                           # songs kept per snapshot (the current one and what's up next)
 PRELOAD_AT = 20                             # hand the next track to mpv this many seconds before the end
+SKIP_GRACE = 10                             # Next pressed this close to a song's end is no skip (Stats)
 HISTORY_MAX = 300
 ADMIN_IDLE = 15 * 60                        # an admin session locks itself after this long without admin work
 LOCK_AFTER = 5                              # wrong admin passwords in a row before the lockout

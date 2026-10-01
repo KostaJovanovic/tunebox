@@ -29,6 +29,11 @@ export const anyOpen = () => $$(".drawer.open, .modal.open").length > 0;
 export const isOpen = id => $("#" + id).classList.contains("open");
 export function syncScrim() { $("#scrim").classList.toggle("open", anyOpen()); }
 export function clearHash() { if (location.hash === "#settings") history.replaceState(null, "", location.pathname); }
+/* a tap on the backdrop closes everything, except for a moment after holdOpen(ms): a burst of taps
+   that opened a pop-up (the admin's ten) must not close it with one tap too many */
+let holdUntil = 0;
+export const holdOpen = ms => { holdUntil = Date.now() + ms; };
+export const backdropTap = () => { if (Date.now() >= holdUntil) closeAll(); };
 export function closeAll() {
   $$(".drawer.open, .modal.open").forEach(d => d.classList.remove("open"));
   syncScrim(); clearHash();

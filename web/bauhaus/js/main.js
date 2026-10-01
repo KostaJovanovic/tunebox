@@ -8,7 +8,7 @@ import { setupLikes, syncLikes, toggleLike, likeCurrent } from "../../shared/lik
 import { syncPeople } from "../../shared/people.js";
 import { feat, syncHouse, onHouse } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
-import { toast, hideToast, closeAll, anyOpen, isOpen, openDrawer } from "./ui.js";
+import { toast, hideToast, closeAll, backdropTap, anyOpen, isOpen, openDrawer } from "./ui.js";
 import { showHome, showExplore, showHistory, goTo, startPage } from "./library.js";
 import { view } from "./nav.js";
 import { showLists, likesChanged } from "./playlists.js";
@@ -81,7 +81,7 @@ on("toggle", () => ctl("toggle"));
 on("stop", () => ctl("stop"));
 on("undo", () => { hideToast(); undo(); });
 on("save-queue", saveQueue);
-on("close-all", closeAll);
+on("close-all", backdropTap);
 on("keys-open", () => openDrawer("keys", true));
 on("keys-close", () => openDrawer("keys", false));
 

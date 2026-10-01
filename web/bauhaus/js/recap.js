@@ -56,6 +56,18 @@ function build(d, who, label) {
     if (ps.length) s.push({ cls: "yellow", html: `<div class="k">Who added the most</div><h2>${esc(people[ps[0].id].name)}</h2>
       <ol class="rank">${ps.slice(0, 5).map(x => `<li>${avatar(people[x.id], "sm")}<b>${esc(people[x.id].name)}</b><span>${hm(x.minutes)}</span></li>`).join("")}</ol>` });
   }
+  const f = feat("people") ? d.fun : null, pl = (n, unit) => `${num(n)} ${unit}${n === 1 ? "" : "s"}`;
+  if (f && you && f.people[0]) {
+    const r = f.people[0], t = r.againTrack;
+    s.push({ cls: "black", html: `<div class="k">Habits</div><h2>${pl(r.added, "song")} added</h2>
+      ${t ? `<p class="lead">One of them ${r.again} times: ${esc(t.title)}.</p>` : ""}
+      <p>${r.skips ? `Pressed Next on ${pl(r.skips, "song")}` : "Never skipped a song"}${r.cuts ? `, cut ${pl(r.cuts, "song")} short with Play now` : ""}.
+      ${r.skipped ? ` Others skipped ${pl(r.skipped, "song")} of theirs.` : ""}</p>` });
+  } else if (f && f.awards.length) {
+    s.push({ cls: "yellow", html: `<div class="k">The awards</div><h2>And the winners are</h2>
+      <ol class="rank">${f.awards.slice(0, 6).map(a => `<li>${avatar(people[a.ids[0]], "sm")}<b>${esc(a.title)}: ${esc(a.ids.map(id => people[id]?.name || "").join(" and "))}</b>
+        <span>${pl(a.n, a.unit)}</span></li>`).join("")}</ol>` });
+  }
   s.push({ cls: "blue", html: `<div class="k">${esc(label)} · ${esc(name)}</div><h2>That was the recap</h2>
     <div class="sum"><div><b>${num(d.minutes)}</b>minutes</div><div><b>${num(d.songs)}</b>songs</div><div><b>${num(d.artists)}</b>artists</div></div>
     ${t ? `<p class="lead">#1: ${esc(t.title)}</p>` : ""}

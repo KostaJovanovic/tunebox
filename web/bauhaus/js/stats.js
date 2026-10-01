@@ -33,6 +33,7 @@ export const whoName = w => !w ? "The house" : w.startsWith("sem:") ? (seminars[
 export const fetchStats = (r, w) => api(`api/stats?since=${r.since}&until=${r.until}&who=${encodeURIComponent(w)}`);
 const hm = min => min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
 const num = n => n.toLocaleString();
+const pl = (n, unit) => `${num(n)} ${unit}${n === 1 ? "" : "s"}`;
 
 export async function showStats() {
   setNav("stats"); $("#q").value = "";
@@ -74,6 +75,35 @@ function board(rows, look) {
       <div class="track"><i style="width:${(r.minutes / max * 100).toFixed(1)}%;background:${esc(l.color)}"></i></div><b>${hm(r.minutes)}</b></div>`; }).join("")}</div>`;
 }
 
+/* Fun stats: awards and who did what for the house or a group, a person's own numbers for one person */
+function fun(f, next) {
+  if (!f || !f.people.length) return "";
+  const names = ids => ids.filter(id => people[id]).map(id => `<span>${avatar(people[id], "sm")}${esc(people[id].name)}</span>`).join("");
+  if (who && !who.startsWith("sem:")) {
+    const r = f.people[0], t = r.againTrack;
+    return section(next(), "Fun stats") + `<div class="tiles">
+      <div class="tile"><b>${num(r.added)}</b><span>songs added</span></div>
+      <div class="tile"><b>${num(r.skips)}</b><span>skips${r.ownSkips ? `, ${num(r.ownSkips)} of their own songs` : ""}</span></div>
+      <div class="tile"><b>${num(r.cuts)}</b><span>songs cut short with Play now</span></div>
+      <div class="tile"><b>${num(r.skipped)}</b><span>of their songs skipped by others</span></div>
+      <div class="tile"><b>${num(r.night)}</b><span>minutes after midnight</span></div>
+      <div class="tile"><b>${num(r.artists)}</b><span>different artists added</span></div>
+      ${t ? `<div class="tile wide"><b>${r.again}×</b><span>added the same song: ${esc(t.title)} · ${esc(t.artist)}</span></div>` : ""}
+    </div>`;
+  }
+  let html = section(next(), "Fun stats", `${pl(f.skips, "skip")} · ${pl(f.cuts, "song")} cut short`);
+  if (f.awards.length) html += `<div class="awards">${f.awards.map(a => `<div class="award">
+    <h3>${esc(a.title)}</h3><div class="winners">${names(a.ids)}</div>
+    <b>${esc(pl(a.n, a.unit))}</b><span>${esc(a.what)}${a.track ? `: <i>${esc(a.track.title)}</i>` : ""}</span></div>`).join("")}</div>`;
+  const rows = f.people.filter(r => people[r.id]);
+  if (rows.length > 1) html += `<div class="funtable"><table><thead><tr><th></th><th>Added</th><th>Same song</th><th>Skips</th>
+    <th>Play now</th><th>Skipped by others</th></tr></thead><tbody>${rows.map(r => `<tr>
+    <th>${avatar(people[r.id], "sm")}${esc(people[r.id].name)}</th><td>${num(r.added)}</td>
+    <td title="${r.againTrack ? esc(r.againTrack.title) : ""}">${r.again ? r.again + "×" : "–"}</td>
+    <td>${num(r.skips)}</td><td>${num(r.cuts)}</td><td>${num(r.skipped)}</td></tr>`).join("")}</tbody></table></div>`;
+  return html;
+}
+
 function render(d, r) {
   let n = 0;
   const title = `${whoName(who)} · ${r.label}`;
@@ -96,12 +126,13 @@ function render(d, r) {
     if (ps.length) html += section(++n, "Who added the most", "minutes of their songs") + board(ps, id => people[id] && { name: people[id].name, color: people[id].color, badge: avatar(people[id], "sm") });
   }
   if (!who && feat("groups") && d.seminars.length) html += section(++n, G().many, "minutes of their songs") + board(d.seminars, id => seminars[id] && { name: seminars[id].name, color: seminars[id].color, badge: semTag(id) });
+  if (feat("people")) html += fun(d.fun, () => ++n);
   html += section(++n, "When", d.busiestDay ? `busiest day: ${esc(new Date(d.busiestDay.date).toLocaleDateString([], { day: "numeric", month: "long" }))}, ${hm(d.busiestDay.minutes)}` : "")
     + `<div class="when"><div><h3>Time of day</h3>${bars(d.hours, d.hours.map((_, h) => `${h}:00`), 6)}</div>
        <div><h3>Day of the week</h3>${bars(d.weekdays, DAYS)}</div></div>`;
   if (d.months.length > 2) html += section(++n, "Month by month") + bars(d.months.map(m => m.minutes),
     d.months.map(m => new Date(m.month + "-01").toLocaleDateString([], { month: "short", year: "2-digit" })));
-  html += `<p class="hint tight statnote">A play counts once 30 seconds were heard. Songs count for whoever added them; radio songs count for the house only. ${d.radioShare}% of these plays were radio.</p>`;
+  html += `<p class="hint tight statnote">A play counts once 30 seconds were heard; Fun stats count skipped songs too. Next pressed in a song's last 10 seconds is no skip. Songs count for whoever added them; radio songs count for the house only. ${d.radioShare}% of these plays were radio.</p>`;
   main(html);
 }
 

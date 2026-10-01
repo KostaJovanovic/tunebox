@@ -1,6 +1,7 @@
 """Playing and the queue: what's on (/api/state), adding songs, the transport buttons, queue edits and undo."""
 import asyncio
 import random
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -132,6 +133,8 @@ async def control(body: ControlBody, request: Request):
         else:
             asyncio.get_running_loop().create_task(p.fade_toggle())
     elif a == "next":
+        if p.index + 1 < len(p.queue):
+            p.cut_short("skip", by)
         asyncio.get_running_loop().create_task(p.play_index(step=1))
     elif a == "prev":
         if (p.mpv.props.get("time-pos") or 0) > 5 or p.index == 0:
@@ -148,6 +151,8 @@ async def control(body: ControlBody, request: Request):
         save_settings_soon()
     elif a == "jump" and v is not None:
         i = queue_at(int(v), body.videoId)
+        if i != p.index:                      # a later song skips this one; an earlier one cuts it off
+            p.cut_short("skip" if i > p.index else "cut", by)
         asyncio.get_running_loop().create_task(p.play_index(i, vid=body.videoId))
     elif a == "remove" and v is not None:
         i = queue_at(int(v), body.videoId)
@@ -167,7 +172,7 @@ async def control(body: ControlBody, request: Request):
         to = p.index + 1 if a == "promote" else max(p.index + 1, min(int(body.to if body.to is not None else i), len(p.queue)))
         if to <= p.user_end():
             if t.get("src") != "user":
-                t.update(src="user", by=by)
+                t.update(src="user", by=by, at=int(time.time()))
         else:
             t["src"] = "auto"
         p.queue.insert(to, t)

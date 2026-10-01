@@ -1078,6 +1078,9 @@ class Stats(View):
         if st.get("people"):
             most = st["people"][0]["minutes"]
             rows += [head("Who played the most")] + [item(a.name_of(p["id"]), f"{self.bar(p['minutes'], most)} {p['minutes']} min") for p in st["people"]]
+        fun = a.cli.fun_lines(st.get("fun"), bool(self.who) and not self.who.startswith("sem:"), a.name_of)
+        if fun:
+            rows += [head(fun[1])] + [item(x.strip()) for x in fun[2:]]
         self.set_rows(rows, "Nothing was played in this time.")
 
     def pick_who(self):
