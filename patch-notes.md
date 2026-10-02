@@ -147,6 +147,21 @@ back to the player.
 
 ## Releases
 
+## Say the Word
+version: 0.64
+date: 2 October 2026
+
+- **A name's pass phrase is set where the name is edited.** No more hunting for
+  a link to change it.
+
+- [new] **The pass phrase is a field when you edit a name,** just as when you
+  add one. Type a new one and press Save; leave it empty to keep the one it has.
+  Changing it asks for the current one first.
+- [new] **`Remove the pass phrase`** sits under the field for a name that has
+  one, with `Forgot it?` for when nobody remembers it.
+- [new] **A small credit at the foot of Settings,** for the people who made
+  Tunebox.
+
 ## Keep Playing
 version: 0.62 - 0.63
 date: 1 October 2026

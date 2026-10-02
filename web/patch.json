@@ -1,8 +1,31 @@
 {
  "app": "Tunebox",
- "version": "0.63",
+ "version": "0.64",
  "page": "patch",
  "releases": [
+  {
+   "name": "Say the Word",
+   "version": "0.64",
+   "date": "2 October 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>A name&rsquo;s pass phrase is set where the name is edited.</strong> No more hunting for a link to change it."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>The pass phrase is a field when you edit a name,</strong> just as when you add one. Type a new one and press Save; leave it empty to keep the one it has. Changing it asks for the current one first."
+    },
+    {
+     "tag": "new",
+     "html": "<strong><code>Remove the pass phrase</code></strong> sits under the field for a name that has one, with <code>Forgot it?</code> for when nobody remembers it."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A small credit at the foot of Settings,</strong> for the people who made Tunebox."
+    }
+   ]
+  },
   {
    "name": "Keep Playing",
    "version": "0.62 - 0.63",

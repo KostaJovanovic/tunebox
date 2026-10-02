@@ -126,7 +126,7 @@ function resetForm(p = null) {
   pickSems = new Set(p ? p.seminars || [] : house.newPerson.groups.filter(s => seminars[s])); other = false; fromList = false; $("#whoOther").value = ""; finishing = false;
   $("#whoName").value = p ? p.name : ""; $("#whoSave").textContent = p ? "Save" : "Add"; $("#whoMsg").textContent = "";
   $("#whoTitle").textContent = p ? `Edit ${p.name}` : "Add a name";
-  $("#whoPhrase").value = ""; $("#whoPhrase").hidden = !!p;    /* editing: the pass phrase has its own button */
+  $("#whoPhrase").value = "";
   paintPhraseBtn(p);
   paintForm();
 }
@@ -161,8 +161,13 @@ $("#whoForm").addEventListener("submit", async e => {
   if (!name) return $("#whoName").focus();
   const sems = [...pickSems, ...(other && typed ? [typed] : [])], phrase = $("#whoPhrase").value;
   if (!sems.length && isOn("groups") && house.groups.required) return formMsg(`Pick your ${G().a}`);
+  try { await longEnough(phrase); } catch (err) { $("#whoPhrase").focus(); return formMsg(err.message); }
+  /* changing a pass phrase the name already has: the current one first, as the Phrase button asks */
+  const p0 = editing && people[editing], fresh = justTyped === editing;
+  if (p0 && p0.locked && phrase.trim() && !fresh && await askPhrase({ title: `${p0.name}'s current pass phrase`, button: "Next",
+    hint: "Type the pass phrase this name has now.", check: ph => unlockPerson(editing, ph) }) === null) return;
   try {
-    const p = await savePerson(editing, { name, color: pickColor, emoji: pickEmoji, seminars: sems, ...(!editing && phrase.trim() ? { phrase } : {}) });
+    const p = await savePerson(editing, { name, color: pickColor, emoji: pickEmoji, seminars: sems, ...(phrase.trim() ? { phrase } : {}) });
     if (finishing || !editing) choose(p.id);
     else { closeWho(); renderPeople(); paintMe(); toast("Saved"); }
   } catch (err) { formMsg(errText(err)); }
@@ -206,7 +211,7 @@ async function resetPhrase(id) {
   try {
     if (await withAdmin(() => api(`api/admin/people/${id}`, { phrase: "" }, "PATCH")) === null) return;
   } catch (e) { return toast(errText(e), false, "error"); }
-  people[id].locked = false; renderPeople(); paintPhraseBtn(editing === id ? people[id] : null);
+  people[id].locked = false; renderPeople(); paintPhraseBtn(editing && people[editing]);
   toast(`${name} has no pass phrase now`);
 }
 
@@ -226,15 +231,30 @@ async function editPhrase(id) {
     check: async v => { if (v !== nu) throw new Error("That's not the same"); } }) === null) return;
   try {
     const q = await savePerson(id, { phrase: nu.trim() ? nu : "" });
-    renderPeople(); paintPhraseBtn(editing === id ? q : null);
+    renderPeople(); paintPhraseBtn(editing && people[editing]);
     toast(q.locked ? `${q.name}'s pass phrase saved` : `${q.name} has no pass phrase now`);
   } catch (e) { toast(errText(e), false, "error"); }
 }
 
+/* the form's Remove link: the current pass phrase first (unless just typed), then off */
+async function removePhrase(id) {
+  const p = people[id];
+  if (justTyped !== id && await askPhrase({ title: `${p.name}'s current pass phrase`, button: "Remove",
+    hint: "Type the pass phrase this name has now.", check: ph => unlockPerson(id, ph),
+    other: { label: "Forgot it?", run: () => resetPhrase(id) } }) === null) return;
+  if (justTyped === id && !(await ask(`Take the pass phrase off ${p.name}?`, { ok: "Take it off" }))) return;
+  try {
+    const q = await savePerson(id, { phrase: "" });
+    renderPeople(); paintPhraseBtn(editing && people[editing]);
+    toast(`${q.name} has no pass phrase now`);
+  } catch (e) { toast(errText(e), false, "error"); }
+}
+
+/* the form's pass phrase field: a new name's, or a new one for the name being edited */
 function paintPhraseBtn(p) {
-  if (!p) return $("#whoPhraseBtn").hidden = true;
-  $("#whoPhraseBtn").hidden = false;
-  $("#whoPhraseBtn").textContent = p.locked ? "Change or remove the pass phrase" : "Add a pass phrase";
+  $("#whoPhraseBtn").hidden = !p?.locked;
+  $("#whoPhrase").placeholder = p?.locked ? "New pass phrase" : "Pass phrase";
+  $("#whoPhraseLbl").textContent = p?.locked ? "leave it empty to keep the one it has" : "optional: other devices type it once to use the name";
 }
 
 /* ---------- wiring ---------- */
@@ -258,4 +278,4 @@ on("who-new", () => { resetForm(); $("#whoName").value = query.trim(); paintPrev
 on("who-back", () => editing && !fromList ? closeWho() : (resetForm(), showForm(false)));
 on("person-remove", el => remove(el.dataset.id));
 on("person-phrase", el => editPhrase(el.dataset.id));
-on("who-phrase", () => editPhrase(editing));
+on("who-phrase-off", () => removePhrase(editing));

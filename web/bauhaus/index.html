@@ -275,6 +275,7 @@
       <p>Tunebox <b id="verN"></b>. What changed, and when, is in the patch notes.</p>
       <div class="eqtools"><a class="btn" href="patch">Patch notes</a></div>
     </div>
+    <p class="madeby">Made by Kosta and Pefan, from ELE with ❤️</p>
   </div>
 </aside>
 
@@ -313,9 +314,9 @@
     <div class="mbody">
       <div class="whoid"><span id="whoPreview"></span>
         <div class="min0"><input class="field" id="whoName" placeholder="Name" maxlength="24" autocomplete="off"><div class="tags" id="whoTags"></div></div></div>
-      <div class="lbl">Pass phrase <span>optional: other devices type it once to use the name</span></div>
+      <div class="lbl">Pass phrase <span id="whoPhraseLbl">optional: other devices type it once to use the name</span></div>
       <input class="field" id="whoPhrase" type="password" placeholder="Pass phrase" autocomplete="new-password">
-      <button type="button" class="link" id="whoPhraseBtn" data-act="who-phrase" hidden>Add a pass phrase</button>
+      <button type="button" class="link" id="whoPhraseBtn" data-act="who-phrase-off" hidden>Remove the pass phrase</button>
       <div class="lbl" id="whoSemLbl"></div>
       <div class="sems" id="whoSems"></div>
       <input class="field other" id="whoOther" placeholder="Name of the new one" maxlength="24" autocomplete="off" hidden>
