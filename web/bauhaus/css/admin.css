@@ -65,3 +65,13 @@ body.admin-open { overflow: hidden; }
   font: 700 10px var(--display); letter-spacing: .14em; text-transform: uppercase; }
 html[data-admin] .top .adminbadge { display: block; }
 @media (hover: hover) { .top .adminbadge:hover { background: var(--s1); } }
+
+/* songs keep failing to load: a bar along the top for the admin, offering a yt-dlp update (admin-ytdlp.js) */
+#ytdlpBar:not([hidden]) { position: fixed; top: 0; left: 0; right: 0; z-index: 99; display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: calc(6px + env(safe-area-inset-top)) 8px 6px 16px; background: var(--red); color: #fff; font: 600 13px var(--ui); }
+#ytdlpBar span { min-width: 0; }
+#ytdlpBar button { flex: none; height: 30px; padding: 0 12px; border: 1px solid #fff; color: #fff; font: 700 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+#ytdlpBar button:disabled { opacity: .6; }
+#ytdlpBar button.x { border: 0; padding: 0 8px; font-size: 20px; letter-spacing: 0; }
+html[data-offline] #ytdlpBar { display: none; }
+.abody .body p.warn { color: var(--red); }

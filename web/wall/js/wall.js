@@ -2,7 +2,7 @@
    Idle (nothing playing, or paused a while): a dimmed clock; a tap wakes it for half a minute.
    The admin picks what it shows (house.wall): lyrics, the next songs, who added the song, the clock,
    the buttons. */
-import { $, $$, esc, fmt, secs, art, sharpen } from "../../shared/dom.js";
+import { $, $$, esc, fmt, secs, art, showCover, swapIn } from "../../shared/dom.js";
 import { state, onState, startPolling, setToaster, ctl, setVolume, position, poll, queueSongs } from "../../shared/playback.js";
 import { setupLikes, syncLikes, likeCurrent } from "../../shared/likes.js";
 import { fetchLyrics, activeLine, syncedHtml, plainHtml } from "../../shared/lyrics.js";
@@ -168,7 +168,10 @@ onState(s => {
   if (s.paused) pausedSince = pausedSince || Date.now(); else pausedSince = null;
   const c = s.current;
   if (c) {
-    if ($("#cover").dataset.src !== art(c)) { $("#cover").src = $("#cover").dataset.src = art(c); sharpen($("#cover"), c); wallpaperFor(c); }
+    if ($("#cover").dataset.src !== art(c)) {
+      if ($("#cover").dataset.src) swapIn($("#title"), $("#artist"));   /* not on the first song shown */
+      showCover($("#cover"), c); wallpaperFor(c);
+    }
     $("#title").textContent = c.title; $("#artist").textContent = [c.artist, c.album].filter(Boolean).join(" · ");
     if (lyr.vid !== c.videoId) loadLyrics(c);
   }

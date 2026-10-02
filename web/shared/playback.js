@@ -2,12 +2,13 @@
    repaints from `state`; the queue helpers here are shared by the player and the wall screen. */
 import { api, errText } from "./api.js";
 import { secs } from "./dom.js";
+import { ask, askText } from "./dialog.js";
 
 export let state = {};                         /* the last /api/state (read-only elsewhere: only this module replaces it) */
 export const lists = {};                       /* the songs on screen, by list name, so a button can say "song 3 of search" */
 
 let toast = () => {};
-/* How the page shows a message; `undoable` adds an Undo button */
+/* How the page shows a message; `undoable` adds an Undo button, kind "error" keeps it up longer */
 export function setToaster(fn) { toast = fn; }
 
 const listeners = [];
@@ -65,10 +66,10 @@ export function startPolling() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); next(); });
 }
 
-const UNDOABLE = new Set(["remove", "remove_ids", "move", "promote", "promote_ids", "shuffle", "clear", "clear_mine", "clear_auto", "refresh", "stop", "restore"]);
+const UNDOABLE = new Set(["remove", "move", "promote", "shuffle", "clear", "clear_mine", "clear_auto", "refresh", "stop", "restore"]);
 
 /* A transport or queue action (/api/control). Queue changes show a toast with Undo. */
-export async function ctl(action, value, videoId, to, id, videoIds) {
+export async function ctl(action, value, videoId, to, id) {
   if (action === "toggle" && state.current) {
     state.paused = !state.paused;
     ppHold = { paused: state.paused, until: Date.now() + 1500 };
@@ -79,7 +80,7 @@ export async function ctl(action, value, videoId, to, id, videoIds) {
     for (const fn of listeners) fn(state);
   }
   let r;
-  try { r = await api("api/control", { action, value, videoId, to, id, videoIds }); } catch (e) { toast(errText(e)); }
+  try { r = await api("api/control", { action, value, videoId, to, id }); } catch (e) { toast(errText(e), false, "error"); }
   if (r && r.message) toast(r.message, UNDOABLE.has(action));
   poll();
   return r;
@@ -88,18 +89,22 @@ export async function ctl(action, value, videoId, to, id, videoIds) {
 export function undo() { ctl("undo"); }
 
 /* The queue: now playing → songs people added (a tap adds, taking turns) → radio of the last one added.
-   mode: add (end of the added songs), next, now, or replace (the list becomes what's up next). */
-export async function queueSongs(tracks, mode, label, wall = false) {
-  if (tracks.length === 1 && (mode === "add" || mode === "next") && !confirmAgain(tracks[0])) return;
-  try { const r = await api("api/play", { tracks, mode, label, wall }); toast(r.message, true); } catch (e) { toast(errText(e)); }
+   mode: add (end of the added songs), next, now, or replace (the list becomes what's up next).
+   sent() runs as the request goes out (after any question); true when the server took the songs. */
+export async function queueSongs(tracks, mode, label, wall = false, sent) {
+  if (tracks.length === 1 && (mode === "add" || mode === "next") && !(await confirmAgain(tracks[0]))) return false;
+  sent?.();
+  let ok = false;
+  try { const r = await api("api/play", { tracks, mode, label, wall }); toast(r.message, true); ok = true; } catch (e) { toast(errText(e), false, "error"); }
   poll();
+  return ok;
 }
 /* One song that is already playing or waiting among people's songs: ask before it goes in twice */
-function confirmAgain(t) {
+async function confirmAgain(t) {
   const q = state.queue || [], i = q.slice(0, (state.userCount || 0) + 1).findIndex(x => x.videoId === t.videoId);
   if (i < 0) return true;
   const where = i === 0 ? "playing now" : i === 1 ? "up next" : `${ordinal(i)} in line`;
-  return confirm(`"${t.title}" is already ${where}. Add it again?`);
+  return ask(`"${t.title}" is already ${where}. Add it again?`, { ok: "Add again" });
 }
 const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 
@@ -114,12 +119,12 @@ export function waits() {
 /* "in 4 min", "in 1 h 5 min"; under a minute is "next" */
 export const inTime = s => s < 60 ? "next" : s < 3600 ? `in ${Math.round(s / 60)} min` : `in ${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
 
-export const addSong = (key, i, mode = "add") => queueSongs([lists[key][i]], mode);
+export const addSong = (key, i, mode = "add", sent) => queueSongs([lists[key][i]], mode, undefined, false, sent);
 export const playAll = (key, label, mode = "replace") => queueSongs(lists[key], mode, label);
 
 export function setVolume(v) {
   v = Math.max(0, Math.min(100, Math.round(v)));
-  api("api/control", { action: "volume", value: v }).then(r => r?.message && toast(r.message)).catch(e => toast(errText(e)));   /* quiet hours say so */
+  api("api/control", { action: "volume", value: v }).then(r => r?.message && toast(r.message)).catch(e => toast(errText(e), false, "error"));   /* quiet hours say so */
   return v;
 }
 
@@ -129,7 +134,7 @@ export const LINK = /^(https?:\/\/|www\.)\S+$|^([\w-]+\.)*(youtube\.com|youtu\.b
 
 /* Save what's up next as a new playlist */
 export async function saveQueue() {
-  const name = prompt("Name for the new playlist", "Queue " + new Date().toLocaleDateString());
+  const name = await askText("Name for the new playlist", "Queue " + new Date().toLocaleDateString());
   if (!name) return;
   const p = await api("api/lists", { name, fromQueue: true });
   toast(`Saved "${p.name}" · ${p.tracks.length} songs`);

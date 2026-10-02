@@ -1,6 +1,8 @@
 """YouTube Music: ytmusicapi for search, browsing and radio; yt-dlp for the audio stream URLs.
 
-`yt` is replaced when someone signs in or out, so read it as youtube.yt, not `from .youtube import yt`."""
+`yt` is replaced when someone signs in or out, so read it as youtube.yt, not `from .youtube import yt`.
+`trouble` (mutated in place) says how stream lookups are going, for the admin's "update yt-dlp" hint:
+fails in a row (0 after any success), since when (time.time() of the first of them), the last error."""
 import asyncio
 import re
 import threading
@@ -19,19 +21,39 @@ from .tools import node_path
 yt = YTMusic(str(AUTH_FILE)) if AUTH_FILE.exists() else YTMusic()
 
 _node = node_path()                            # yt-dlp solves YouTube's challenges with it (Node 22+)
-ydl = yt_dlp.YoutubeDL({
-    "format": QUALITY.get(settings["quality"], QUALITY["best"]),
-    "quiet": True, "no_warnings": True, "noplaylist": True,
-    **({"js_runtimes": {"node": {"path": _node}}} if _node else {}),
-})
-ydl_lock = threading.Lock()
+
+
+def _new_ydl():
+    return yt_dlp.YoutubeDL({
+        "format": QUALITY.get(settings["quality"], QUALITY["best"]),
+        "quiet": True, "no_warnings": True, "noplaylist": True,
+        **({"js_runtimes": {"node": {"path": _node}}} if _node else {}),
+    })
+
+
+# two, each used by one thread at a time: a slow prefetch in the background never holds up a song someone asked for
+ydl, ydl_bg = _new_ydl(), _new_ydl()
+ydl_lock, ydl_bg_lock = threading.Lock(), threading.Lock()
+
+trouble = {"fails": 0, "since": 0.0, "last": ""}
+
+# what no second try will change: the song itself is gone or barred
+_FOR_GOOD = re.compile(r"unavailable|private|removed|terminated|copyright|country|sign in|age|members", re.I)
 
 
 def set_quality(quality: str):
     """Streams resolved from now on use this quality (blocking: call it in a thread)."""
-    with ydl_lock:
-        ydl.params["format"] = QUALITY[quality]
-        ydl.format_selector = ydl.build_format_selector(QUALITY[quality])   # built once in __init__, not from params
+    for d, lock in ((ydl, ydl_lock), (ydl_bg, ydl_bg_lock)):
+        with lock:
+            d.params["format"] = QUALITY[quality]
+            d.format_selector = d.build_format_selector(QUALITY[quality])   # built once in __init__, not from params
+
+
+def short_error(exc: Exception) -> str:
+    """yt-dlp's error without its "ERROR: [youtube] id:" in front, on one line."""
+    s = str(exc).replace("ERROR: ", "").strip()
+    s = re.sub(r"^\[[^\]]+\] [\w-]+: ", "", s)
+    return (s.splitlines() or ["unknown error"])[0][:120]
 
 
 def track_from(item: dict) -> dict | None:
@@ -137,10 +159,18 @@ class Resolver:
         self.pending: dict[str, asyncio.Future] = {}
         self.failed: dict[str, float] = {}   # videoId -> when it last failed to resolve
 
-    def _extract(self, vid: str) -> str:
-        with ydl_lock:
-            info = ydl.extract_info(f"https://music.youtube.com/watch?v={vid}", download=False)
-        return info["url"]
+    def _extract(self, vid: str, bg: bool = False) -> str:
+        """In a worker thread. A failure that may pass (the network, YouTube busy) gets one more try."""
+        d, lock = (ydl_bg, ydl_bg_lock) if bg else (ydl, ydl_lock)
+        for attempt in (1, 2):
+            try:
+                with lock:
+                    info = d.extract_info(f"https://music.youtube.com/watch?v={vid}", download=False)
+                return info["url"]
+            except Exception as e:
+                if attempt == 2 or _FOR_GOOD.search(str(e)):
+                    raise
+            time.sleep(1.5)
 
     async def get(self, vid: str, retry: bool = True) -> str:
         """retry=False (background work) gives up at once on a videoId that failed in the last FAIL_TTL s.
@@ -154,15 +184,20 @@ class Resolver:
             raise RuntimeError("failed recently")
         if vid not in self.pending:
             loop = asyncio.get_running_loop()
-            self.pending[vid] = loop.run_in_executor(None, self._extract, vid)
+            self.pending[vid] = loop.run_in_executor(None, self._extract, vid, not retry)
         try:
             url = await asyncio.shield(self.pending[vid])   # one caller giving up mustn't cancel it for the others
-        except Exception:
+        except Exception as e:
             self.failed[vid] = time.time()
+            if not trouble["fails"]:
+                trouble["since"] = time.time()
+            trouble["fails"] += 1
+            trouble["last"] = short_error(e)
             raise
         finally:
             self.pending.pop(vid, None)
         self.failed.pop(vid, None)
+        trouble["fails"], trouble["since"] = 0, 0.0
         now = time.time()
         for k in [k for k, (at, _) in self.cache.items() if now - at > URL_TTL]:
             del self.cache[k]                 # expired: they'd be resolved again anyway

@@ -10,6 +10,7 @@ import { poll } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
 import { toast, loading } from "./ui.js";
 import { withAdmin } from "./phrase.js";
+import { ask } from "../../shared/dialog.js";
 
 let el = null;                                 /* the tab's body; its data-tab says which tab is on screen */
 let setup = null;                              /* /api/admin/house: every feature, the presets */
@@ -36,7 +37,7 @@ async function save(fn, done) {
 }
 
 /* ---------- Features ---------- */
-const PRESETS = [["home", "Home", "everything"], ["office", "Office", "no recap, alarm or EQ"], ["party", "Party", "no names or stats"], ["solo", "Solo", "no names or wall"]];
+export const PRESETS = [["home", "Home", "everything"], ["office", "Office", "no recap, alarm or EQ"], ["party", "Party", "no names or stats"], ["solo", "Solo", "no names or wall"]];
 const FEATURES = () => [
   ["people", "Names", "Everyone picks a name: the queue shows who added what, and songs from different people take turns. Off: anyone adds songs, and nobody is named."],
   ["groups", G().many, "People belong to one or more of them; stats and likes can be seen for each."],
@@ -82,7 +83,7 @@ export async function showFeatures(target) {
     if (!f) return;
     let file;
     try { file = JSON.parse(await f.text()); } catch { return toast("That isn't a Tunebox setup file"); }
-    if (confirm("Load this setup? It replaces the switches, the house's name and accent, and the wall's options.")) save(() => call("api/admin/features/import", { setup: file }), "Setup loaded");
+    if (await ask("Load this setup? It replaces the switches, the house's name and accent, and the wall's options.", { ok: "Load" })) save(() => call("api/admin/features/import", { setup: file }), "Setup loaded");
   });
 }
 
@@ -205,9 +206,9 @@ export async function block(body) {
 
 /* ---------- wiring ---------- */
 const flip = b => b.getAttribute("aria-checked") !== "true";
-on("adm-preset", b => {
+on("adm-preset", async b => {
   const [, name, what] = PRESETS.find(p => p[0] === b.dataset.p);
-  if (confirm(`Set every switch to the ${name} preset (${what})?`)) save(() => call("api/admin/features/preset", { name: b.dataset.p }), `${name} preset`);
+  if (await ask(`Set every switch to the ${name} preset (${what})?`, { ok: "Set" })) save(() => call("api/admin/features/preset", { name: b.dataset.p }), `${name} preset`);
 });
 on("adm-feature", b => save(() => call("api/admin/features", { features: { [b.dataset.k]: flip(b) } }, "PATCH")));
 on("adm-accent", b => save(() => call("api/admin/house", { accent: b.dataset.k }, "PATCH")));
@@ -224,8 +225,8 @@ on("adm-group-start", b => {
   const now = house.newPerson.groups.filter(s => s !== b.dataset.k);
   save(() => call("api/admin/house", { newPerson: { groups: flip(b) ? [...now, b.dataset.k] : now } }, "PATCH"));
 });
-on("adm-group-del", b => {
+on("adm-group-del", async b => {
   const x = groups.find(s => s.id === b.dataset.id);
-  if (confirm(`Remove ${x.name}? Its people stay, without it.`)) save(() => call(`api/admin/groups/${x.id}`, undefined, "DELETE"), `Removed ${x.name}`);
+  if (await ask(`Remove ${x.name}? Its people stay, without it.`, { ok: "Remove", danger: true })) save(() => call(`api/admin/groups/${x.id}`, undefined, "DELETE"), `Removed ${x.name}`);
 });
 on("adm-unblock", b => save(() => call(`api/admin/blocks/${b.dataset.kind}/${encodeURIComponent(b.dataset.key)}`, undefined, "DELETE"), b.dataset.kind === "radio" ? `Back on the radio: ${b.dataset.name}` : `Unblocked ${b.dataset.name}`));

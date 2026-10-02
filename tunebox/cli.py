@@ -8,6 +8,7 @@
   tunebox search QUERY, album ID, artist ID, playlist ID, home, explore, lyrics --follow, stats
   tunebox lists, like, history, people, groups, local upload FILE..., backup, restore FILE
   tunebox admin login, features off lyrics, house set name Studio, block add --artist NAME
+  tunebox update-ytdlp               songs stop loading? update yt-dlp on the server (--check: the versions)
   tunebox tui                        the full-screen interface: tabs, lists and keys (? shows them)
   tunebox now --short                "Song - Artist" and nothing else, quickly: for a shell prompt or a status bar
   tunebox tray                       Windows: an icon in the notification area, and the media keys play the house
@@ -1139,6 +1140,23 @@ def cmd_local(c, a):
     show(r, f"Changed {song(r)}")
 
 
+# ---------- yt-dlp ----------
+def cmd_ytdlp(c, a):
+    v = c.get("api/admin/ytdlp")
+    if a.check:
+        if v["restart"]:
+            line = f"{v['installed']} is installed, {v['running']} is playing: restart Tunebox to use the new one"
+        else:
+            line = f"yt-dlp {v['running']}" + (f", and {v['latest']} is out" if v["outdated"] else ", the newest" if v["latest"] else "")
+        w = v.get("warning")
+        return show(v, line + (f"\nThe last {w['fails']} songs failed to load" if w else ""))
+    print(f"Updating yt-dlp {v['installed']} with the server's Python, this takes a minute...", file=sys.stderr)
+    r = c.call("POST", "api/admin/ytdlp", {}, timeout=330)
+    if r.get("ok") is False:
+        raise Refused(1, r["msg"])
+    show(r, r["msg"])
+
+
 # ---------- backup ----------
 def cmd_backup(c, a):
     r = c.call("GET", "api/backup/full" if a.full else "api/backup", raw=True, timeout=600)
@@ -1288,6 +1306,8 @@ def build() -> argparse.ArgumentParser:
         arg("action", choices=["ls", "upload", "edit", "rm", "space", "limits"], nargs="?", default="ls"), arg("names", nargs="*"),
         arg("--title"), arg("--artist"), arg("--album"), arg("--cover", help="edit: a JPEG, PNG or WebP picture"),
         arg("--cap", help="limits: GB in all, or none"), arg("--reserve", type=float, help="limits: GB always kept free"), arg("--max", type=int, help="limits: the biggest file, MB"))
+    cmd("update-ytdlp", cmd_ytdlp, "update yt-dlp, which finds the songs on YouTube, when songs stop loading (the admin); --check: only the versions",
+        arg("--check", action="store_true", help="show the versions, change nothing"))
     cmd("backup", cmd_backup, "save a backup to a file", arg("file", nargs="?"), arg("--full", action="store_true", help="a zip with the local songs' audio too (the admin)"))
     cmd("restore", cmd_restore, "replace everything with a backup (the admin)", arg("file"))
     for name in ("tui", "watch"):

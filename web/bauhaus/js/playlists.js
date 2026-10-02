@@ -12,6 +12,7 @@ import * as icon from "./icons.js";
 import { view, seq, setNav } from "./nav.js";
 import { main, toast, loading, note, section, backBtn, songRow, mosaic, dayName, at, syncScrim } from "./ui.js";
 import { startSelect, stopSelect, markPicked } from "./select.js";
+import { ask } from "../../shared/dialog.js";
 
 let openList = null;                           /* the id of the playlist on screen */
 let likedBy = "";                              /* Liked songs shows only these: "" all, a person id, or "sem:<seminar id>" */
@@ -142,7 +143,7 @@ function renderList(p, renaming = false) {
 async function patchList(body, sub = "") {
   const id = lists.mineMeta.id;
   try { renderList(await api(`api/lists/${id}${sub}`, body, "PATCH")); }
-  catch (e) { toast(errText(e)); showList(id); }
+  catch (e) { toast(errText(e), false, "error"); showList(id); }
 }
 function doRename() { const v = $("#rename").value.trim(); if (v) patchList({ name: v }); }
 
@@ -154,7 +155,7 @@ function moveTrack(i, d) {
 }
 
 async function deleteList() {
-  if (!confirm(`Delete "${lists.mineMeta.name}" for everyone?`)) return;
+  if (!(await ask(`Delete "${lists.mineMeta.name}" for everyone?`, { ok: "Delete", danger: true }))) return;
   await api(`api/lists/${lists.mineMeta.id}`, undefined, "DELETE");
   toast("Playlist deleted"); showLists();
 }

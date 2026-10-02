@@ -9,12 +9,13 @@ import time
 
 from . import blocklist, data, house, plays
 from .audio import level_to_mpv
-from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_REFILL_AT, SESSION_EVERY,
-                     SESSION_FILE, SKIP_GRACE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP, UNDO_TRACKS, VOL_RANGE_DB)
+from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_ARTIST_GAP, RADIO_MIN, RADIO_RECENT,
+                     RADIO_REFILL_AT, SESSION_EVERY, SESSION_FILE, SKIP_GRACE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP,
+                     UNDO_TRACKS, VOL_RANGE_DB)
 from .files import read_json, write_json
 from .mpv import Mpv
 from .settings import save_settings, settings
-from .youtube import Resolver, radio_for
+from .youtube import Resolver, radio_for, short_error
 
 
 class Player:
@@ -37,6 +38,8 @@ class Player:
         self.restarting = False               # mpv is being restarted after a crash
         self.gen = 0                          # bumped by every play request; only the newest loads
         self.fails = 0                        # streams that failed in a row
+        self.retried = None                   # videoId of the song whose broken stream was loaded again once
+        self.seen = (None, 0.0, 0.0)          # (mpv entry, position, duration) last seen playing
         self.seed = None                      # the song the radio (auto songs) follows: the last added song to play
         self.seed_gen = 0                     # bumped on every re-seed; a radio that arrives late is dropped
         self.undo: list[dict] = []            # queue snapshots, oldest first
@@ -182,29 +185,32 @@ class Player:
             if self.index + 1 < len(self.queue):
                 self.index += 1
             return
-        if reason == "error":
-            self.fails += 1
-            if self.current:
-                self.resolver.cache.pop(self.current["videoId"], None)
-            if self.fails >= FAIL_LIMIT:      # YouTube is refusing us: stop instead of burning the queue
-                self.cur_entry = None
-                await self.disarm()
-                try:
-                    await self.mpv.send("stop")
-                except Exception:
-                    pass
-                self.error = "Streams are failing, try again later"
+        if reason == "error" and self.current:
+            track, i = self.current, self.index
+            self.resolver.cache.pop(track["videoId"], None)
+            ent, pos, dur = self.seen
+            pos = self.mpv.props.get("time-pos") or (pos if ent == self.cur_entry else 0)
+            if dur and dur - pos <= 10:       # broke in its last seconds: as good as finished
+                if self.armed:
+                    return
+            elif self.retried != track["videoId"]:
+                # an expired or dropped stream (a long pause, the network): a fresh one, from where it was, once
+                self.retried = track["videoId"]
+                asyncio.get_running_loop().create_task(
+                    self.play_index(i, start=pos, vid=track["videoId"], auto=True, recover=True))
                 return
-            self.error = "Stream failed, skipping"
+            else:
+                await self.skip_failed(track)
+                return
         if self.index + 1 < len(self.queue):
-            await self.play_index(step=1)
+            await self.play_index(step=1, auto=True)
 
     async def _started(self, entry):
         """mpv started a playlist entry: if it is the preloaded one, advance the queue."""
         armed = self.armed
         if not armed or entry != armed["entry"]:
             return
-        self.armed, self.cur_entry = None, entry
+        self.armed, self.cur_entry, self.retried = None, entry, None
         if 0 <= armed["index"] < len(self.queue) and self.queue[armed["index"]]["videoId"] == armed["videoId"]:
             self.index = armed["index"]
         self.error, self.resume_at = "", 0
@@ -221,8 +227,38 @@ class Player:
         if entry is None or entry != self.cur_entry:
             return
         self.fails = 0
+        if self.error:                        # it plays: what went wrong before it is old news soon
+            asyncio.get_running_loop().create_task(self._clear_error(self.error))
         data.add_history(self.current)
         plays.begin(self.current)
+
+    async def _clear_error(self, msg: str):
+        await asyncio.sleep(8)
+        if self.error == msg:
+            self.error = ""
+
+    async def skip_failed(self, track: dict, why: str = "", auto: bool = True):
+        """A song that won't play: on to the next one, so the house isn't left in silence. FAIL_LIMIT in a
+        row and it stops instead (YouTube is refusing us; better than burning through the queue).
+        auto: nobody asked for this song just now, so a short note is enough."""
+        self.fails += 1
+        self.resolver.cache.pop(track["videoId"], None)
+        title = track.get("title") or "that song"
+        if self.fails >= FAIL_LIMIT:
+            self.cur_entry = None
+            await self.disarm()
+            try:
+                await self.mpv.send("stop")
+            except Exception:
+                pass
+            self.error = "Streams are failing, try again later"
+            return
+        if self.index + 1 >= len(self.queue):
+            self.error = f'Couldn\'t play "{title}"' + (f": {why}" if why else "")
+            return
+        note = (f'Couldn\'t play "{title}", skipping' if auto else
+                f'Couldn\'t play "{title}"' + (f" ({why})" if why else "") + ", playing the next one")
+        asyncio.get_running_loop().create_task(self.play_index(step=1, auto=True, note=note[:200], after=self.gen))
 
     async def disarm(self):
         """Forgets the preloaded next track after the queue changed."""
@@ -253,6 +289,8 @@ class Player:
             p = self.mpv.props
             if self.current and not (p.get("pause") or p.get("idle-active") or self.loading):
                 plays.heard(self.current["videoId"], min(now - last, 5))   # what the play log counts as heard
+                if p.get("time-pos"):
+                    self.seen = (self.cur_entry, p["time-pos"], p.get("duration") or 0)
             last = now
             try:
                 await self.mpv.eq_sync()
@@ -281,10 +319,16 @@ class Player:
         if entry is not None:
             self.armed = {"index": i, "videoId": track["videoId"], "entry": entry}
 
-    async def play_index(self, i: int = 0, start: float = 0, step: int = 0, vid: str | None = None):
+    async def play_index(self, i: int = 0, start: float = 0, step: int = 0, vid: str | None = None, *,
+                         auto: bool = False, note: str = "", after: int | None = None, recover: bool = False):
         """Plays queue[i], or the track `step` places from the current one (worked out when the request
-        runs, so quick skips add up). Resolving happens outside the lock; only the newest request loads."""
+        runs, so quick skips add up). Resolving happens outside the lock; only the newest request loads.
+        A song whose stream can't be found is skipped (skip_failed). auto: the player moved on by itself,
+        nobody asked for this song; note: the error line to show meanwhile; after: only if no other request
+        came since that gen; recover: reloading a broken stream (it isn't tried again)."""
         async with self.play_lock:
+            if after is not None and after != self.gen:
+                return                        # someone asked for something else meanwhile
             if step:
                 i = self.index + step
             if not 0 <= i < len(self.queue) or (vid and self.queue[i]["videoId"] != vid):
@@ -293,25 +337,37 @@ class Player:
             gen, track = self.gen, self.queue[i]
             self.index, self.resume_at = i, 0
             self.armed, self.cur_entry = None, None   # the old entry ending must not move the queue on
-            self.loading, self.error = True, ""
+            self.loading, self.error = True, note
+            if not recover:
+                self.retried = None
+        failed = None
         try:
-            url = await self.resolver.get(track["videoId"])
-            async with self.play_lock:
-                if gen != self.gen:
-                    return                    # a newer request took over while this one resolved
-                if start > 1:
-                    res = await self.mpv.send("loadfile", url, "replace", -1, f"start={start:.1f}")
-                else:
-                    res = await self.mpv.send("loadfile", url, "replace")
-                self.cur_entry = (res.get("data") or {}).get("playlist_entry_id")
-                await self.mpv.send("set_property", "pause", False)
-        except Exception as exc:
+            try:
+                url = await self.resolver.get(track["videoId"])
+            except Exception as exc:
+                failed = exc
+            else:
+                async with self.play_lock:
+                    if gen != self.gen:
+                        return                # a newer request took over while this one resolved
+                    if start > 1:
+                        res = await self.mpv.send("loadfile", url, "replace", -1, f"start={start:.1f}")
+                    else:
+                        res = await self.mpv.send("loadfile", url, "replace")
+                    self.cur_entry = (res.get("data") or {}).get("playlist_entry_id")
+                    await self.mpv.send("set_property", "pause", False)
+        except Exception as exc:              # mpv itself, not the song: _mpv_lost deals with that
             if gen == self.gen:
                 self.error = f"Could not load: {exc}"[:200]
         finally:
             if gen == self.gen:
                 self.loading = False
         if gen != self.gen:
+            return
+        if failed is not None:
+            await self.refill()               # it may have been the last song: the radio may have more
+            if gen == self.gen:
+                await self.skip_failed(track, short_error(failed), auto)
             return
         for nxt in self.queue[self.index + 1:self.index + 3]:
             self.resolver.prefetch(nxt["videoId"])
@@ -450,11 +506,7 @@ class Player:
         if fresh:
             known |= {t["videoId"] for t in self.queue[end:]}
             random.shuffle(items)
-        new = []
-        for t in items:
-            if t["videoId"] not in known:
-                new.append({**t, "by": "", "src": "auto"})
-                known.add(t["videoId"])
+        new = [{**t, "by": "", "src": "auto"} for t in self.pick_radio(items, known, self.queue[:end])]
         if new:
             self.queue[end:] = new[:30]
             await self.sync_armed()
@@ -474,10 +526,39 @@ class Player:
             if gen != self.seed_gen or not self.current:
                 return                        # the queue changed meanwhile: that radio is stale
             known = {t["videoId"] for t in self.queue}
-            new = [{**t, "by": "", "src": "auto"} for t in items if t["videoId"] not in known]
+            new = [{**t, "by": "", "src": "auto"} for t in self.pick_radio(items, known, self.queue)]
             if new:
                 self.queue.extend(new)
                 return
+
+    @staticmethod
+    def pick_radio(items: list[dict], known: set, before: list[dict]) -> list[dict]:
+        """The radio songs worth adding after `before`, in YouTube's order: none already in the queue
+        (`known`, which grows), none played lately, and no artist twice within RADIO_ARTIST_GAP songs (one
+        held back for that can still come later). When that leaves too few, the held ones come back."""
+        recent = {t.get("videoId") for t in data.history[:RADIO_RECENT]}
+
+        def artist(t):
+            return (t.get("artist") or "").split(",")[0].strip().lower()
+        last = [artist(t) for t in before[-RADIO_ARTIST_GAP:]]
+        out, held = [], []
+        for t in items:
+            if t["videoId"] in known:
+                continue
+            known.add(t["videoId"])
+            if t["videoId"] in recent or (artist(t) and artist(t) in last):
+                held.append(t)
+                continue
+            out.append(t)
+            last = (last + [artist(t)])[-RADIO_ARTIST_GAP:]
+        for t in [t for t in held if t["videoId"] not in recent]:   # held only for the artist: room now?
+            if not (artist(t) and artist(t) in last):
+                held.remove(t)
+                out.append(t)
+                last = (last + [artist(t)])[-RADIO_ARTIST_GAP:]
+        if len(out) < RADIO_MIN:
+            out += held[:RADIO_MIN - len(out)]
+        return out
 
     # ---------- undo: a snapshot before every queue change ----------
     def snapshot(self, label: str, by: str = ""):

@@ -5,7 +5,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from .. import admin, audit, auth, data, here, plays
+from .. import admin, audit, auth, data, here, plays, ytdlp
 from ..config import HISTORY_FILE, LIKED_ID
 from ..data import list_summary, people, playlists, save_lists, save_people
 from ..files import write_json
@@ -64,6 +64,20 @@ async def reset(request: Request):
 @router.get("/api/admin/audit", dependencies=ADMIN)
 async def audit_log(limit: int = 300):
     return audit.entries[-max(1, min(limit, 300)):][::-1]
+
+
+# ---------- yt-dlp: the version, and updating it when songs stop loading ----------
+@router.get("/api/admin/ytdlp", dependencies=ADMIN)
+async def ytdlp_info():
+    return await ytdlp.info()
+
+
+@router.post("/api/admin/ytdlp", dependencies=ADMIN)
+async def ytdlp_update(request: Request):
+    res = await ytdlp.update()
+    if not res.get("busy"):
+        audit.log("ytdlp", res["msg"], request)
+    return res
 
 
 # ---------- people ----------

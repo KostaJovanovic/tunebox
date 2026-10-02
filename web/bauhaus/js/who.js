@@ -8,6 +8,7 @@ import { admin, house, feat, isOn, G } from "../../shared/house.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
 import { on } from "../../shared/actions.js";
 import { toast, syncScrim, onCloseAll } from "./ui.js";
+import { ask } from "../../shared/dialog.js";
 
 let waiting = null;                            /* resolves the name asker: true once a name is picked */
 let editing = null, pickColor = COLORS[4], pickEmoji = "", pickSems = new Set(), other = false;
@@ -194,17 +195,17 @@ export function renderPeople() {
 }
 
 async function remove(id) {
-  if (!confirm(`Remove ${people[id].name}? Their songs stay in the queue.`)) return;
+  if (!(await ask(`Remove ${people[id].name}? Their songs stay in the queue.`, { ok: "Remove", danger: true }))) return;
   if (await withAdmin(() => removePerson(id)) === null) return;
   renderPeople(); paintMe();
 }
 
 async function resetPhrase(id) {
   const name = people[id].name;
-  if (!confirm(`Take the pass phrase off ${name}? Anyone can then pick the name and set a new one.`)) return;
+  if (!(await ask(`Take the pass phrase off ${name}? Anyone can then pick the name and set a new one.`, { ok: "Take it off" }))) return;
   try {
     if (await withAdmin(() => api(`api/admin/people/${id}`, { phrase: "" }, "PATCH")) === null) return;
-  } catch (e) { return toast(errText(e)); }
+  } catch (e) { return toast(errText(e), false, "error"); }
   people[id].locked = false; renderPeople(); paintPhraseBtn(editing === id ? people[id] : null);
   toast(`${name} has no pass phrase now`);
 }
@@ -227,7 +228,7 @@ async function editPhrase(id) {
     const q = await savePerson(id, { phrase: nu.trim() ? nu : "" });
     renderPeople(); paintPhraseBtn(editing === id ? q : null);
     toast(q.locked ? `${q.name}'s pass phrase saved` : `${q.name} has no pass phrase now`);
-  } catch (e) { toast(errText(e)); }
+  } catch (e) { toast(errText(e), false, "error"); }
 }
 
 function paintPhraseBtn(p) {

@@ -19,6 +19,21 @@
 .card :is(img, .mosaic, .blank) { transition: scale .25s var(--ease-out); }
 .card:active > :is(img, .mosaic, .blank) { scale: .97; transition: scale .1s .07s; }
 
+/* a new song: its title and the line under it settle in (swapIn in shared/dom.js; the old cover fades out
+   over the new one there too). Neither happens with less motion or in performance mode. */
+.swapin { animation: swapin .45s var(--ease-out); }
+@keyframes swapin { from { opacity: 0; translate: 0 5px; } }
+
+/* added: the tapped row or card says so at once (ui.js markAdded), before the queue shows it: a tick over its cover */
+.row.added::after, .card.added::after { content: ""; position: absolute; width: 44px; height: 44px; background: #000a center / 24px no-repeat
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F2C230' stroke-width='3' stroke-linecap='square'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+  animation: tick .3s var(--ease-out); pointer-events: none; }
+.row.added::after { left: 52px; top: 50%; margin-top: -22px; }
+.card.added::after { left: 10px; top: 10px; width: 56px; height: 56px; background-size: 30px; }
+@media (max-width: 760px) { .row.added::after { left: 12px; } }
+.card { position: relative; }
+@keyframes tick { from { opacity: 0; scale: .6; } }
+
 /* a switch: the knob stretches towards where it is going */
 .tog i::after { transition: transform .25s var(--ease-out), width .2s var(--ease-out), background .15s; }
 .tog:active i::after { width: 20px; }
@@ -49,6 +64,7 @@ html[data-lite] .prog.seeking .fill, html[data-lite] .prog.loading .fill { trans
   }
   .adminp.open, .recap.open, .recap .slide, body.vol-open .vol, .nav button.on::after, .tabs button.on::after { animation: none; }
   .clyr p.on { transform: none; }
+  .row.added::after, .card.added::after { animation: none; }
   :is(.btn, .qbtn, .ctrls .sq, .cctrls .sq, .acts button, .volrow button, .vol button.vp, .likers button, .sems button, .emojis button, .swatches button, .recap .x):active {
     scale: none; opacity: .6; }
   .card:active > :is(img, .mosaic, .blank) { scale: none; }

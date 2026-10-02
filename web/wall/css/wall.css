@@ -194,3 +194,6 @@ html[data-offline] .ctrls, html[data-offline] .art { opacity: .5; pointer-events
   letter-spacing: .1em; text-transform: uppercase; }
 .fjoin .qr { width: clamp(64px, 8vh, 96px); padding: 6px; border-radius: 8px; }
 .fjoin span { max-width: 11em; text-align: right; }
+/* a new song: its title and artist settle in (swapIn in shared/dom.js, which skips it with less motion) */
+.swapin { animation: swapin .6s cubic-bezier(.32, .72, 0, 1); }
+@keyframes swapin { from { opacity: 0; translate: 0 8px; } }

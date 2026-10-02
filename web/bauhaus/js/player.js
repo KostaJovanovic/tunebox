@@ -1,7 +1,7 @@
 /* The player bar at the bottom, and the now playing canvas (big cover). On a phone the bar is a mini
    bar: a tap or swipe up opens the canvas, which has every control; a sideways swipe skips.
    On a desktop the bar keeps its controls, and the canvas can show lyrics beside the cover. */
-import { $, esc, fmt, secs, art as cover, sharpen } from "../../shared/dom.js";
+import { $, esc, fmt, secs, art as cover, showCover, fadeTo, swapIn } from "../../shared/dom.js";
 import { state, ctl, poll, position, waits, inTime } from "../../shared/playback.js";
 import { me } from "../../shared/people.js";
 import { spring, tracker, project, rubberband, letGo } from "../../shared/motion.js";
@@ -33,14 +33,18 @@ function yours(s) {
 const countBadge = (el, n) => { el.hidden = !n; el.textContent = n > 99 ? "99+" : n; };
 
 /* ---------- the bar ---------- */
-let seeking = false;
+let seeking = false, barVid = null;   /* barVid: the song the bar shows (null before the first paint) */
 export function paintBar(s) {
   const c = s.current;
   $("#pTitle").textContent = c ? c.title : "Nothing playing";
   setHtml($("#pSub"), subtitle(c));
-  if (c && $("#pImg").dataset.src !== cover(c)) { $("#pImg").src = $("#pImg").dataset.src = cover(c); }
+  if (c && $("#pImg").dataset.src !== cover(c)) { fadeTo($("#pImg"), $("#pImg").dataset.src = cover(c)); }
+  if ((c?.videoId || "") !== barVid) { if (barVid !== null) swapIn($("#pTitle"), $("#pSub")); barVid = c?.videoId || ""; }
   $("#pBtn").innerHTML = playIcon(s);
-  $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : yours(s)));
+  /* playing into silence: say so, and the speaker icons go red to show where to turn it up */
+  const silent = !!c && !s.paused && !s.ramping && (s.volume ?? 1) <= 0;
+  document.documentElement.classList.toggle("silent", silent);
+  $("#pStatus").textContent = s.loading ? "Loading" : (s.error || (s.ramping ? "Waking up" : silent ? "Volume is at 0" : yours(s)));
   $("#prog").classList.toggle("loading", !!s.loading);
   const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
   $("#tPos").textContent = fmt(s.position); $("#tDur").textContent = fmt(dur);
@@ -184,9 +188,9 @@ export function paintCanvas(force) {
   if (!canvasOpen() && !force) return;         /* forced while still shut: it is being pulled open */
   const s = state, c = s.current;
   if ((c ? cover(c) : "") !== $("#cImg").dataset.src) {
-    $("#cImg").dataset.src = c ? cover(c) : "";
-    if (c) { $("#cImg").src = cover(c); sharpen($("#cImg"), c); } else $("#cImg").removeAttribute("src");
-    if (c) wallpaperFor(c);
+    if (c) { showCover($("#cImg"), c); wallpaperFor(c); }
+    else { $("#cImg").dataset.src = ""; $("#cImg")._want = ""; $("#cImg").removeAttribute("src"); }
+    if (canvasOpen()) swapIn($("#cTitle"), $("#cSub"));
   }
   $("#cTitle").textContent = c ? c.title : "Nothing playing";
   setHtml($("#cSub"), subtitle(c));

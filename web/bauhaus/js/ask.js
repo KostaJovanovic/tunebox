@@ -5,9 +5,9 @@
 import { $, esc, plural, art } from "../../shared/dom.js";
 import { state, queueSongs, ctl } from "../../shared/playback.js";
 import { on } from "../../shared/actions.js";
-import { syncScrim } from "./ui.js";
+import { syncScrim, markAdded } from "./ui.js";
 
-let pending = null;                            /* {tracks, label} or {queued: {at, vid}} waiting for an answer */
+let pending = null;                            /* {tracks, label, from} or {queued: {at, vid}} waiting for an answer */
 
 function open(t, title, sub, hide = []) {
   $("#askSong").innerHTML = `<img src="${esc(art(t))}" alt=""><div class="min0"><div class="t">${esc(title)}</div><div class="s">${esc(sub)}</div></div>`;
@@ -15,12 +15,13 @@ function open(t, title, sub, hide = []) {
   $("#askPlay").classList.add("open"); syncScrim();
 }
 
-/* tracks: the songs; label: the list's name (for undo and the question), empty for one song */
-export function askPlay(tracks, label = "") {
+/* tracks: the songs; label: the list's name (for undo and the question), empty for one song; from: the
+   button tapped, whose row or card says "added" once it goes (ui.js markAdded) */
+export function askPlay(tracks, label = "", from = null) {
   if (!tracks || !tracks.length) return;
   const many = tracks.length > 1;
-  if (!state.current) return queueSongs(tracks, many ? "replace" : "add", label);
-  pending = { tracks, label };
+  if (!state.current) return markAdded(from, sent => queueSongs(tracks, many ? "replace" : "add", label, false, sent));
+  pending = { tracks, label, from };
   const t = tracks[0];
   open(t, many ? label || "These songs" : t.title, many ? plural(tracks.length, "song") : [t.artist, t.album].filter(Boolean).join(" · "));
 }
@@ -42,6 +43,6 @@ on("ask", el => {
   if (!p) return;
   if (p.queued) return ctl(el.dataset.mode === "now" ? "jump" : "promote", p.queued.at, p.queued.vid);
   const mode = el.dataset.mode === "now" && p.tracks.length > 1 ? "replace" : el.dataset.mode;   /* a list becomes what's up next */
-  queueSongs(p.tracks, mode, p.label);
+  markAdded(p.from, sent => queueSongs(p.tracks, mode, p.label, false, sent));
 });
 on("ask-close", close);

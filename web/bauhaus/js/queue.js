@@ -9,11 +9,9 @@ import { on } from "../../shared/actions.js";
 import { setupQueueGestures, queueBusy, moveLocally } from "../../shared/queue-gestures.js";
 import * as icon from "./icons.js";
 import { loading, songRow, at, openDrawer, isOpen } from "./ui.js";
-import { startSelect, stopSelect, selecting, markPicked } from "./select.js";
-import { pickFor } from "./playlists.js";
 import { askQueued } from "./ask.js";
 
-export function toggleQueue(open = !isOpen("drawer")) { if (!open) stopSelect(); openDrawer("drawer", open); renderQueue(); }
+export function toggleQueue(open = !isOpen("drawer")) { openDrawer("drawer", open); renderQueue(); }
 
 const qhead = (title, aside = "", tools = "") =>
   `<div class="qhead"><h3>${esc(title)}</h3>${aside ? `<span>${esc(aside)}</span>` : ""}<div class="qtools">${tools}</div></div>`;
@@ -31,7 +29,7 @@ export function renderQueue() {
   const myNext = q.findIndex((t, i) => i > 0 && i <= nu && mine(t));
   if (!myId || myNext < 0) mineOnly = false;
   lists.queue = q;
-  const put = html => { if (html !== queueHtml) { queueHtml = html; $("#queue").innerHTML = html; } markPicked(); };
+  const put = html => { if (html !== queueHtml) { queueHtml = html; $("#queue").innerHTML = html; } };
   if (!q.length) return put('<div class="note">Queue is empty. Tap any song to start.</div>');
 
   const pick = i => `<button title="Add to playlist" aria-label="Add to playlist" data-f="playlists" data-act="pick" ${at("queue", i)}>${icon.LIST}</button>`;
@@ -45,8 +43,7 @@ export function renderQueue() {
 
   let html = qhead("Now playing") + row(q[0], 0);
   html += qhead("Next in queue", nu ? plural(nu, "song") + (myNext > 0 ? ` · yours ${inTime(wait[myNext])}` : "") : "",
-    (q.length > 2 ? `<button class="${selecting($("#queue")) ? "on" : ""}" data-act="queue-select">Select</button>` : "")
-    + (myNext > 0 ? `<button class="${mineOnly ? "on" : ""}" aria-pressed="${mineOnly}" data-act="queue-mine">Mine</button>` : "")
+    (myNext > 0 ? `<button class="${mineOnly ? "on" : ""}" aria-pressed="${mineOnly}" data-act="queue-mine">Mine</button>` : "")
     + (mineOnly ? '<button data-act="queue" data-a="clear_mine">Take mine out</button>'
       : nu ? '<button data-act="queue" data-a="shuffle">Shuffle</button><button data-act="queue" data-a="clear">Clear</button>' : ""));
   html += nu ? q.slice(1, nu + 1).map((t, k) => mineOnly && !mine(t) ? "" : row(t, k + 1)).join("")
@@ -92,15 +89,4 @@ on("queue", el => el.dataset.a === "jump" ? askQueued(+el.dataset.at, el.dataset
   : ctl(el.dataset.a, el.dataset.at ? +el.dataset.at : undefined, el.dataset.vid));
 on("earlier", () => toggleEarlier());
 on("queue-mine", () => { mineOnly = !mineOnly; renderQueue(); });
-/* Select: pick songs in Up next, then take them out, move them up, or put them in a playlist */
-const pickedTracks = ids => ids.map(v => (state.queue || []).find(t => t.videoId === v)).filter(Boolean);
-on("queue-select", () => {
-  if (selecting($("#queue"))) return stopSelect();
-  startSelect($("#queue"), $("#drawer"), [
-    { label: "Play next", run: ids => ctl("promote_ids", null, null, null, null, ids) },
-    { label: "Add to playlist", run: ids => pickFor(pickedTracks(ids)) },
-    { label: "Take out", danger: true, run: ids => ctl("remove_ids", null, null, null, null, ids) },
-  ], () => { queueHtml = ""; renderQueue(); });
-  queueHtml = ""; renderQueue();
-});
 on("restore", async el => { await ctl("restore", null, null, null, el.dataset.id); toggleEarlier(true); });

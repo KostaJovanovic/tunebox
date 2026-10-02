@@ -44,7 +44,7 @@ async function toggleRadio(t) {
     const r = radioOff.has(t.videoId) ? await api(`api/radio/skips/${encodeURIComponent(t.videoId)}`, undefined, "DELETE")
       : await api("api/radio/skips", { track: t });
     toast(r.message);
-  } catch (e) { toast(errText(e)); }
+  } catch (e) { toast(errText(e), false, "error"); }
   syncRadioOff(); poll();
 }
 
@@ -107,7 +107,7 @@ function playerMenu() {
 function collectionMenu(label, load, open) {
   const withSongs = fn => async () => {
     let tracks;
-    try { tracks = await load(); } catch (e) { return toast(errText(e)); }
+    try { tracks = await load(); } catch (e) { return toast(errText(e), false, "error"); }
     if (!tracks.length) return toast("Nothing to play in there");
     fn(tracks);
   };

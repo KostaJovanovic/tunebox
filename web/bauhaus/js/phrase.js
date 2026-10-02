@@ -56,7 +56,7 @@ export async function longEnough(v) {
    yet. True once it is unlocked (it stays so until 15 minutes pass without admin work). */
 export async function unlockAdmin() {
   let st;
-  try { st = await api("api/admin"); } catch (e) { toast(errText(e)); return false; }
+  try { st = await api("api/admin"); } catch (e) { toast(errText(e), false, "error"); return false; }
   if (st.admin) return syncAdmin(true), true;
   if (st.lockedFor) { toast(`Too many wrong passwords. Try again in ${Math.ceil(st.lockedFor / 60)} min`); return false; }
   let ok;

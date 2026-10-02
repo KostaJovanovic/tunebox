@@ -59,7 +59,35 @@
 <nav class="back"><a href="./"><span class="mark"><i class="c"></i><i class="t"></i><i class="s"></i></span>Back to the player</a></nav>
 
 <header class="top"><h1>Patch notes</h1>
-<p>Version <b>0.62</b> &middot; 62 updates over 3 days, newest first.</p></header>
+<p>Version <b>0.63</b> &middot; 63 updates over 4 days, newest first.</p></header>
+<section class="rel" id="v0-63">
+  <header><h2>Keep Playing</h2><p class="meta"><span>0.62 - 0.63</span><span>1 October 2026</span></p></header>
+  <ul>
+    <li class="lead"><strong>The music keeps going, and Tunebox feels calmer to use.</strong> A song that will not play is skipped instead of stopping the house, and the page answers in its own voice.</li>
+  </ul>
+  <h3><i></i>Playing</h3>
+  <ul>
+    <li><span class="tag is-fix">Fix</span><strong>A song YouTube will not play is skipped.</strong> Before, the music stopped there until somebody pressed Next. After three in a row it stops and says so.</li>
+    <li><span class="tag is-fix">Fix</span><strong>A stream that breaks mid-song picks up where it stopped,</strong> instead of skipping the song.</li>
+    <li><span class="tag is-faster">Faster</span><strong>A song you ask for no longer waits</strong> behind the songs being made ready in the background.</li>
+    <li><span class="tag is-new">New</span><strong>The radio repeats less.</strong> It leaves out songs played recently and spaces out the same artist.</li>
+    <li><span class="tag is-fix">Fix</span><strong>A song taken off the radio no longer plays anyway</strong> when it was already lined up next.</li>
+    <li><span class="tag is-new">New</span><strong>A warning when the music plays at volume 0,</strong> in the player bar, and the speaker turns red.</li>
+  </ul>
+  <h3><i></i>On the page</h3>
+  <ul>
+    <li><span class="tag is-new">New</span><strong>Song changes fade.</strong> The cover and the title cross over on the player, Now playing and the wall screen.</li>
+    <li><span class="tag is-new">New</span><strong>Tunebox asks its own questions.</strong> Deleting, renaming and the like open the app&rsquo;s own pop-up instead of the browser&rsquo;s.</li>
+    <li><span class="tag is-new">New</span><strong>A tick on the song you added,</strong> the moment you tap it.</li>
+    <li><span class="tag is-fix">Fix</span><strong>A new message no longer pushes away an Undo,</strong> and errors stay long enough to read.</li>
+  </ul>
+  <h3><i></i>Running Tunebox</h3>
+  <ul>
+    <li><span class="tag is-new">New</span><strong>Phones can join straight away.</strong> Started with <code>start.bat</code>, <code>start.sh</code> or <code>run.py</code>, Tunebox is open to the network by default and prints the address to open. <code>--local</code> keeps it to this machine.</li>
+    <li><span class="tag is-new">New</span><strong>A welcome card on a fresh install</strong> sets the house&rsquo;s name, accent, preset and admin password, and shows how others join.</li>
+    <li><span class="tag is-new">New</span><strong>The admin is told when songs keep failing to load,</strong> with a button to update yt-dlp, the part that fetches YouTube&rsquo;s audio. Also <code>tunebox update-ytdlp</code>.</li>
+  </ul>
+</section>
 <section class="rel" id="v0-61">
   <header><h2>House Rules</h2><p class="meta"><span>0.44 - 0.61</span><span>30 September 2026</span></p></header>
   <ul>
@@ -249,7 +277,7 @@
     <li><span class="tag is-fix">Fix</span><strong>A cover that fails to load</strong> shows an empty tile, not a broken image.</li>
   </ul>
 </section>
-<p class="foot">Tunebox 0.62</p>
+<p class="foot">Tunebox 0.63</p>
 </main>
 </body>
 </html>

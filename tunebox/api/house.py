@@ -1,5 +1,7 @@
 """The house's setup (house.py): what every page reads, and the admin's routes to change it: name,
-accent and time zone, the feature switches and their presets, groups, the wall screen, the blocklist."""
+accent and time zone, the feature switches and their presets, groups, the wall screen, the blocklist.
+Also the first-time card (setup.js), which only the server's own browser sees on a fresh install."""
+import ipaddress
 import json
 import re
 from zoneinfo import ZoneInfo
@@ -7,7 +9,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
-from .. import admin, audit, blocklist, data, house
+from .. import admin, audit, auth, blocklist, data, house
 from ..data import clean_track, people, save_people
 from ..player import player
 from ..web import BaseModel
@@ -27,6 +29,39 @@ async def get_house():
 async def get_setup():
     """The same, with what the admin's panel offers: every feature, the presets, the accents."""
     return {**house.public(), "features": list(house.FEATURES), "presets": house.PRESETS, "accents": list(house.ACCENTS)}
+
+
+# ---------- the first-time card ----------
+def on_this_machine(request: Request) -> bool:
+    """A browser on the server itself, reaching it directly. Behind a reverse proxy every request comes
+    from this machine too, but the proxy adds X-Forwarded-For, so those don't count."""
+    if request.headers.get("x-forwarded-for") or request.headers.get("forwarded"):
+        return False
+    try:
+        return ipaddress.ip_address(request.client.host if request.client else "").is_loopback
+    except ValueError:
+        return False
+
+
+@router.get("/api/setup")
+async def get_welcome(request: Request):
+    """Whether this page shows the first-time card: a fresh install (no admin password yet) that nobody
+    set up or put off, seen from the server's own browser. Once a password exists it never shows again."""
+    if house.house["welcome"] and auth.admin_set():
+        house.house["welcome"] = False
+        house.save_house()
+    return {"show": bool(house.house["welcome"]) and on_this_machine(request)}
+
+
+@router.post("/api/setup/done")
+async def welcome_done(request: Request):
+    """The card was used or put off ("Later"): it doesn't come back."""
+    if not (on_this_machine(request) or admin.is_admin(request)):
+        raise HTTPException(403, "admin")
+    if house.house["welcome"]:
+        house.house["welcome"] = False
+        house.save_house()
+    return {"ok": True}
 
 
 def saved(request: Request, ev: str, msg: str) -> dict:

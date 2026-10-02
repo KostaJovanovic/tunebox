@@ -147,6 +147,47 @@ back to the player.
 
 ## Releases
 
+## Keep Playing
+version: 0.62 - 0.63
+date: 1 October 2026
+
+- **The music keeps going, and Tunebox feels calmer to use.** A song that will
+  not play is skipped instead of stopping the house, and the page answers in
+  its own voice.
+
+### Playing
+- [fix] **A song YouTube will not play is skipped.** Before, the music stopped
+  there until somebody pressed Next. After three in a row it stops and says so.
+- [fix] **A stream that breaks mid-song picks up where it stopped,** instead of
+  skipping the song.
+- [faster] **A song you ask for no longer waits** behind the songs being made
+  ready in the background.
+- [new] **The radio repeats less.** It leaves out songs played recently and
+  spaces out the same artist.
+- [fix] **A song taken off the radio no longer plays anyway** when it was
+  already lined up next.
+- [new] **A warning when the music plays at volume 0,** in the player bar, and
+  the speaker turns red.
+
+### On the page
+- [new] **Song changes fade.** The cover and the title cross over on the
+  player, Now playing and the wall screen.
+- [new] **Tunebox asks its own questions.** Deleting, renaming and the like
+  open the app's own pop-up instead of the browser's.
+- [new] **A tick on the song you added,** the moment you tap it.
+- [fix] **A new message no longer pushes away an Undo,** and errors stay long
+  enough to read.
+
+### Running Tunebox
+- [new] **Phones can join straight away.** Started with `start.bat`,
+  `start.sh` or `run.py`, Tunebox is open to the network by default and prints
+  the address to open. `--local` keeps it to this machine.
+- [new] **A welcome card on a fresh install** sets the house's name, accent,
+  preset and admin password, and shows how others join.
+- [new] **The admin is told when songs keep failing to load,** with a button to
+  update yt-dlp, the part that fetches YouTube's audio. Also `tunebox
+  update-ytdlp`.
+
 ## House Rules
 version: 0.44 - 0.61
 date: 30 September 2026

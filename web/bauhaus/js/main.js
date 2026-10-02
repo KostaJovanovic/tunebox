@@ -8,7 +8,7 @@ import { setupLikes, syncLikes, toggleLike, likeCurrent } from "../../shared/lik
 import { syncPeople } from "../../shared/people.js";
 import { feat, syncHouse, onHouse } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
-import { toast, hideToast, closeAll, backdropTap, anyOpen, isOpen, openDrawer } from "./ui.js";
+import { toast, hideToast, markAdded, closeAll, backdropTap, anyOpen, isOpen, openDrawer } from "./ui.js";
 import { showHome, showExplore, showHistory, goTo, startPage } from "./library.js";
 import { view } from "./nav.js";
 import { showLists, likesChanged } from "./playlists.js";
@@ -23,11 +23,12 @@ import { askPlay } from "./ask.js";
 import "./menu.js";
 import "./recap.js";
 import "./admin.js";
+import "./setup.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);
 /* a request that failed with nobody waiting for it (a button's action) still says why */
-addEventListener("unhandledrejection", e => { if (e.reason instanceof Error) toast(errText(e.reason)); });
+addEventListener("unhandledrejection", e => { if (e.reason instanceof Error) toast(errText(e.reason), false, "error"); });
 
 onState(async s => {
   paintBar(s);
@@ -64,8 +65,8 @@ on("nav", el => go(el.dataset.v));
 /* playing something while a song is on asks first (ask.js); Play next and Add all just do it */
 on("song", el => {
   const mode = el.dataset.mode || "now";
-  if (mode === "now") askPlay([lists[el.dataset.list][+el.dataset.i]]);
-  else addSong(el.dataset.list, +el.dataset.i, mode);
+  if (mode === "now") askPlay([lists[el.dataset.list][+el.dataset.i]], "", el);
+  else markAdded(el, sent => addSong(el.dataset.list, +el.dataset.i, mode, sent));
 });
 on("play-all", el => {
   const mode = el.dataset.mode || "replace";

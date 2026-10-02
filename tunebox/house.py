@@ -48,6 +48,8 @@ DEFAULTS = {
     "local": {"capGB": None, "reserveGB": 2, "maxMB": 200},
     # quiet hours: "22:00-08:00" by the house's clock, when the volume stays at most `max`; "" off
     "quiet": {"hours": "", "max": 30},
+    # the first-time card on the server's own browser (api/house.py, setup.js): True until it is done or put off
+    "welcome": True,
 }
 HOURS = re.compile(r"([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)")
 

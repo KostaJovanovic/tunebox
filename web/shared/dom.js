@@ -1,4 +1,5 @@
 /* Small helpers every Tunebox page uses. */
+import { calm } from "./motion.js";
 
 export const $ = s => document.querySelector(s);
 export const $$ = s => [...document.querySelectorAll(s)];
@@ -51,8 +52,47 @@ export function bigArt(u) {
 export function sharpen(img, t) {
   const big = bigArt(t?.thumb), im = new Image();
   if (!big || big === t.thumb) return;
-  im.onload = () => { if (img.dataset.src === art(t)) img.src = big; };
+  im.onload = () => { if (img.dataset.src === art(t)) fadeTo(img, big); };
   im.src = big;
+}
+
+/* A song's cover into a big <img>: the small one (fading in over the last song's), then the full-size one */
+export function showCover(img, t) {
+  img.dataset.src = art(t);
+  fadeTo(img, art(t)); sharpen(img, t);
+}
+
+/* Shows src in img without a blank moment: it loads first, so the old picture stays until the new one is
+   ready, then the old one fades out over it. At once with less motion or in performance mode. The last
+   call wins. */
+export function fadeTo(img, src) {
+  img._want = src;
+  const im = new Image();
+  im.onload = im.onerror = () => {
+    if (img._want !== src || img.getAttribute("src") === src) return;
+    if (!calm() && img.isConnected && img.complete && img.naturalWidth && img.offsetWidth) ghost(img);
+    img.src = src;
+  };
+  im.src = src;
+}
+/* a copy of what img shows, laid exactly over it, fading away (whatever positions it: measured, not assumed) */
+function ghost(img) {
+  const g = img.cloneNode(), cs = getComputedStyle(img), r = img.getBoundingClientRect();
+  for (const a of ["id", "data-act", "title", "loading"]) g.removeAttribute(a);
+  g.setAttribute("aria-hidden", "true");
+  Object.assign(g.style, { position: "absolute", left: "0", top: "0", margin: "0", pointerEvents: "none", boxShadow: "none", transform: "none",
+    animation: "none", objectFit: cs.objectFit, objectPosition: cs.objectPosition, borderRadius: cs.borderRadius, transition: "opacity .4s ease" });
+  img.after(g);
+  const o = g.getBoundingClientRect();
+  Object.assign(g.style, { left: `${r.left - o.left}px`, top: `${r.top - o.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  requestAnimationFrame(() => requestAnimationFrame(() => { g.style.opacity = "0"; }));
+  setTimeout(() => g.remove(), 500);
+}
+
+/* a new song's title and line under it settle in (CSS .swapin, in each page's own styles) */
+export function swapIn(...els) {
+  if (calm()) return;
+  for (const el of els) { el.classList.remove("swapin"); void el.offsetWidth; el.classList.add("swapin"); }
 }
 
 /* a cover that fails to load (YouTube sometimes refuses one) shows a drawn one, not the broken-image icon */

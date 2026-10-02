@@ -14,6 +14,7 @@ import { main, toast, closeAll, loading, note, section, backBtn, songRow, card, 
 import { toggleCanvas } from "./player.js";
 import { showLists } from "./playlists.js";
 import { showLocal } from "./local.js";
+import { ask } from "../../shared/dialog.js";
 
 let kind = "songs", lastQuery = "";
 
@@ -176,7 +177,7 @@ export async function showHistory() {
 }
 
 async function clearHistory() {
-  if (!confirm("Clear the play history for everyone?")) return;
+  if (!(await ask("Clear the play history for everyone?", { ok: "Clear", danger: true }))) return;
   if (await withAdmin(() => api("api/history", undefined, "DELETE")) === null) return;
   showHistory();
 }
@@ -186,7 +187,7 @@ on("open", el => openItem(el.dataset.type, el.dataset.id));
 on("mood", el => showMood(el.dataset.params, el.dataset.title));
 on("back", () => { const p = previous(); p ? openItem(p.type, p.id, true) : back(); });
 on("clear-history", clearHistory);
-on("add-track", el => askPlay([JSON.parse(el.dataset.track)]));
+on("add-track", el => askPlay([JSON.parse(el.dataset.track)], "", el));
 
 /* ---------- recent searches: this device's last 8, shown under the empty search box ----------
    A search is kept once it was meant: Enter, or a tap on one of its results (not every pause in typing). */

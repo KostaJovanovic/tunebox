@@ -11,14 +11,38 @@ import { spring, tracker, project, shift, letGo } from "../../shared/motion.js";
 import * as icon from "./icons.js";
 
 /* ---------- toast ---------- */
-let toastT;
-export function toast(t, undoable = false) {
-  const el = $("#toast");
+/* One message at a time, except that news doesn't push away an Undo still showing: it shows above it for
+   a moment instead. An error (kind "error") or a long message stays up long enough to read. Screen
+   readers hear each one (role="status"). */
+let toastT, extraT;
+$("#toast").setAttribute("role", "status");
+export function toast(t, undoable = false, kind = "") {
+  const el = $("#toast"), long = kind === "error" || String(t).length > 60;
+  if (!undoable && el.classList.contains("undo") && el.classList.contains("open")) {
+    let x = $("#toast2");
+    if (!x) { x = Object.assign(document.createElement("div"), { id: "toast2", className: "toast extra" }); x.setAttribute("role", "status"); el.after(x); }
+    x.textContent = t; x.classList.toggle("err", kind === "error");
+    requestAnimationFrame(() => x.classList.add("open")); clearTimeout(extraT);
+    extraT = setTimeout(() => x.classList.remove("open"), long ? 5000 : 2600);
+    return;
+  }
   el.innerHTML = esc(t) + (undoable ? '<button data-act="undo">Undo</button>' : "");
-  el.classList.toggle("undo", undoable); el.classList.add("open"); clearTimeout(toastT);
-  toastT = setTimeout(() => el.classList.remove("open"), undoable ? 5000 : 2200);
+  el.classList.toggle("undo", undoable); el.classList.toggle("err", kind === "error"); el.classList.add("open"); clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("open"), undoable || long ? 5000 : 2200);
 }
-export const hideToast = () => $("#toast").classList.remove("open");
+export const hideToast = () => { $("#toast").classList.remove("open"); $("#toast2")?.classList.remove("open"); };
+
+/* ---------- added ---------- */
+/* The row or card someone tapped to add a song says so at once, before the next poll shows it in the queue.
+   run(sent) starts the adding and calls sent() as the request goes out (after any question); it resolves
+   true when the server took it. On a failure the mark goes (the toast says why). */
+export async function markAdded(el, run) {
+  const box = el?.closest(".row, .card");
+  if (!box) return run();
+  const ok = await run(() => { clearTimeout(box._added); box.classList.add("added"); });
+  box._added = setTimeout(() => box.classList.remove("added"), ok ? 1800 : 0);
+  return ok;
+}
 
 /* ---------- drawers (Up next, Lyrics, Settings) and pop-ups ---------- */
 const closeHooks = [];

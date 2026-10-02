@@ -10,6 +10,7 @@ import { on } from "../../shared/actions.js";
 import * as icon from "./icons.js";
 import { view, seq, setNav } from "./nav.js";
 import { main, toast, loading, note, section, songRow, syncScrim, onCloseAll } from "./ui.js";
+import { ask } from "../../shared/dialog.js";
 
 const SORTS = { added: ["Newest", s => -s.at], title: ["Title", s => s.title.toLowerCase()], artist: ["Artist", s => s.artist.toLowerCase()],
   who: ["Who added it", s => (people[s.by]?.name || "").toLowerCase()] };
@@ -135,8 +136,8 @@ $("#localForm").addEventListener("submit", async e => {
 });
 
 async function remove(t) {
-  if (!confirm(`Remove "${t.title}" from this Tunebox? The file is deleted, and the song leaves every playlist.`)) return;
-  try { await api(`api/local/${t.videoId.slice(6)}`, undefined, "DELETE"); } catch (e) { return toast(errText(e)); }
+  if (!(await ask(`Remove "${t.title}" from this Tunebox? The file is deleted, and the song leaves every playlist.`, { ok: "Remove", danger: true }))) return;
+  try { await api(`api/local/${t.videoId.slice(6)}`, undefined, "DELETE"); } catch (e) { return toast(errText(e), false, "error"); }
   toast("Removed"); poll();
   await load().catch(() => {}); render();
 }

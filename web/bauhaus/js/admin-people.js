@@ -8,6 +8,7 @@ import { house, isOn, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { toast, loading } from "./ui.js";
 import { askPhrase, longEnough, withAdmin } from "./phrase.js";
+import { ask, askText } from "../../shared/dialog.js";
 
 let el = null;                                 /* the tab's body */
 let all = [];
@@ -146,10 +147,10 @@ function renderPerson() {
     const cap = Math.max(0, Math.floor(+$("#admCapN").value || 0));
     act(() => call(`api/admin/people/${p.id}`, { cap }, "PATCH"), cap ? `At most ${plural(cap, "song")} waiting` : "No limit");
   });
-  $("#admMerge")?.addEventListener("submit", e => {
+  $("#admMerge")?.addEventListener("submit", async e => {
     e.preventDefault();
     const into = all.find(x => x.id === $("#admInto").value);
-    if (!confirm(`Merge ${p.name} into ${into.name}? ${p.name}'s plays, likes and playlists become ${into.name}'s, and the name ${p.name} is removed. This can't be undone.`)) return;
+    if (!await ask(`Merge ${p.name} into ${into.name}? ${p.name}'s plays, likes and playlists become ${into.name}'s, and the name ${p.name} is removed. This can't be undone.`, { ok: "Merge", danger: true })) return;
     open = into.id;
     act(() => call("api/admin/people/merge", { source: p.id, into: into.id }), `Merged into ${into.name}`);
   });
@@ -179,32 +180,32 @@ on("adm-sem", b => { const s = b.dataset.s; pick.sems.has(s) ? pick.sems.delete(
 on("adm-color", b => { pick.color = b.dataset.c; paintPick(); });
 on("adm-emoji", b => { pick.emoji = b.dataset.e; paintPick(); });
 on("adm-phrase", setPhrase);
-on("adm-phrase-off", () => {
+on("adm-phrase-off", async () => {
   const p = person();
-  if (confirm(`Take the pass phrase off ${p.name}? Anyone can then pick the name.`)) act(() => call(`api/admin/people/${p.id}`, { phrase: "" }, "PATCH"), `${p.name} has no pass phrase now`);
+  if (await ask(`Take the pass phrase off ${p.name}? Anyone can then pick the name.`, { ok: "Take it off" })) act(() => call(`api/admin/people/${p.id}`, { phrase: "" }, "PATCH"), `${p.name} has no pass phrase now`);
 });
-on("adm-signout", () => {
+on("adm-signout", async () => {
   const p = person();
-  if (confirm(`Sign every device out of ${p.name}? Each one has to type the pass phrase again.`)) act(() => call(`api/admin/people/${p.id}/signout`, {}), "Signed out everywhere");
+  if (await ask(`Sign every device out of ${p.name}? Each one has to type the pass phrase again.`, { ok: "Sign out" })) act(() => call(`api/admin/people/${p.id}/signout`, {}), "Signed out everywhere");
 });
 on("adm-noadd", b => act(() => call(`api/admin/people/${open}`, { noAdd: b.getAttribute("aria-checked") === "true" }, "PATCH")));
-on("adm-list-rename", b => {
-  const name = (prompt("A new name for this playlist", b.dataset.name) || "").trim();
+on("adm-list-rename", async b => {
+  const name = (await askText("A new name for this playlist", b.dataset.name, { ok: "Rename" })) || "";
   if (name && name !== b.dataset.name) act(() => call(`api/lists/${b.dataset.id}`, { name }, "PATCH"), "Renamed");
 });
-on("adm-list-delete", b => {
-  if (confirm(`Delete "${b.dataset.name}" for everyone?`)) act(() => call(`api/lists/${b.dataset.id}`, undefined, "DELETE"), "Playlist deleted");
+on("adm-list-delete", async b => {
+  if (await ask(`Delete "${b.dataset.name}" for everyone?`, { ok: "Delete", danger: true })) act(() => call(`api/lists/${b.dataset.id}`, undefined, "DELETE"), "Playlist deleted");
 });
 on("adm-unlike", b => act(() => call(`api/admin/people/${open}/unlike`, { videoId: b.dataset.v })));
-on("adm-unlike-all", () => {
-  if (confirm(`Remove all of ${person().name}'s likes?`)) act(() => call(`api/admin/people/${open}/unlike`, { all: true }), "Likes removed");
+on("adm-unlike-all", async () => {
+  if (await ask(`Remove all of ${person().name}'s likes?`, { ok: "Remove", danger: true })) act(() => call(`api/admin/people/${open}/unlike`, { all: true }), "Likes removed");
 });
 on("adm-play-del", b => act(() => call("api/admin/plays", { plays: [{ t: +b.dataset.t, v: b.dataset.v }] }, "DELETE")));
-on("adm-plays-all", () => {
-  if (confirm(`Remove every play of ${person().name} from the log? Stats and the recap lose them for good.`)) act(() => call("api/admin/plays", { who: open, all: true }, "DELETE"), "Plays removed");
+on("adm-plays-all", async () => {
+  if (await ask(`Remove every play of ${person().name} from the log? Stats and the recap lose them for good.`, { ok: "Remove", danger: true })) act(() => call("api/admin/plays", { who: open, all: true }, "DELETE"), "Plays removed");
 });
-on("adm-remove", b => {
+on("adm-remove", async b => {
   const p = person(), purge = b.dataset.mode === "purge";
-  if (!confirm(purge ? `Remove ${p.name} with all their plays, likes and playlists? This can't be undone.` : `Remove ${p.name}? Their songs and plays stay, with no name on them.`)) return;
+  if (!await ask(purge ? `Remove ${p.name} with all their plays, likes and playlists? This can't be undone.` : `Remove ${p.name}? Their songs and plays stay, with no name on them.`, { ok: "Remove", danger: true })) return;
   act(() => call(`api/admin/people/${p.id}?mode=${b.dataset.mode}`, undefined, "DELETE"), `Removed ${p.name}`);
 });

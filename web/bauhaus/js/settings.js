@@ -10,6 +10,7 @@ import { on } from "../../shared/actions.js";
 import { toast, openDrawer, clearHash, onCloseAll } from "./ui.js";
 import { withAdmin } from "./phrase.js";
 import { copyText } from "./menu.js";
+import { ask } from "../../shared/dialog.js";
 
 const FREQ_LABEL = f => f >= 1000 ? `${f / 1000}k` : String(f);
 const PRESET_NAMES = { flat: "Flat", bass: "Bass", treble: "Treble", vocal: "Vocal", rock: "Rock", pop: "Pop", electronic: "Electro",
@@ -206,11 +207,11 @@ $("#restoreFile").addEventListener("change", async e => {
   let backup;
   try { backup = JSON.parse(await f.text()); } catch { return toast("That file isn't a Tunebox backup"); }
   const made = backup.made ? new Date(backup.made * 1000).toLocaleString() : "an unknown date";
-  if (!confirm(`Restore the backup from ${made}? It replaces people, playlists, likes, history, stats and settings for everyone.`)) return;
+  if (!(await ask(`Restore the backup from ${made}? It replaces people, playlists, likes, history, stats and settings for everyone.`, { ok: "Restore", danger: true }))) return;
   try {
     if (await withAdmin(() => api("api/restore", { backup })) === null) return;
     toast("Restored"); setTimeout(() => location.reload(), 900);
-  } catch (err) { toast(errText(err)); }
+  } catch (err) { toast(errText(err), false, "error"); }
 });
 
 $("#quality").addEventListener("click", async e => {
@@ -296,7 +297,7 @@ async function saveAccount() {
 }
 
 async function signOut() {
-  if (!confirm("Remove the saved YouTube account from Tunebox?")) return;
+  if (!(await ask("Remove the saved YouTube account from Tunebox?", { ok: "Remove", danger: true }))) return;
   if (await withAdmin(() => api("api/account", undefined, "DELETE")) === null) return;
   $("#acctMsg").textContent = "Signed out."; loadSettings();
 }

@@ -5,7 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import admin, blocklist, here, house, local, wall
+from .. import admin, blocklist, here, house, local, wall, ytdlp
 from ..data import clean_track, people
 from ..player import player
 from ..settings import save_settings_soon, settings
@@ -18,7 +18,9 @@ router = APIRouter()
 async def state(request: Request):
     # looking only: this is polled every second and must not keep an admin session alive
     here.saw(request, who(request))
-    return {**player.state(), "admin": admin.is_admin(request, touch=False), "houseRev": house.rev}
+    is_admin = admin.is_admin(request, touch=False)
+    # songs keep failing to load: the admin is told, and offered a yt-dlp update (ytdlp.py)
+    return {**player.state(), "admin": is_admin, "houseRev": house.rev, "ytdlp": ytdlp.warning() if is_admin else None}
 
 
 class PlayBody(BaseModel):
@@ -40,7 +42,6 @@ class ControlBody(BaseModel):
     videoId: str | None = None                # jump/remove/move: the track the client saw at `value`
     to: int | None = None                     # move: its new queue index
     id: str | None = None                     # restore: the snapshot
-    videoIds: list[str] | None = None         # remove_ids / promote_ids: the songs picked (every upcoming copy of each)
 
 
 def queue_at(i: int, vid: str | None) -> int:
@@ -145,6 +146,7 @@ async def radio_skip(body: RadioSkipBody, request: Request):
     gone = [x for x in p.queue[end:] if x["videoId"] == t["videoId"]]
     if gone:
         p.queue[end:] = [x for x in p.queue[end:] if x["videoId"] != t["videoId"]]
+        await p.sync_armed()                  # it may already be waiting in mpv as the next song
     return {"ok": True, "message": f"The radio won't pick \"{t['title']}\" again" + (" · taken out of up next" if gone else "")}
 
 
@@ -241,25 +243,6 @@ async def control(body: ControlBody, request: Request):
             del p.queue[p.index + 1:end]
             p.follow(gone)
             msg = "Cleared"
-    elif a in ("remove_ids", "promote_ids") and body.videoIds:
-        # songs picked in Up next: taken out, or moved (in their order) to the front of the songs people added
-        ids, start = set(body.videoIds), p.index + 1
-        picked = [t for t in p.queue[start:] if t["videoId"] in ids]
-        if picked:
-            n = len(picked)
-            p.snapshot(f"{'Removed' if a == 'remove_ids' else 'Moved up'} {n} song{'s' if n != 1 else ''}", by)
-            rest = [t for t in p.queue[start:] if t["videoId"] not in ids]
-            if a == "remove_ids":
-                p.queue[start:] = rest
-                p.follow(picked)
-                msg = f"Removed {n} song{'s' if n != 1 else ''}"
-            else:
-                for t in picked:
-                    if t.get("src") != "user":
-                        t.update(src="user", by=by, at=int(time.time()))
-                p.queue[start:] = picked + rest
-                p.follow()
-                msg = f"{n} song{'s' if n != 1 else ''} up next"
     elif a == "clear_mine":                   # your own songs out of the ones people added
         end = p.user_end()
         gone = [t for t in p.queue[p.index + 1:end] if by and t.get("by") == by]

@@ -4,8 +4,8 @@ cd /d "%~dp0"
 
 rem Tunebox on this PC: it plays through this PC's speakers, and the browser is the remote.
 rem
-rem   start.bat           http://localhost:8888/ (this PC only)
-rem   start.bat --lan     phones and other computers on the network can use it too
+rem   start.bat           http://localhost:8888/, and phones and other computers on the network can use it too
+rem   start.bat --local   this PC only
 rem   start.bat --port 9000
 rem
 rem The first start sets everything up in this folder (Python packages, mpv, Node): a few minutes.

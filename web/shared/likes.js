@@ -37,7 +37,7 @@ export async function toggleLike(t) {
   const on = !liked.has(t.videoId);
   on ? liked.add(t.videoId) : liked.delete(t.videoId); paintLikes();
   try { await api("api/like", { track: t, liked: on }); toast(on ? "Added to Liked songs" : "Removed from Liked songs"); }
-  catch (e) { on ? liked.delete(t.videoId) : liked.add(t.videoId); paintLikes(); toast(errText(e)); }
+  catch (e) { on ? liked.delete(t.videoId) : liked.add(t.videoId); paintLikes(); toast(errText(e), false, "error"); }
   changed();
 }
 

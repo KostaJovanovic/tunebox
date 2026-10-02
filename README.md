@@ -14,7 +14,7 @@ No accounts. No app to install. No fights about the aux cable.
 git clone https://github.com/KostaJovanovic/tunebox.git
 ```
 
-**Windows**: install [Python](https://www.python.org/downloads/) 3.11+ (tick *Add to PATH*), then double-click **`start.bat`**. The first start installs what it needs in a few minutes. Then it opens at <http://localhost:8888/>. Close the window to stop it.
+**Windows**: install [Python](https://www.python.org/downloads/) 3.11+ (tick *Add to PATH*), then double-click **`start.bat`**. The first start installs what it needs in a few minutes. Then it opens at <http://localhost:8888/>, and phones on the network open the address it prints (when Windows asks about the firewall, allow private networks). `start.bat --local` keeps it to this PC. Close the window to stop it.
 
 **Linux server**, a box by the stereo that starts at boot:
 
@@ -117,7 +117,7 @@ For scripts: `--json` prints the server's answer, `--no-input` never asks, `--ye
 .venv/bin/python run.py --reset-admin      # or: tunebox admin reset
 ```
 
-**Songs won't play?** YouTube probably changed something. Update yt-dlp:
+**Songs won't play?** YouTube probably changed something. Update yt-dlp: when songs keep failing, the admin sees a bar with an Update button (also in the admin panel's yt-dlp tab, or `tunebox update-ytdlp`). Then restart Tunebox. By hand:
 
 ```sh
 .venv/bin/pip install -U yt-dlp && sudo systemctl restart tunebox

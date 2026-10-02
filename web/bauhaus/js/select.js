@@ -1,6 +1,6 @@
-/* Picking several songs at once, in Up next or a playlist: "Select" turns a tap on a row into a pick,
-   and a bar along the bottom acts on everything picked. Songs are picked by videoId, so the queue moving
-   on (and redrawing every second) keeps them picked. Rows carry data-vid (ui.js songRow). */
+/* Picking several songs at once in a playlist: "Select" turns a tap on a row into a pick,
+   and a bar along the bottom acts on everything picked. Songs are picked by videoId, so a redraw
+   keeps them picked. Rows carry data-vid (ui.js songRow). */
 import { $, esc, plural } from "../../shared/dom.js";
 
 let sel = null;                                /* { box, wrap, picked: Set<videoId>, actions: [{label, run(ids)}], onEnd } */

@@ -35,3 +35,5 @@ input[type=range].vr::-moz-range-thumb { width: 14px; height: 14px; border: 0; b
 .qbtn.on { color: var(--yellow); }
 .qbtn em { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 16px; padding: 0 4px; background: var(--yellow); color: var(--on-yellow);
   font: 700 10px/16px var(--display); font-style: normal; text-align: center; }
+/* playing at volume 0 (player.js): the speaker icons turn red */
+.silent .vol > svg, .silent .volbtn, .silent .cfoot .cvolicon { color: var(--red); }

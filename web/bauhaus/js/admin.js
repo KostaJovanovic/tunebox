@@ -2,7 +2,8 @@
    on a phone, ten quick taps on the word "Settings". The first time it asks for a password to set;
    after that it asks for it, and this device stays unlocked until 15 minutes pass without admin work.
    Tabs: People (admin-people.js), Features and House (admin-house.js), Local songs (admin-local.js),
-   Security (the password, the audit log). */
+   yt-dlp (admin-ytdlp.js, which also puts up a bar when songs keep failing), Security (the password, running
+   the setup again with or without the house's data (setup.js), the audit log). */
 import { $, esc } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, position, ctl, onState } from "../../shared/playback.js";
@@ -14,9 +15,11 @@ import { setVol } from "./settings.js";
 import { showPeople } from "./admin-people.js";
 import { showFeatures, showHouse } from "./admin-house.js";
 import { showLocalSpace } from "./admin-local.js";
+import { showYtdlp } from "./admin-ytdlp.js";
+import { openSetup, askWipe } from "./setup.js";
 
 const box = $("#admin");
-const TABS = { people: ["People", showPeople], features: ["Features", showFeatures], house: ["House", showHouse], local: ["Local songs", showLocalSpace], security: ["Security", showSecurity] };
+const TABS = { people: ["People", showPeople], features: ["Features", showFeatures], house: ["House", showHouse], local: ["Local songs", showLocalSpace], ytdlp: ["yt-dlp", showYtdlp], security: ["Security", showSecurity] };
 let tab = "people";
 
 export const adminOpen = () => box.classList.contains("open");
@@ -58,6 +61,10 @@ async function showSecurity(el) {
     <div class="body"><p>One password for the whole house. This device locks itself after 15 minutes without admin work.</p>
       <div class="eqtools"><button class="btn" data-act="admin-password">Change the password</button><button class="btn" data-act="admin-lock">Lock now</button></div>
       <p class="hint">Forgot it? On the server, run <code>python run.py --reset-admin</code>. The next person to open this panel sets a new one.</p></div>
+    <div class="sec"><h2>Run the setup again</h2></div>
+    <div class="body"><p>The first-time card: the house's name, its accent and what it is for.</p>
+      <div class="eqtools"><button class="btn" data-act="admin-setup">Keep everything</button><button class="btn danger" data-act="admin-wipe">Delete everything&hellip;</button></div>
+      <p class="hint">Delete everything starts the house over as if it were new. It asks first, and a backup is saved on the server.</p></div>
     <div class="sec"><h2>Audit log</h2><span class="aside">the last ${log.length}</span></div>
     <div class="body">${log.map(e => `<div class="arow ev-${esc(e.ev)}"><div class="min0"><div class="t">${esc(e.msg)}</div>
       <div class="s">${when(e.t)}${e.ip ? " · " + esc(e.ip) : ""}${browser(e.ua) ? " · " + esc(browser(e.ua)) : ""}</div></div></div>`).join("") || "<p>Nothing yet.</p>"}</div>`;
@@ -119,3 +126,5 @@ on("admin-close", closeAdmin);
 on("admin-lock", () => lock().catch(e => toast(errText(e))));
 on("admin-tab", el => showTab(el.dataset.t));
 on("admin-password", changePassword);
+on("admin-setup", () => openSetup(true));
+on("admin-wipe", askWipe);

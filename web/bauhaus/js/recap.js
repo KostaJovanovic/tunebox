@@ -81,7 +81,7 @@ export async function openRecap() {
   box.innerHTML = `<div class="slide black"><div class="in"><div class="k">${esc(house.name)} recap</div><h2>Counting…</h2></div></div>`;
   box.classList.add("open"); document.body.classList.add("recap-open");
   let d;
-  try { d = await fetchStats(r, v.who); } catch (e) { closeRecap(); toast(errText(e)); return; }
+  try { d = await fetchStats(r, v.who); } catch (e) { closeRecap(); toast(errText(e), false, "error"); return; }
   top = d.topSongs; slides = build(d, v.who, r.label); at = 0;
   box.innerHTML = `<div class="bars">${slides.map(() => "<i><b></b></i>").join("")}</div>
     <button class="x" data-act="recap-close" aria-label="Close">✕</button><div class="stage"></div>`;

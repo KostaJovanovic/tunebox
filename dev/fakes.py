@@ -26,7 +26,7 @@ def install_tunebox(speed: float = 1.0):
     from tunebox import mpv, youtube
     from tunebox.player import player
 
-    def extract(self, vid: str) -> str:
+    def extract(self, vid: str, bg: bool = False) -> str:
         time.sleep(0.3)                       # resolving takes a moment on ele too
         return f"fake://{vid}"
     youtube.Resolver._extract = extract

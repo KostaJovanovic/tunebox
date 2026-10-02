@@ -137,23 +137,9 @@ def replace_in_place(target, new):
         target.update(new)
 
 
-@router.post("/api/restore", dependencies=[Depends(admin.need)])
-async def restore(body: RestoreBody, request: Request):
-    b = body.backup
-    files, logs = b.get("files"), b.get("plays") or {}
-    if b.get("tunebox") != 1 or not isinstance(files, dict) or not isinstance(logs, dict):
-        raise HTTPException(400, "That isn't a Tunebox backup")
-    if any(not n.endswith(".jsonl") or "/" in n or "\\" in n or n.startswith(".") for n in logs):
-        raise HTTPException(400, "That backup has a bad play log file name")
-    BACKUPS.mkdir(parents=True, exist_ok=True)
-    before = BACKUPS / f"before-restore-{time.strftime('%Y%m%d-%H%M%S')}.json"
-    write_json(before, snapshot())            # what's here now, in case the restore was a mistake
-    if "keys" not in files and isinstance(files.get("people"), dict):
-        for pid, p in files["people"].items():    # a backup without secrets: names keep the pass phrases they have now
-            now = data.people.get(pid) or {}
-            p.update({k: now[k] for k in ("phrase", "kv") if k in now})
-    if isinstance(files.get("keys"), dict):
-        files["keys"]["admin"] = auth.keys.get("admin")   # the admin password stays what it is
+async def put_back(files: dict, logs: dict):
+    """Writes these files and play logs in place of what is here (a file that is None goes), then the
+    live state follows them. keys.json is never removed: without its secret every device key would die."""
     for k, path in FILES.items():
         v = files.get(k)
         if k == "keys" and v is None:
@@ -187,5 +173,54 @@ async def restore(body: RestoreBody, request: Request):
     data.save_people()
     await player.apply_volume()
     await player.mpv.apply_eq()
+
+
+@router.post("/api/restore", dependencies=[Depends(admin.need)])
+async def restore(body: RestoreBody, request: Request):
+    b = body.backup
+    files, logs = b.get("files"), b.get("plays") or {}
+    if b.get("tunebox") != 1 or not isinstance(files, dict) or not isinstance(logs, dict):
+        raise HTTPException(400, "That isn't a Tunebox backup")
+    if any(not n.endswith(".jsonl") or "/" in n or "\\" in n or n.startswith(".") for n in logs):
+        raise HTTPException(400, "That backup has a bad play log file name")
+    BACKUPS.mkdir(parents=True, exist_ok=True)
+    before = BACKUPS / f"before-restore-{time.strftime('%Y%m%d-%H%M%S')}.json"
+    write_json(before, snapshot())            # what's here now, in case the restore was a mistake
+    if "keys" not in files and isinstance(files.get("people"), dict):
+        for pid, p in files["people"].items():    # a backup without secrets: names keep the pass phrases they have now
+            now = data.people.get(pid) or {}
+            p.update({k: now[k] for k in ("phrase", "kv") if k in now})
+    if isinstance(files.get("keys"), dict):
+        files["keys"]["admin"] = auth.keys.get("admin")   # the admin password stays what it is
+    await put_back(files, logs)
     audit.log("restore", f"Restored a backup from {time.strftime('%Y-%m-%d', time.localtime(b.get('made') or 0))}", request)
     return {"ok": True, "before": before.name}
+
+
+class WipeBody(BaseModel):
+    confirm: str = ""                         # "delete": the page asked twice and counted the taps
+
+
+@router.post("/api/admin/wipe", dependencies=[Depends(admin.need)])
+async def wipe(body: WipeBody, request: Request):
+    """Starting over: everything the house made goes (people, groups, playlists and likes, history, the
+    play log, settings, the house's setup, the blocklist, the queue, the local songs), as on a fresh
+    install; the admin's page then opens the first-time card. What is gone is saved first: the backup in backups/before-wipe-*.json, the local songs'
+    folder moved to backups/local-before-wipe-*. Kept: the admin password and the device-key secret
+    (keys.json), the YouTube sign-in, the audit log, and every backup already in backups/: the wipe only
+    ever adds there, never changes or deletes."""
+    if body.confirm != "delete":
+        raise HTTPException(400, "Not confirmed")
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    BACKUPS.mkdir(parents=True, exist_ok=True)
+    before = BACKUPS / f"before-wipe-{stamp}.json"
+    write_json(before, snapshot())
+    await player.stop()
+    player.seed, player.undo[:] = None, []
+    player.save_session()
+    if LOCAL_DIR.exists():
+        LOCAL_DIR.rename(BACKUPS / f"local-before-wipe-{stamp}")
+    await put_back({k: None for k in FILES if k != "keys"}, {})
+    audit.log("wipe", f"Deleted the house's data (saved first as {before.name})", request)
+    return {"ok": True, "before": before.name}
+

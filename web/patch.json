@@ -1,8 +1,80 @@
 {
  "app": "Tunebox",
- "version": "0.62",
+ "version": "0.63",
  "page": "patch",
  "releases": [
+  {
+   "name": "Keep Playing",
+   "version": "0.62 - 0.63",
+   "date": "1 October 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>The music keeps going, and Tunebox feels calmer to use.</strong> A song that will not play is skipped instead of stopping the house, and the page answers in its own voice."
+    },
+    {
+     "h": "Playing"
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A song YouTube will not play is skipped.</strong> Before, the music stopped there until somebody pressed Next. After three in a row it stops and says so."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A stream that breaks mid-song picks up where it stopped,</strong> instead of skipping the song."
+    },
+    {
+     "tag": "faster",
+     "html": "<strong>A song you ask for no longer waits</strong> behind the songs being made ready in the background."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>The radio repeats less.</strong> It leaves out songs played recently and spaces out the same artist."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A song taken off the radio no longer plays anyway</strong> when it was already lined up next."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A warning when the music plays at volume 0,</strong> in the player bar, and the speaker turns red."
+    },
+    {
+     "h": "On the page"
+    },
+    {
+     "tag": "new",
+     "html": "<strong>Song changes fade.</strong> The cover and the title cross over on the player, Now playing and the wall screen."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>Tunebox asks its own questions.</strong> Deleting, renaming and the like open the app&rsquo;s own pop-up instead of the browser&rsquo;s."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A tick on the song you added,</strong> the moment you tap it."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A new message no longer pushes away an Undo,</strong> and errors stay long enough to read."
+    },
+    {
+     "h": "Running Tunebox"
+    },
+    {
+     "tag": "new",
+     "html": "<strong>Phones can join straight away.</strong> Started with <code>start.bat</code>, <code>start.sh</code> or <code>run.py</code>, Tunebox is open to the network by default and prints the address to open. <code>--local</code> keeps it to this machine."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>A welcome card on a fresh install</strong> sets the house&rsquo;s name, accent, preset and admin password, and shows how others join."
+    },
+    {
+     "tag": "new",
+     "html": "<strong>The admin is told when songs keep failing to load,</strong> with a button to update yt-dlp, the part that fetches YouTube&rsquo;s audio. Also <code>tunebox update-ytdlp</code>."
+    }
+   ]
+  },
   {
    "name": "House Rules",
    "version": "0.44 - 0.61",
