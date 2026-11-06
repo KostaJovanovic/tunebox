@@ -147,6 +147,13 @@ back to the player.
 
 ## Releases
 
+## Show Room
+version: 0.65
+date: 5 November 2026
+
+- **Maintenance:** a demo of Tunebox that runs in a browser on its own, to show
+  it to people outside the house. Nothing changes here.
+
 ## Say the Word
 version: 0.64
 date: 2 October 2026

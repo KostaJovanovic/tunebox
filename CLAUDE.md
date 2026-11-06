@@ -13,6 +13,7 @@ A shared house jukebox: a FastAPI server plays YouTube Music through the speaker
 - `dev/env.bat` creates `.venv` and installs `dev/requirements.txt` (which includes `requirements.txt` plus paramiko). It only runs pip when a requirements file's hash changed.
 - HTML, CSS and JS changes show on reload. Restart the server after changing Python.
 - There is no test suite, linter or build step.
+- `dev/demo/` is a showcase with no server: `build.py` makes a static site (for Cloudflare Pages) where `sw.js`, a service worker, answers `api/` in the browser from recorded music (`capture.py` → `music.json`). `sw.js` is a hand port of `tunebox/api/`: a route that changes shape there needs the same change there, then `node dev/demo/test.mjs`.
 
 ## Architecture
 

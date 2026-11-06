@@ -1,8 +1,19 @@
 {
  "app": "Tunebox",
- "version": "0.64",
+ "version": "0.65",
  "page": "patch",
  "releases": [
+  {
+   "name": "Show Room",
+   "version": "0.65",
+   "date": "5 November 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>Maintenance:</strong> a demo of Tunebox that runs in a browser on its own, to show it to people outside the house. Nothing changes here."
+    }
+   ]
+  },
   {
    "name": "Say the Word",
    "version": "0.64",
