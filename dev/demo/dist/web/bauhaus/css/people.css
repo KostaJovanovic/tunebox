@@ -1,0 +1,107 @@
+/* ---------- people ---------- */
+.av { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--faint); color: #fff;
+  font: 700 14px/1 var(--display); flex: none; text-transform: uppercase; }
+.av.sm { width: 16px; height: 16px; font-size: 9px; margin-right: 6px; vertical-align: -3px; }
+.av.dark { color: #111; }
+.av svg { width: 72%; height: 72%; }
+.av.sm svg { width: 80%; height: 80%; }
+.lock .lockic { width: 11px; height: 11px; vertical-align: -1px; color: var(--muted); }
+.top .me { width: 56px; display: grid; place-items: center; border-left: 1px solid var(--line); transition: background .15s var(--ease); }
+@media (hover: hover) { .top .me:hover { background: var(--s1); } }
+.top .me .av { width: 28px; height: 28px; font-size: 13px; }
+.top .me .av.none { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
+.swatches, .emojis { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; }
+.swatches button.on { border-color: var(--text); }
+.emojis button { width: 36px; height: 36px; font-size: 18px; display: grid; place-items: center; border: 1px solid var(--line-2); }
+.emojis button svg { width: 24px; height: 24px; }
+.emojis button.on { background: var(--s2); border-color: var(--text); }
+.prow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.prow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .acts button { width: auto; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.av.radio { background: var(--line-2); }
+.prow .me-tag { color: var(--muted); font-weight: 500; }
+.note.tight { padding: 24px 16px; }
+.sem { display: inline-block; padding: 2px 5px; margin-right: 4px; background: var(--faint); color: #fff;
+  font: 700 10px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; font-style: normal; vertical-align: 1px; }
+.sem.sm { padding: 1px 3px; font-size: 8px; margin-right: 5px; }
+.sem.dark { color: #111; }
+/* who added a song, beside their icon (byChip) */
+.byname { font-weight: 600; color: var(--text); }
+.whoform .lbl { width: 100%; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.whoform .lbl span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.sems { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.sems button { height: 34px; padding: 0 14px; border: 2px solid var(--c, var(--line-2)); font: 700 13px var(--display);
+  letter-spacing: .08em; text-transform: uppercase; }
+.sems button.on { background: var(--c, var(--text)); color: #fff; }
+.sems button:not([style]).on { color: var(--bg); }
+.whoform .field.other { flex: none; width: 200px; }
+.prow .lock { font-size: 11px; margin-left: 2px; }
+.whoform .link { color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+@media (hover: hover) { .whoform .link:hover { text-decoration: underline; } }
+#phraseForm .hint { width: 100%; }
+#phraseForm .msg:empty { display: none; }
+
+/* who's listening: the list of names, or the form (add / edit) */
+.whoview { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.whoview[hidden] { display: none; }
+.whoform .mbody { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.whoform .mbody > .lbl { margin-top: 8px; }
+.whoid { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: center; }
+.whoid .av { width: 64px; height: 64px; font-size: 28px; }
+.whoid .field { width: 100%; }
+.whoid .tags { min-height: 18px; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.whoform .link { align-self: flex-start; }
+.whofoot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--s1); }
+.whofoot .btn { gap: 8px; }
+.whofoot .msg { width: 100%; margin: 0; }
+.whofoot .msg:empty { display: none; }
+.whoview .mbody { flex: 1; min-height: 0; }
+.whoform .mbody > * { flex: none; }
+/* the pass phrase pop-up: one row for field and button, the message and link under them */
+#phraseForm { border-bottom: 0; }
+#phraseForm .msg { width: 100%; margin: 0; }
+
+/* the names as tiles: lines between them, this device's first with a ring, a lock on a name this device hasn't unlocked */
+#who { width: min(480px, calc(100% - 32px)); }
+#who.form { max-height: min(760px, calc(100% - 64px)); }   /* the form is long: room for all of it before it scrolls */
+#who .emojis { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); }
+#who .emojis button { width: auto; aspect-ratio: 1; height: auto; }
+.whonow { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-bottom: 1px solid var(--line);
+  background: var(--s1); color: var(--muted); font-size: 13px; }
+.whonow[hidden] { display: none; }
+.whonow b { color: var(--text); }
+.whonow .av.sm { width: 22px; height: 22px; font-size: 11px; margin: 0; }
+.whonow .link { margin-left: auto; padding: 6px 0 6px 12px; color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+@media (hover: hover) { .whonow .link:hover { text-decoration: underline; } }
+.whofind { position: relative; display: block; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.whofind[hidden] { display: none; }
+.whofind svg { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.whofind .field { width: 100%; padding-left: 36px; }
+.whogroups { display: flex; gap: 6px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+.whofind:not([hidden]):has(+ .whogroups:not([hidden])) { border-bottom: 0; }
+.whogroups[hidden] { display: none; }
+.whogroups button { flex: none; height: 30px; padding: 0 12px; border: 2px solid var(--c, var(--line-2)); font: 700 12px var(--display);
+  letter-spacing: .08em; text-transform: uppercase; }
+.whogroups button.on { background: var(--c, var(--text)); color: #fff; }
+.whogroups button:not([style]) { --c: var(--text); }
+.whogroups button:not([style]).on { color: var(--bg); }
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.wtile { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 18px 8px 12px; text-align: center;
+  box-shadow: 1px 0 0 var(--line), 0 1px 0 var(--line); transition: background .12s; }
+@media (hover: hover) { .wtile:hover { background: var(--s1); } }
+.wtile:focus-visible { outline-offset: -3px; }
+.wav { position: relative; margin-bottom: 8px; }
+.wtile .av { width: 60px; height: 60px; font-size: 24px; }
+.wtile.on .av { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--yellow); }
+.wtile .t { max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtile .s { max-width: 100%; min-height: 16px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtile .s .sem.sm { margin: 0 2px; }
+.wtile.on .s { color: var(--yellow); font: 700 10px/16px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.wlock { position: absolute; right: -4px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--s2); border: 2px solid var(--bg); }
+.wlock .lockic { width: 12px; height: 12px; color: var(--text); }
+.wtile.add .av { background: none; border: 2px dashed var(--line-2); color: var(--muted); }
+.wtile.add .av svg { width: 40%; height: 40%; }
+.wtile.add .t { color: var(--muted); }
+.wnone { grid-column: 1 / -1; padding: 16px 16px 4px; color: var(--muted); }

@@ -1,0 +1,70 @@
+/* Phones and narrow windows. Loaded after the parts, so these win (only motion.css comes later). */
+@media (max-width: 760px) {
+  .volbtn { display: grid !important; }
+  :root { --player-h: 72px; }
+  .brand span { display: none; }
+  .brand { padding: 0 12px; }
+  .top .home.kb { display: none; }
+  .nav button { padding: 0 14px; }
+  .nav button b { display: none; }
+  /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
+  .player .in { grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; padding: 6px 8px 6px 6px; touch-action: none; }
+  .now { grid-column: 1; grid-row: 1; gap: 10px; transition: opacity .15s; }
+  .now img { width: 48px; height: 48px; }
+  .now .time > span:not(.st) { display: none; }
+  .now .time { font-size: 0; }
+  .now .time .st { margin-left: 0; font-size: 11px; }
+  .right { grid-column: 2; grid-row: 1; gap: 0; }
+  .right #lyrBtn, .right .qopen { display: none; }
+  .ctrls { grid-column: 3; grid-row: 1; }
+  .ctrls .sq { display: none; }
+  .ctrls .play { width: 48px; height: 48px; margin: 0 0 0 4px; }
+  .prog { height: 2px; margin-top: 0; pointer-events: none; }
+  .prog .rail { top: 0; }
+  .prog .fill { top: 0; height: 2px; }
+  .prog input { display: none; }
+  .vol { display: none; }
+  /* the volume button opens this small bar over the player */
+  body.vol-open .vol { display: grid; grid-template-columns: var(--hit) minmax(0, 1fr) var(--hit) 52px auto; position: fixed; left: 8px; right: 8px;
+    bottom: calc(var(--player-h) + env(safe-area-inset-bottom) + 8px); padding: 6px; background: var(--s1); border: 1px solid var(--line-2); color: var(--text);
+    transform-origin: 72% 100%; animation: volpop .22s var(--ease-out); }   /* it grows out of its button */
+  body.vol-open .vol svg { display: none; }
+  body.vol-open .vol .vp { display: block; }
+  .vol button.vp { height: var(--hit); border: 1px solid var(--line-2); font-size: 18px; }
+  .vol button.vp.eq { padding: 0 12px; font: 600 12px var(--display); letter-spacing: .06em; }
+  .vol b.vp { font: 700 15px var(--display); text-align: right; font-variant-numeric: tabular-nums; }
+  .vol b.vp small { display: block; font: 600 10px var(--display); color: var(--faint); }
+  body.vol-open .vol input.vr { width: 100%; }
+  /* the canvas is a sheet: it comes up from the bar and goes back down into it */
+  .canvas { bottom: 0 !important; z-index: 12; opacity: 1; transform: translateY(100%); }
+  .chead #cLyrToggle { display: none; }
+  .cbody { display: flex; flex-direction: column; justify-content: center; padding: 0 24px calc(12px + env(safe-area-inset-bottom)); gap: 0; }
+  .cmain { max-width: 480px; gap: 14px; }
+  #cImg { width: min(100%, 44vh); }
+  .cmain > .cph { display: block; width: 100%; }
+  .cmain > .cctrls.cph, .cmain > .cfoot.cph { display: flex; }
+  .clyr, .canvas.lyr-on .clyr { display: none; }
+  .row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; }
+  .row .n, .row .d { display: none; }
+  .acts button { width: 38px; }
+  /* a local song of yours also has Edit and Remove: Play next and Add to playlist stay in its menu (hold the row) */
+  .row.own .acts .wide, .row.own .acts [data-act="pick"] { display: none; }
+  .hero { grid-template-columns: 96px minmax(0, 1fr); align-items: start; }
+  .hide-sm { display: none; }
+  .hero > img, .hero > .mosaic, .hero > .blank { width: 96px; height: 96px; }
+  .daygroup { top: 56px; }
+  /* a pop-up is a sheet too: up from the bottom, and its heading drags it back down (ui.js) */
+  .modal { top: auto; bottom: var(--kb, 0px); left: 0; width: 100%; transform: translateY(100%); opacity: 1; max-height: calc(80vh - var(--kb, 0px)); border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .modal.open { transform: none; }
+  .modal > .dhead { position: relative; }
+  .modal > .dhead, .modal > .dhead * { touch-action: none; }
+  .modal > .dhead::before { content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 3px; margin-left: -18px; background: var(--line-2); }
+  /* ...except adding or editing a name, which takes the whole screen */
+  #who { width: 100%; }
+  #who.form { top: 0; height: calc(100% - var(--kb, 0px)); max-height: none; border-width: 0; padding-top: env(safe-area-inset-top); }
+  #who.form > .dhead::before { display: none; }
+  .eqplot { height: 176px; }
+  .eqfoot b { font-size: 11px; }
+}
+@keyframes volpop { from { opacity: 0; transform: translateY(8px) scale(.96); } }
+@media (max-width: 600px) { #queue .row { min-height: 68px; } }

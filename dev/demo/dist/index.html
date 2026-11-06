@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="demo/boot.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" id="themeColor" content="#111111">
+<title>Tunebox</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' fill='%23111'/><circle cx='9' cy='12' r='6' fill='%23E63B2E'/><path d='M14 6l8 12h-8z' fill='%23F2C230'/></svg>">
+<script src="web/shared/look.js"></script>
+<link rel="manifest" href="web/manifest.webmanifest">
+<link rel="apple-touch-icon" href="web/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Tunebox">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Jost:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="web/bauhaus/css/base.css">
+<link rel="stylesheet" href="web/bauhaus/css/library.css">
+<link rel="stylesheet" href="web/bauhaus/css/player.css">
+<link rel="stylesheet" href="web/shared/wallpaper.css">
+<link rel="stylesheet" href="web/bauhaus/css/canvas.css">
+<link rel="stylesheet" href="web/bauhaus/css/drawers.css">
+<link rel="stylesheet" href="web/bauhaus/css/queue.css">
+<link rel="stylesheet" href="web/bauhaus/css/settings.css">
+<link rel="stylesheet" href="web/bauhaus/css/modals.css">
+<link rel="stylesheet" href="web/shared/dialog.css">
+<link rel="stylesheet" href="web/bauhaus/css/people.css">
+<link rel="stylesheet" href="web/bauhaus/css/menu.css">
+<link rel="stylesheet" href="web/bauhaus/css/stats.css">
+<link rel="stylesheet" href="web/bauhaus/css/recap.css">
+<link rel="stylesheet" href="web/bauhaus/css/admin.css">
+<link rel="stylesheet" href="web/bauhaus/css/phone.css">
+<link rel="stylesheet" href="web/bauhaus/css/motion.css">
+<script type="module" src="web/bauhaus/js/main.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="/" title="ele.local"><div class="mark"><i class="c"></i><i class="t"></i><i class="s"></i></div><span></span></a>
+    <label class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
+      <input id="q" type="search" placeholder="Search, or paste a YouTube link" autocomplete="off" enterkeyhint="search">
+      <div class="recent" id="recent" hidden></div>
+    </label>
+    <button class="adminbadge" data-act="admin-open" title="The admin is unlocked on this device">Admin</button>
+    <button class="me" id="meBtn" data-f="people" data-act="who-open" title="Who's listening" aria-label="Who's listening"><i class="av none">?</i></button>
+    <button class="home kb" data-act="keys-open" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="2" y="6" width="20" height="12"/><path d="M6 10h1M10 10h1M14 10h1M18 10h0M7 14h10"/></svg></button>
+    <button class="home" data-act="settings-open" title="Settings" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><rect x="13" y="4" width="4" height="4"/><rect x="7" y="10" width="4" height="4"/><rect x="15" y="16" width="4" height="4"/></svg></button>
+  </div>
+</header>
+<nav class="nav" id="nav">
+  <button data-v="home" data-f="browse" class="on"><b></b>Home</button><button data-v="lists" data-fall="lists"><b></b>Playlists</button><button data-v="local" data-f="local"><b></b>Local</button><button data-v="history"><b></b>History</button><button data-v="explore" data-f="browse"><b></b>Explore</button><button data-v="stats" data-f="stats"><b></b>Stats</button>
+</nav>
+<nav class="tabs" id="tabs" hidden>
+  <button data-k="songs" class="on">Songs</button><button data-k="albums">Albums</button>
+  <button data-k="artists">Artists</button><button data-k="playlists">Playlists</button>
+</nav>
+<main id="view"><div class="note"><i class="spin"></i>Loading</div></main>
+
+<!-- the player bar (on a phone: a mini bar; tap it for the canvas) -->
+<div class="player">
+  <div class="prog" id="prog"><div class="rail"></div><div class="fill" id="fill"></div><input id="seek" type="range" min="0" max="100" value="0" step="1" aria-label="Seek"></div>
+  <div class="in">
+    <button class="now" title="Now playing">
+      <img id="pImg" alt="">
+      <div class="min0">
+        <div class="t" id="pTitle">Nothing playing</div>
+        <div class="s" id="pSub">Search for something to play</div>
+        <div class="time"><span id="tPos">0:00</span> / <span id="tDur">0:00</span><span class="st" id="pStatus"></span><span class="sl" id="pSleep"></span></div>
+      </div>
+    </button>
+    <div class="ctrls">
+      <button class="sq like like-now" data-f="likes" data-act="like-now" title="Like (F)" aria-label="Like" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+      <button class="sq" data-act="prev" title="Previous (Shift+←)" aria-label="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h3v16H5zM20 4v16L9 12z"/></svg></button>
+      <button class="play" id="pBtn" data-act="toggle" title="Play/Pause (Space)" aria-label="Play or pause"></button>
+      <button class="sq" data-act="next" title="Next (Shift+→)" aria-label="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 4h3v16h-3zM4 4v16l11-8z"/></svg></button>
+    </div>
+    <div class="right">
+      <div class="vol"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l6 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+        <button class="vp" data-act="vol-nudge" data-d="-5" aria-label="Quieter">&minus;</button>
+        <input class="vr" id="vol" type="range" min="0" max="100" aria-label="Volume">
+        <button class="vp" data-act="vol-nudge" data-d="5" aria-label="Louder">+</button><b class="vp" id="volP"></b>
+        <button class="vp eq" data-f="eq" data-act="settings-open">EQ&hellip;</button></div>
+      <button class="qbtn like like-now" data-f="likes" data-act="like-now" title="Like (F)" aria-label="Like" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+      <button class="qbtn" id="lyrBtn" data-f="lyrics" data-act="lyrics-toggle" title="Lyrics (L)" aria-label="Lyrics">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
+      <button class="qbtn volbtn" data-act="vol-pop" title="Volume" aria-label="Volume">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l6 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button>
+      <button class="qbtn qopen" data-act="queue-open" title="Up next (Q)" aria-label="Up next">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h14M3 12h10M3 18h10"/><path d="M17 14v6l5-3z" fill="currentColor" stroke="none"/></svg>
+        <em id="qCount" hidden>0</em>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- now playing canvas: big cover (phone: every control; desktop: the bar keeps them, lyrics optional) -->
+<div class="canvas" id="canvas" aria-hidden="true">
+  <div class="wp" id="cWp" aria-hidden="true"></div><div class="grain" id="cGrain" aria-hidden="true"></div>
+  <div class="chead">
+    <button class="qbtn" data-act="canvas-close" title="Close (Esc)" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M5 9l7 7 7-7"/></svg></button>
+    <div class="k">Now playing</div>
+    <div class="cright">
+    <button class="qbtn" id="cLyrToggle" data-f="lyrics" data-act="canvas-lyrics" title="Lyrics beside the cover" aria-label="Lyrics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
+    <button class="qbtn" data-act="settings-open" title="Settings" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><rect x="13" y="4" width="4" height="4"/><rect x="7" y="10" width="4" height="4"/><rect x="15" y="16" width="4" height="4"/></svg></button>
+    </div>
+  </div>
+  <div class="cbody">
+    <div class="cmain">
+      <img id="cImg" alt="" data-act="cover" draggable="false" title="Lyrics">
+      <div class="cinfo">
+        <div><div class="t" id="cTitle"></div><div class="s" id="cSub"></div></div>
+        <button class="qbtn like like-now" data-f="likes" data-act="like-now" title="Like (F)" aria-label="Like" aria-pressed="false"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg></button>
+      </div>
+      <div class="cseek cph"><input id="cSeek" type="range" min="0" max="100" value="0" step="1" aria-label="Seek">
+        <div class="ctimes"><span id="cPos">0:00</span><span id="cDur">0:00</span></div></div>
+      <div class="cctrls cph">
+        <button class="sq" data-act="prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h3v16H5zM20 4v16L9 12z"/></svg></button>
+        <button class="play" id="cBtn" data-act="toggle" aria-label="Play or pause"></button>
+        <button class="sq" data-act="next" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 4h3v16h-3zM4 4v16l11-8z"/></svg></button>
+      </div>
+      <div class="cfoot cph">
+        <svg class="cvolicon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l6 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+        <input id="cVol" type="range" min="0" max="100" aria-label="Volume">
+        <button class="qbtn" data-f="lyrics" data-act="lyrics-open" title="Lyrics" aria-label="Lyrics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 5h16M4 10h11M4 15h8"/><circle cx="17.5" cy="17.5" r="2.5" fill="currentColor" stroke="none"/><path d="M20 17.5V9"/></svg></button>
+        <button class="qbtn" data-act="queue-open" title="Up next" aria-label="Up next"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h14M3 12h10M3 18h10"/><path d="M17 14v6l5-3z" fill="currentColor" stroke="none"/></svg><em id="cCount" hidden>0</em></button>
+      </div>
+    </div>
+    <div class="clyr" id="cLyr"></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" data-act="close-all"></div>
+
+<aside class="drawer" id="drawer" aria-label="Up next">
+  <div class="dhead"><h2><i></i>Up next</h2><button data-act="settings-open" title="Settings (S)" aria-label="Settings">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><rect x="13" y="4" width="4" height="4"/><rect x="7" y="10" width="4" height="4"/><rect x="15" y="16" width="4" height="4"/></svg></button><button data-act="queue-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="dtools"><button id="undoBtn" data-act="undo" title="Undo the last change (Z)">Undo</button><button data-f="playlists" data-act="save-queue">Save</button><button id="earlierBtn" data-act="earlier">Earlier</button><button data-act="stop">Stop</button></div>
+  <div class="qscroll"><div class="list" id="queue"></div><div id="earlier" hidden></div></div>
+</aside>
+
+<aside class="drawer" id="lyrics" aria-label="Lyrics">
+  <div class="dhead"><h2><i class="red"></i>Lyrics</h2><button data-act="lyrics-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="lyr" id="lyr"></div>
+</aside>
+
+<aside class="drawer" id="settings" aria-label="Settings">
+  <div class="dhead"><h2><i class="blue"></i>Settings</h2>
+    <a class="gh" href="https://github.com/KostaJovanovic/tunebox" target="_blank" rel="noopener" title="Tunebox on GitHub" aria-label="Tunebox on GitHub">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg></a><button data-act="settings-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="set">
+    <div class="sec"><b></b><h2>Volume</h2></div>
+    <div class="body"><div class="volrow">
+      <button data-act="vol-nudge" data-d="-5" aria-label="Quieter">&minus;</button>
+      <input class="vr big" id="vol2" type="range" min="0" max="100" aria-label="Volume">
+      <button data-act="vol-nudge" data-d="5" aria-label="Louder">+</button><b id="volN">0<small>0 dB</small></b></div>
+      </div>
+
+    <div class="sec" data-f="eq"><b></b><h2>Equaliser</h2><span class="aside" id="eqName"></span></div>
+    <div class="body" data-f="eq">
+      <div class="presets" id="presets"></div>
+      <div class="eqv">
+        <div class="eqplot" id="eqplot">
+          <svg viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true">
+            <line class="gl" x1="0" x2="1000" y1="12" y2="12"/><line class="gl" x1="0" x2="1000" y1="56" y2="56"/>
+            <line class="gl0" x1="0" x2="1000" y1="100" y2="100"/>
+            <line class="gl" x1="0" x2="1000" y1="144" y2="144"/><line class="gl" x1="0" x2="1000" y1="188" y2="188"/>
+            <path class="area" id="eqArea"/><path class="curve" id="eqCurve"/>
+          </svg>
+          <span class="dbl top">+12</span><span class="dbl mid">0</span><span class="dbl bot">&minus;12</span>
+          <div class="eqcols" id="eqcols"></div>
+        </div>
+        <div class="eqfoot" id="eqfoot"></div>
+      </div>
+      <div class="eqtools"><button class="btn" data-act="eq" data-preset="flat">Reset</button><button class="btn" data-act="eq" data-preset="custom">My custom</button></div>
+      <div class="msg" id="eqMsg"></div>
+    </div>
+
+    <div class="sec"><b></b><h2>Playback</h2></div>
+    <div class="body">
+      <div class="optrow"><div><div class="ot">Even out loudness</div><div class="od">Quiet and loud tracks play at a similar level.</div></div>
+        <button class="tog" id="optNorm" data-act="option" data-key="normalize" role="switch" aria-checked="false" aria-label="Even out loudness"><i></i></button></div>
+      <div class="optrow" data-f="radio"><div><div class="ot">Autoplay radio</div><div class="od">After the songs people add, plays songs like the last one added.</div></div>
+        <button class="tog" id="optAuto" data-act="option" data-key="autoplay" role="switch" aria-checked="true" aria-label="Autoplay radio"><i></i></button></div>
+      <div class="optrow" data-f="people"><div><div class="ot">Take turns</div><div class="od">Songs from different people alternate, so nobody takes over the queue.</div></div>
+        <button class="tog" id="optTurns" data-act="option" data-key="turns" role="switch" aria-checked="true" aria-label="Take turns"><i></i></button></div>
+      <span class="lbl">Audio quality</span>
+      <div class="presets c3" id="quality"></div>
+      <p class="hint">Applies from the next track.</p>
+    </div>
+
+    <div class="sec" data-f="sleep"><b></b><h2>Sleep timer</h2></div>
+    <div class="body" data-f="sleep">
+      <div class="presets" id="sleepBtns"></div>
+      <div class="status"><i id="sleepDot"></i><b id="sleepTxt">Off</b><span id="sleepLeft"></span></div>
+      <p class="hint">Fades out gently, then pauses.</p>
+    </div>
+
+    <div class="sec" data-f="alarm"><b></b><h2>Wake-up alarm</h2></div>
+    <div class="body" data-f="alarm">
+      <div class="optrow"><div><div class="ot">Alarm</div><div class="od" id="alarmNext">Off</div></div>
+        <button class="tog" id="alOn" data-act="alarm-toggle" role="switch" aria-checked="false" aria-label="Alarm on"><i></i></button></div>
+      <div class="two">
+        <div><span class="lbl">Time</span><input class="field" id="alTime" type="time" value="07:00"></div>
+        <div><span class="lbl">Ramp up</span><select class="field" id="alRamp">
+          <option value="0">Instant</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option></select></div>
+      </div>
+      <span class="lbl">Days</span>
+      <div class="presets c7" id="alDays"></div>
+      <span class="lbl">Play</span>
+      <select class="field" id="alList"></select>
+      <span class="lbl">Wake volume</span>
+      <div class="volrow level"><input class="vr big" id="alLevel" type="range" min="5" max="100"><b id="alLevelN"></b></div>
+      <div class="eqtools"><button class="btn" data-act="alarm-test">Test now</button></div>
+      <div class="msg" id="alMsg"></div>
+    </div>
+
+    <div class="sec"><b></b><h2>YouTube account</h2></div>
+    <div class="body">
+      <div class="acct"><i id="acctDot"></i><span id="acctTxt">Checking</span></div>
+      <p>Signing in makes Home and radio follow your YouTube Music taste. On a computer, open music.youtube.com while logged in, press F12 &rarr; Network, click any <b>browse</b> request and copy its request headers (or just the <b>Cookie</b> value), then paste here. Playback itself stays anonymous.</p>
+      <textarea id="hdrs" placeholder="cookie: VISITOR_INFO1_LIVE=...; SAPISID=...&#10;x-goog-authuser: 0" spellcheck="false"></textarea>
+      <div class="eqtools"><button class="btn red" data-act="account-save">Save</button><button class="btn" id="acctOut" data-act="account-out">Sign out</button></div>
+      <div class="msg" id="acctMsg"></div>
+    </div>
+
+    <div class="sec" data-f="people namelist"><b></b><h2>People</h2></div>
+    <div class="body" data-f="people namelist">
+      <p>Everyone picks their name once per device, so the queue shows who added what.</p>
+      <div id="peopleList"></div>
+      <div class="eqtools"><button class="btn" data-act="who-open">Switch or add a name</button></div>
+      <p class="hint tight">A name can have its own pass phrase, asked once per device. Removing a name, or taking off a forgotten pass phrase, needs the admin password.</p>
+    </div>
+
+    <div class="sec"><b></b><h2>Backup</h2></div>
+    <div class="body">
+      <p>Everything the house made in one file: people and their groups, playlists and likes, history, stats and settings. Pass phrases are in it only when the admin downloads it. Your YouTube sign-in is never in it, and neither is the audio of local songs: the admin's full backup has that.</p>
+      <div class="eqtools"><a class="btn" href="api/backup" download>Download a backup</a>
+        <label class="btn">Restore from a file<input type="file" id="restoreFile" accept=".json,application/json" hidden></label></div>
+      <p class="hint">A restore replaces all of that with the file's, and needs the admin password. What's here now is saved first, in the backups folder on the server.</p>
+    </div>
+
+    <div class="sec"><b></b><h2>This device</h2></div>
+    <div class="body">
+      <p>Remembered in this browser only; other devices keep their own.</p>
+      <span class="lbl">Performance mode</span>
+      <div class="seg2 c3" id="perfSeg"><button data-p="auto">Auto</button><button data-p="on">On</button><button data-p="off">Off</button></div>
+      <p class="hint" id="perfHint"></p>
+      <span class="lbl" data-f="look">Theme</span>
+      <div class="seg2 c3" id="themeSeg" data-f="look"><button data-t="auto">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
+      <span class="lbl" data-f="look">Accent</span>
+      <div class="presets c3" id="accents" data-f="look"></div>
+      <span class="lbl" data-f="wall">Wall screen</span>
+      <p data-f="wall">A full-screen view for a tablet or TV: the cover, synced lyrics and big controls; a dimmed clock when nothing plays. Bookmark it on that device.</p>
+      <div class="eqtools" data-f="wall"><a class="btn" href="wall" target="_blank">Open wall screen</a></div>
+      <div class="eqtools"><button class="btn" data-act="keys-open">Keyboard shortcuts</button><button class="btn danger" data-act="clear-local">Clear data on this device</button></div>
+    </div>
+
+    <div class="sec"><b></b><h2>Network</h2></div>
+    <div class="body">
+      <p>Phones and computers on the same network open Tunebox at this address.</p>
+      <div class="net">
+        <span class="lbl">Address</span><div class="netrow"><a id="netUrl" href="./"></a><button class="btn" data-act="net-copy">Copy</button></div>
+        <span class="lbl" id="netWifiLbl">Wi-Fi</span><div class="netrow" id="netWifi"></div>
+      </div>
+    </div>
+
+    <div class="sec"><b></b><h2>Version</h2></div>
+    <div class="body">
+      <p>Tunebox <b id="verN"></b>. What changed, and when, is in the patch notes.</p>
+      <div class="eqtools"><a class="btn" href="patch">Patch notes</a></div>
+    </div>
+    <p class="madeby">Made by Kosta and Pefan, from ELE with ❤️</p>
+  </div>
+</aside>
+
+<div class="modal" id="picker" role="dialog" aria-label="Add to playlist">
+  <div class="dhead"><h2><i></i>Add to playlist</h2><button data-act="picker-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <form class="newform" id="pickForm"><input class="field" id="pickName" placeholder="New playlist name" maxlength="80"><button class="btn red">Create</button></form>
+  <div class="mbody" id="pickList"></div>
+</div>
+
+<div class="modal ask" id="askPlay" role="dialog" aria-label="Something is playing">
+  <div class="dhead"><h2><i class="red"></i>Something is playing</h2><button data-act="ask-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="mbody">
+    <div class="asksong" id="askSong"></div>
+    <button class="pick" data-act="ask" data-mode="now"><span class="blank"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+      <div class="min0"><div class="t">Interrupt</div><div class="s">Play instantly, disregard others</div></div></button>
+    <button class="pick" data-act="ask" data-mode="next"><span class="blank"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h12M3 12h8M3 18h8M18 11v8M14 15h8"/></svg></span>
+      <div class="min0"><div class="t">Play next</div><div class="s">Right after this song</div></div></button>
+    <button class="pick" data-act="ask" data-mode="add"><span class="blank"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg></span>
+      <div class="min0"><div class="t">Add to the end of the queue</div><div class="s">Takes turns with everyone's songs</div></div></button>
+  </div>
+</div>
+
+<div class="modal" id="who" role="dialog" aria-label="Who's listening">
+  <div class="dhead"><h2><i class="round"></i><span id="whoTitle">Who's listening?</span></h2><button data-act="who-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="whoview" id="whoPick">
+    <div class="whonow" id="whoNow"></div>
+    <label class="whofind" id="whoFind" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input class="field" id="whoSearch" type="search" placeholder="Find your name" autocomplete="off" aria-label="Find your name"></label>
+    <div class="whogroups" id="whoGroups" role="group" aria-label="Show one group" hidden></div>
+    <div class="mbody"><div class="wgrid" id="whoList"></div></div>
+  </div>
+  <form class="whoview whoform" id="whoForm" hidden>
+    <div class="mbody">
+      <div class="whoid"><span id="whoPreview"></span>
+        <div class="min0"><input class="field" id="whoName" placeholder="Name" maxlength="24" autocomplete="off"><div class="tags" id="whoTags"></div></div></div>
+      <div class="lbl">Pass phrase <span id="whoPhraseLbl">optional: other devices type it once to use the name</span></div>
+      <input class="field" id="whoPhrase" type="password" placeholder="Pass phrase" autocomplete="new-password">
+      <button type="button" class="link" id="whoPhraseBtn" data-act="who-phrase-off" hidden>Remove the pass phrase</button>
+      <div class="lbl" id="whoSemLbl"></div>
+      <div class="sems" id="whoSems"></div>
+      <input class="field other" id="whoOther" placeholder="Name of the new one" maxlength="24" autocomplete="off" hidden>
+      <div class="lbl">Colour</div>
+      <div class="swatches" id="whoColors"></div>
+      <div class="lbl">Icon <span>or the name's first letter</span></div>
+      <div class="emojis" id="whoEmoji"></div>
+    </div>
+    <div class="whofoot"><div class="msg" id="whoMsg"></div>
+      <button type="button" class="btn ghost" id="whoBack" data-act="who-back">Back</button><button class="btn red" id="whoSave">Add</button></div>
+  </form>
+</div>
+
+<div class="modal" id="localEdit" role="dialog" aria-label="Edit a local song">
+  <div class="dhead"><h2><i class="blue"></i>Edit song</h2><button data-act="local-edit-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <form class="whoview whoform" id="localForm">
+    <div class="mbody">
+      <div class="whoid lecover"><img id="leCover" alt="">
+        <label class="btn">Change the cover<input type="file" id="leFile" accept="image/jpeg,image/png,image/webp" hidden></label></div>
+      <label class="lbl" for="leTitle">Title</label>
+      <input class="field" id="leTitle" maxlength="300" autocomplete="off">
+      <label class="lbl" for="leArtist">Artist</label>
+      <input class="field" id="leArtist" maxlength="300" autocomplete="off">
+      <label class="lbl" for="leAlbum">Album</label>
+      <input class="field" id="leAlbum" maxlength="300" autocomplete="off">
+    </div>
+    <div class="whofoot"><div class="msg" id="leMsg"></div>
+      <button type="button" class="btn ghost" data-act="local-edit-close">Cancel</button><button class="btn red">Save</button></div>
+  </form>
+</div>
+
+<div class="recap" id="recap" role="dialog" aria-label="Recap"></div>
+
+<div class="adminp" id="admin" role="dialog" aria-label="Admin">
+  <div class="dhead"><h2><i class="red"></i>Admin</h2><button class="txt" data-act="admin-lock" title="Lock the admin on this device">Lock</button><button data-act="admin-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <nav class="atabs" id="adminTabs"></nav>
+  <div class="abody" id="adminBody"></div>
+</div>
+
+<div class="modal" id="phrase" role="dialog" aria-label="Pass phrase">
+  <div class="dhead"><h2><i></i><span id="phraseTitle">Pass phrase</span></h2><button data-act="phrase-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <form class="newform whoform" id="phraseForm">
+    <p class="hint tight" id="phraseHint"></p>
+    <input class="field" id="phraseIn" type="password" autocomplete="off" placeholder="Pass phrase"><button class="btn red" id="phraseOk">OK</button>
+    <div class="msg err" id="phraseMsg"></div>
+    <button type="button" class="link" id="phraseAlt" data-act="phrase-alt" hidden></button>
+  </form>
+</div>
+
+<div class="modal" id="keys" role="dialog" aria-label="Keyboard shortcuts">
+  <div class="dhead"><h2><i class="blue"></i>Shortcuts</h2><button data-act="keys-close" aria-label="Close">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <div class="mbody keys">
+    <kbd>Space</kbd><span>Play / pause</span>
+    <div><kbd>←</kbd> <kbd>→</kbd></div><span>Seek 10 seconds</span>
+    <div><kbd>⇧</kbd> <kbd>←</kbd> <kbd>→</kbd></div><span>Previous / next track</span>
+    <div><kbd>↑</kbd> <kbd>↓</kbd></div><span>Volume</span>
+    <kbd>M</kbd><span>Mute / unmute</span>
+    <kbd data-f="likes">F</kbd><span data-f="likes">Like / unlike</span>
+    <kbd>Z</kbd><span>Undo the last queue change</span>
+    <kbd>/</kbd><span>Search</span>
+    <kbd>N</kbd><span>Now playing (big cover)</span>
+    <kbd>Q</kbd><span>Up next</span>
+    <kbd data-f="lyrics">L</kbd><span data-f="lyrics">Lyrics</span>
+    <kbd>S</kbd><span>Settings</span>
+    <kbd>H</kbd><span>History</span>
+    <kbd data-fall="lists">P</kbd><span data-fall="lists">Playlists</span>
+    <kbd data-f="browse">E</kbd><span data-f="browse">Explore</span>
+    <kbd data-f="stats">T</kbd><span data-f="stats">Stats</span>
+    <kbd>?</kbd><span>This list</span>
+    <kbd>Esc</kbd><span>Close panels</span>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="ctxback" id="ctxBack"></div>
+<div class="ctx" id="ctx" role="menu" aria-label="Menu"></div>
+</body>
+</html>

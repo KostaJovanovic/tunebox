@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## Show Room
-version: 0.65
+version: 0.65 - 0.66
 date: 5 November 2026
 
 - **Maintenance:** a demo of Tunebox that runs in a browser on its own, to show

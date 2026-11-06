@@ -1,0 +1,25 @@
+/* The page's own questions (shared/dialog.js), on the player and the wall: each page's colours, with
+   the player's as the fallback for what the wall doesn't define. On a phone it sits low, above the keyboard. */
+.tbask { width: min(400px, calc(100% - 32px)); max-width: none; padding: 0; border: 1px solid var(--line-2, #3A3A3A); background: var(--bg, #111);
+  color: var(--text, #EDEAE3); box-shadow: 0 20px 60px #0008; font: 15px/1.45 var(--ui, "Inter", system-ui, sans-serif); }
+.tbask[open] { animation: tbask .22s var(--ease-out, ease-out); }
+@keyframes tbask { from { opacity: 0; translate: 0 10px; } }
+.tbask::backdrop { background: #0009; }
+.tbask form { margin: 0; padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+.tbask p { margin: 0; overflow-wrap: anywhere; }
+.tbask input { width: 100%; box-sizing: border-box; height: 44px; padding: 0 12px; background: var(--s1, #181818); color: inherit;
+  border: 1px solid var(--line-2, #3A3A3A); font: 500 15px var(--ui, system-ui, sans-serif); outline: none; }
+.tbask input:focus { border-color: var(--yellow, #F2C230); }
+.tbask .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.tbask button { height: 44px; padding: 0 18px; border: 1px solid var(--line-2, #3A3A3A); background: none; color: inherit; cursor: pointer;
+  font: 600 12px var(--display, sans-serif); letter-spacing: .12em; text-transform: uppercase; }
+.tbask .no { border-color: transparent; color: var(--muted, #8F8B83); }
+.tbask .ok { background: var(--text, #EDEAE3); border-color: var(--text, #EDEAE3); color: var(--bg, #111); }
+.tbask.danger .ok { background: var(--red, #E63B2E); border-color: var(--red, #E63B2E); color: var(--on-red, #fff); }
+@media (hover: hover) { .tbask .no:hover { color: var(--text, #EDEAE3); } .tbask .ok:hover { filter: brightness(1.08); } }
+@media (max-width: 760px) {
+  .tbask { width: calc(100% - 24px); margin: auto auto calc(12px + var(--kb, 0px) + env(safe-area-inset-bottom)); }
+  .tbask .btns button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .tbask[open] { animation: none; } }
+html[data-lite] .tbask[open] { animation: none; }

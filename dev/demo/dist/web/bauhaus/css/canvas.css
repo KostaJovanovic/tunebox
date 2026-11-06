@@ -1,0 +1,74 @@
+/* ---------- now playing canvas: big cover over a blurred copy of itself, full screen. Desktop: the bar keeps
+   its controls and goes see-through over it, with optional lyrics on the right. Phone: all controls ---------- */
+.canvas { position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 9; color: #EDEAE3; background: #111; overflow: hidden;
+  display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(24px);
+  transition: opacity .2s var(--ease), transform var(--t-out) var(--ease-out), visibility 0s var(--t-out); }
+.canvas.open { opacity: 1; visibility: visible; transform: none; transition: opacity .2s var(--ease), transform var(--t-in) var(--ease-out), visibility 0s; }
+.canvas.dragging { transition: none; visibility: visible; opacity: 1; }   /* under a finger, or on a spring after it (player.js) */
+.canvas { touch-action: none; }             /* swipes are ours (swipe down closes); the lyrics pane still scrolls */
+.clyr { touch-action: pan-y; }
+#cImg { cursor: pointer; transition: opacity .15s; }   /* a tap shows the lyrics, a swipe sideways skips */
+/* the wall's wallpaper behind it (shared/wallpaper.css). It is costly to draw while the canvas moves (a
+   phone drops frames), so it shows only once the canvas is still (player.js), fading in, and goes at once
+   when the canvas moves again; shut or moving, nothing in it drifts */
+.canvas .wp, .canvas .grain { position: absolute; }
+.canvas .wp { opacity: 0; }
+.canvas.still .wp { opacity: 1; transition: opacity .35s var(--ease); }
+.canvas:not(.still) .wp { --wp: hold; }
+.chead { position: relative; display: flex; align-items: center; height: 56px; padding: 0 8px; flex: none; margin-top: env(safe-area-inset-top); }
+.chead .cright { display: flex; margin-left: auto; }
+.chead .k { position: absolute; left: 0; right: 0; pointer-events: none; text-align: center;   /* the screen's centre, whatever buttons are beside it */ font: 600 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: #EDEAE3a8; }
+.canvas .qbtn { color: #EDEAE3; }
+@media (hover: hover) { .canvas .qbtn:hover { background: #ffffff14; } }
+.canvas .qbtn.on { color: var(--yellow); }
+.cbody { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center;
+  gap: 5vw; padding: 0 5vw 4vh; }
+.canvas.lyr-on .cbody { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cmain { display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%; max-width: min(62vh, 560px); min-height: 0; }
+#cImg { width: 100%; aspect-ratio: 1; object-fit: cover; background: #ffffff12; box-shadow: 0 24px 70px #0009; }
+.cinfo { display: flex; align-items: center; gap: 8px; width: 100%; }
+.cinfo > div { flex: 1; min-width: 0; }
+.cinfo .t { font: 700 clamp(20px, 2.4vw, 30px)/1.15 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cinfo .s { color: #EDEAE3a0; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmain > .cph { display: none; }            /* phone-only controls; on desktop they stay in the bar */
+.clyr { display: none; align-self: stretch; overflow-y: auto; padding: 30vh 0; scrollbar-width: none; width: 100%;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+.clyr::-webkit-scrollbar { display: none; }
+.canvas.lyr-on .clyr { display: block; }
+.clyr p { font: 700 clamp(18px, 2vw, 28px)/1.3 var(--display); color: #EDEAE366; margin: 0 0 .7em; cursor: pointer;
+  transform-origin: left center; transition: color .3s, transform .4s var(--ease-out); }
+.clyr p.past { color: #EDEAE340; }
+.clyr p.on { color: #fff; transform: scale(1.03); }
+.clyr p.gap { height: .4em; margin: 0; }
+.clyr .note { color: #EDEAE3a0; font-weight: 600; cursor: default; }
+.clyr.plain p { cursor: default; color: #EDEAE3cc; }
+.cseek { width: 100%; }
+.cseek input { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: none; margin: 0; display: block; }
+.cseek input::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(var(--yellow), var(--yellow)) 0 / var(--p, 0%) 100% no-repeat, #ffffff33; }
+.cseek input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #fff; }
+.cseek input::-moz-range-track { height: 4px; background: #ffffff33; }
+.cseek input::-moz-range-progress { height: 4px; background: var(--yellow); }
+.cseek input::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; }
+.ctimes { display: flex; justify-content: space-between; font: 600 12px var(--display); color: #EDEAE3a0; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.cctrls { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 8px; }
+.cctrls .sq { width: 60px; height: 60px; display: grid; place-items: center; color: #EDEAE3; }
+.cctrls .sq svg { width: 30px; height: 30px; }
+.cctrls .play { width: 76px; height: 76px; margin: 0; }
+.cctrls .play svg { width: 32px; height: 32px; }
+.cfoot { display: flex; align-items: center; gap: 8px; width: 100%; }
+.cfoot .cvolicon { color: #EDEAE3a0; margin: 0 4px 0 12px; }
+.cfoot input { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 44px; background: none; margin: 0; }
+.cfoot input::-webkit-slider-runnable-track { height: 3px; background: #ffffff33; }
+.cfoot input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: #fff; }
+.cfoot input::-moz-range-track { height: 3px; background: #ffffff33; }
+.cfoot input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
+body.canvas-open { overflow: hidden; }       /* a desktop only (player.js): a phone's canvas takes every touch */
+/* a desktop: the canvas runs under the bar, and the bar loses its background and the song on the left (the
+   canvas shows it), so only its controls float over the cover's colours, in the canvas's light ink */
+@media (min-width: 761px) {
+  .cbody { padding-bottom: calc(var(--player-h) + 2vh); }
+  .player { transition: background .2s var(--ease), border-color .2s var(--ease); }
+  body.canvas-open .player { background: transparent; border-top-color: transparent; color: #EDEAE3;
+    --text: #EDEAE3; --muted: #EDEAE3a0; --faint: #EDEAE380; --line-2: #ffffff33; --s2: #ffffff14; }
+  body.canvas-open .player .now { visibility: hidden; }
+}

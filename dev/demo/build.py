@@ -1,7 +1,9 @@
 """Builds the demo: a static site with the whole interface, for Cloudflare Pages (or any static host).
 
   python dev/demo/build.py          -> dev/demo/dist/
-  npx wrangler pages deploy dev/demo/dist --project-name tunebox-demo
+
+dist/ is committed: Cloudflare Pages serves it from the repo as it is (output directory
+dev/demo/dist, no build command). Run this and commit to update the demo.
 
 web/ is copied as it is; the pages get demo/boot.js first, and sw.js is the demo's server
 (dev/demo/sw.js), which answers api/ from dev/demo/music.json (dev/demo/capture.py records it).
