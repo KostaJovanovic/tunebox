@@ -64,6 +64,8 @@ save() {
     env_ok || return 1
     "$PY" dev/patch.py bump || { echo "[err]   could not stamp the version or build the patch notes - not saving"; return 1; }
     git add web/shared/version.js web/patch.html web/patch.json
+    # the demo site (Cloudflare Pages serves dev/demo/dist from the repo), after the bump so it shows this version
+    if "$PY" dev/demo/build.py; then git add dev/demo/dist; else echo "[warn]  could not build the demo - saving without it"; fi
     git status --short
     def="update $(date '+%Y-%m-%d %H:%M')"
     if [ "$QUICK" = 1 ]; then

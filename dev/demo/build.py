@@ -3,7 +3,7 @@
   python dev/demo/build.py          -> dev/demo/dist/
 
 dist/ is committed: Cloudflare Pages serves it from the repo as it is (output directory
-dev/demo/dist, no build command). Run this and commit to update the demo.
+dev/demo/dist, no build command). save.bat and save.sh run this on every commit.
 
 web/ is copied as it is; the pages get demo/boot.js first, and sw.js is the demo's server
 (dev/demo/sw.js), which answers api/ from dev/demo/music.json (dev/demo/capture.py records it).

@@ -131,6 +131,9 @@ if errorlevel 1 (
   goto end
 )
 git add web\shared\version.js web\patch.html web\patch.json
+rem The demo site (Cloudflare Pages serves dev\demo\dist from the repo), after the bump so it shows this version.
+"%PY%" dev\demo\build.py
+if errorlevel 1 (echo [warn] could not build the demo - saving without it) else (git add dev\demo\dist)
 git status --short
 
 echo.
