@@ -16,13 +16,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 DIST = HERE / "dist"
-BOOT = '<script src="demo/boot.js"></script>\n'
+BOOT = ('<script src="demo/boot.js"></script>\n'
+        '<meta property="og:title" content="TUNEBOX DEMO">\n'
+        '<meta name="description" property="og:description" content="Tunebox, a shared house jukebox where every phone is the remote. '
+        'This demo runs in your browser; the code is on GitHub.">\n')
 
 
 def page(src: Path, dest: Path):
-    html = src.read_text(encoding="utf-8")
+    html = src.read_text(encoding="utf-8").replace("<title>Tunebox", "<title>TUNEBOX DEMO", 1)
     at = html.index("<head>") + len("<head>\n")
-    dest.write_text(html[:at] + BOOT + html[at:], encoding="utf-8")
+    dest.write_text(html[:at] + BOOT + html[at:], encoding="utf-8", newline="\n")
 
 
 def main():
@@ -32,7 +35,8 @@ def main():
     shutil.copytree(ROOT / "web", DIST / "web")
     page(ROOT / "web/bauhaus/index.html", DIST / "index.html")
     page(ROOT / "web/wall/index.html", DIST / "wall.html")
-    shutil.copy(ROOT / "web/patch.html", DIST / "patch.html")
+    patch = (ROOT / "web/patch.html").read_text(encoding="utf-8")
+    (DIST / "patch.html").write_text(patch.replace("- Tunebox</title>", "- TUNEBOX DEMO</title>", 1), encoding="utf-8", newline="\n")
     shutil.copy(HERE / "sw.js", DIST / "sw.js")
     (DIST / "demo").mkdir()
     for f in ("boot.js", "music.json"):

@@ -14,7 +14,7 @@ const FEATURES = { lyrics: "lyrics", wall: "the wall screen", stats: "stats", re
 const PRESETS = { home: [], office: ["recap", "alarm", "sleep", "eq"], party: ["people", "groups", "stats", "recap", "alarm", "sleep", "local"],
   solo: ["people", "groups", "recap", "wall"] };
 const ACCENTS = ["", "red", "orange", "yellow", "green", "blue", "magenta"];
-const HOUSE = { signups: "open", name: "Tunebox", accent: "", tz: "", network: "",
+const HOUSE = { signups: "open", name: "TUNEBOX DEMO", accent: "", tz: "", network: "",
   features: Object.fromEntries(Object.keys(FEATURES).map(k => [k, true])),
   groups: { one: "Seminar", many: "Seminars", required: true, create: "open" }, newPerson: { groups: [] },
   wall: { lyrics: true, queue: false, who: false, clock: true, controls: true, night: "", qr: true },
@@ -126,7 +126,7 @@ function seedHouse() {
   let r = 20261106;                                   // a fixed seed: every visitor's house starts the same
   const rnd = () => (r = (r * 1664525 + 1013904223) >>> 0) / 2 ** 32;
   const any = a => a[int(rnd() * a.length)];
-  Object.assign(S.house, { name: "Tunebox", welcome: false, network: "Tunebox house",
+  Object.assign(S.house, { name: "TUNEBOX DEMO", welcome: false, network: "TUNEBOX DEMO",
     groups: { one: "Floor", many: "Floors", required: true, create: "open" } });
   S.seminars = { upstairs: { id: "upstairs", name: "Upstairs", color: "#1F5FBF" }, downstairs: { id: "downstairs", name: "Downstairs", color: "#E63B2E" },
     attic: { id: "attic", name: "Attic", color: "#1E8F5A" } };

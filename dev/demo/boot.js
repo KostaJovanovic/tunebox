@@ -9,7 +9,7 @@
     const tries = +sessionStorage.getItem("tb_demo_boot") || 0;
     if (tries > 2) return say("The demo couldn't start here. Try another browser, or a normal (not private) window.");
     sessionStorage.setItem("tb_demo_boot", tries + 1);
-    say("Starting Tunebox…");
+    say("Starting TUNEBOX DEMO…");
     sw.register("sw.js").then(() => sw.ready).then(() => location.reload(), () => say("The demo couldn't start here. Try another browser, or a normal (not private) window."));
     return;
   }
@@ -23,4 +23,18 @@
   };
   const send = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function (body) { this.setRequestHeader("X-Demo-Who", who()); return send.call(this, body); };
+
+  // Say it's the demo, and where the real thing is: a strip over the page, a tag in the wall's corner.
+  const REPO = "https://github.com/KostaJovanovic/tunebox";
+  document.addEventListener("DOMContentLoaded", () => {
+    const wall = /\/wall(\.html)?$/.test(location.pathname);
+    const a = Object.assign(document.createElement("a"), { href: REPO, target: "_blank", rel: "noopener",
+      innerHTML: wall ? "<b>TUNEBOX DEMO</b> · GitHub ↗"
+        : "<b>TUNEBOX DEMO</b> · <span>a shared house jukebox, nothing plays out loud here · </span>Get it on GitHub ↗" });
+    a.style.cssText = "display:block;background:#E63B2E;color:#fff;font:600 12px/28px system-ui,sans-serif;letter-spacing:.06em;"
+      + "text-align:center;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 12px;"
+      + (wall ? "position:fixed;right:16px;bottom:16px;z-index:99;border-radius:99px;opacity:.85" : "position:relative;z-index:7");
+    if (!wall && innerWidth < 600) a.querySelector("span").remove();
+    document.body.prepend(a);
+  });
 })();
