@@ -20,7 +20,7 @@ rem   save.bat logout              forget the server address + SSH user, so the 
 rem   save.bat quick "msg"         commit + push to GitHub, no menu, prompts or deploy
 rem   save.bat quick-commit "msg"  commit only, no menu or prompts
 rem
-rem The quick actions are for scripts: the message defaults to "update <date>",
+rem The quick actions are for scripts: the message defaults to the version ("v0.68"),
 rem every question takes the safe answer (no git init, no deploy, no pause), and
 rem the exit code is non-zero on any failure, a failed push included.
 rem
@@ -140,8 +140,8 @@ echo.
 rem The message never goes through a command line: with delayed expansion on,
 rem `git commit -m "%MSG%"` would lose every "!" in it. PowerShell writes it to
 rem a UTF-8 file from the environment and git reads the file.
-for /f "delims=" %%d in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm'"') do set "NOW=%%d"
-set "DEFMSG=update %NOW%"
+rem "call" first: a for /f command that starts with a quote loses its quotes.
+for /f "delims=" %%v in ('call "%PY%" dev\patch.py version') do set "DEFMSG=v%%v"
 set "MSG="
 if "%QUICK%"=="1" (
   set "MSG=!QMSG!"

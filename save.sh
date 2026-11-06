@@ -67,7 +67,7 @@ save() {
     # the demo site (Cloudflare Pages serves dev/demo/dist from the repo), after the bump so it shows this version
     if "$PY" dev/demo/build.py; then git add dev/demo/dist; else echo "[warn]  could not build the demo - saving without it"; fi
     git status --short
-    def="update $(date '+%Y-%m-%d %H:%M')"
+    def="v$("$PY" dev/patch.py version)"
     if [ "$QUICK" = 1 ]; then
       msg=$ARG
     else

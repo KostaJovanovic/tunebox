@@ -3,6 +3,7 @@
   python dev/patch.py           build web/patch.html (and web/patch.json, for the Ele home page) from patch-notes.md
   python dev/patch.py bump      the next version into web/shared/version.js, then build
   python dev/patch.py unbump    take that back (a commit that failed), then build
+  python dev/patch.py version   print the version (save.bat's default commit message is v + this)
 
 save.bat and save.sh run bump just before they commit, and unbump when the commit fails. The count is
 read from version.js and raised by one, never taken from git: a shallow clone counts wrong. The rules for
@@ -237,6 +238,9 @@ def build(releases: list[dict]):
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "build"
+    if cmd == "version":
+        print(label(*read_version()))
+        sys.exit()
     if cmd not in ("build", "bump", "unbump"):
         sys.exit(__doc__)
     notes = parse(SOURCE.read_text(encoding="utf-8"))   # first: notes that don't parse stamp nothing
