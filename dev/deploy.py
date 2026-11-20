@@ -49,8 +49,9 @@ RETIRED = ["index.html", "classic.html", "wall.html"]
 SKIP = {"__pycache__", ".bak"}                           # never deployed, never removed there
 UNIT = ROOT / "tunebox.service"                          # ele's unit: compared and reported only
 # the server's live data -> dev/data (browser.json, the YouTube sign-in cookies, stays there)
+# plus the play log, plays/*.jsonl (Stats, the recap, Top 30)
 DATA_FILES = ["settings.json", "playlists.json", "history.json", "session.json", "people.json",
-              "stats.json", "seminars.json", "keys.json", "house.json", "blocklist.json", "local.json"]
+              "seminars.json", "keys.json", "house.json", "blocklist.json", "local.json", "wall.json"]
 
 
 def open_server(name: str, choose: bool):
@@ -248,7 +249,7 @@ def push(server, srv: Server, t, dry) -> int:
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp, bak = f"/tmp/tunebox-deploy-{stamp}", f"{rdir}/.bak/{stamp}"
     files, gone = [f for f, _ in changes], removals
-    existing = []
+    existing, copying = [], False
     try:
         for f in files:
             srv.run(f"mkdir -p {tmp}/{posixpath.dirname(f) or '.'}")
@@ -259,6 +260,7 @@ def push(server, srv: Server, t, dry) -> int:
         srv.run(f"sudo mkdir -p {bak} && sudo chown --reference={rdir} {rdir}/.bak {bak}"   # the app's owner, not root
                 + (f" && cd {rdir} && sudo cp -p --parents {quoted(existing)} {bak}/" if existing else ""))
         srv.run(f"cd {rdir}/.bak && ls -1d */ | head -n -{KEEP_BACKUPS} | xargs -r sudo rm -rf")
+        copying = True                    # from here on the server's files change: a failure puts the old ones back
         for f in files:                   # cp onto the old file keeps its owner and mode
             d = posixpath.dirname(f)
             srv.run((f"sudo mkdir -p {rdir}/{d} && sudo chown --reference={rdir} {rdir}/{d} && " if d else "")
@@ -271,6 +273,9 @@ def push(server, srv: Server, t, dry) -> int:
     except RuntimeError as e:
         say("err", str(e))
         srv.run(f"rm -rf {tmp}", check=False)
+        if copying:
+            roll_back(srv, rdir, bak, files, existing)
+            say("srv", f"put the previous files back; {where} still runs what it ran before")
         return 1
     srv.run(f"rm -rf {tmp}", check=False)
 
@@ -296,15 +301,20 @@ def push(server, srv: Server, t, dry) -> int:
     say("err", f"{service} did not come back healthy. Last log lines:")
     print(srv.run(f"sudo journalctl -u {service} -n 25 --no-pager", check=False)[1])
     if input("roll back to the previous files? (y/n): ").strip().lower() == "y":
-        added = [f for f in files if f not in existing]
-        if added:
-            srv.run(f"cd {rdir} && sudo rm -f {quoted(added)}", check=False)
-        if existing:
-            srv.run(f"sudo cp -a {bak}/. {rdir}/", check=False)
+        roll_back(srv, rdir, bak, files, existing)
         srv.run(f"sudo systemctl restart {service}", check=False)
         back = healthy(srv, t)
         say("ok" if back else "err", f"{service} rolled back" + ("" if back else " but still not healthy"))
     return 1
+
+
+def roll_back(srv: Server, rdir, bak, files, existing):
+    """The files as they were before this deploy: new ones go, changed and removed ones come back from bak."""
+    added = [f for f in files if f not in existing]
+    if added:
+        srv.run(f"cd {rdir} && sudo rm -f {quoted(added)}", check=False)
+    if existing:
+        srv.run(f"sudo cp -a {bak}/. {rdir}/", check=False)
 
 
 def pull_data(name="", choose=False) -> int:
@@ -319,7 +329,12 @@ def pull_data(name="", choose=False) -> int:
             return 1
         data = ROOT / "dev" / "data"
         keep = data / ".old" / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        for f in DATA_FILES:
+        _, o, _ = srv.run(f"ls -1 {shlex.quote(posixpath.join(t['data'], 'plays'))} 2>/dev/null", check=False)
+        logs = ["plays/" + n for n in o.split() if n.endswith(".jsonl")]
+        if logs and (data / "plays").exists():   # the server's log replaces this one whole: no months left over from before
+            keep.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(data / "plays"), str(keep / "plays"))
+        for f in DATA_FILES + logs:
             remote = posixpath.join(t["data"], f)
             body = srv.read(remote)
             if body is None:

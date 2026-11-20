@@ -691,7 +691,8 @@ class Player:
     async def fire_alarm(self, ramp_s: float | None = None):
         a = settings["alarm"]
         self.sleep = None
-        settings["volume"] = a.get("level") or settings["volume"]
+        cap = house.quiet_cap()                   # in quiet hours: no louder than they allow, or it drops when the ramp ends
+        settings["volume"] = min(a.get("level") or settings["volume"], 100 if cap is None else cap)
         save_settings()
         self.ramp = (time.time(), ramp_s or max(0.2, float(a.get("ramp") or 0)) * 60)
         self.fade_db = -VOL_RANGE_DB

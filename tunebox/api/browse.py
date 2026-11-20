@@ -114,6 +114,8 @@ async def where(video_id: str):
     """A song's artist and album pages, for songs saved before tracks carried them (history, playlists)."""
     if local.is_local(video_id):
         return {"artistId": "", "albumId": ""}
+    if not data.VIDEO_ID.fullmatch(video_id):
+        raise HTTPException(404, "Couldn't find that song on YouTube Music")
     if video_id not in _where:
         w = await yt_get("song", youtube.yt.get_watch_playlist, video_id, limit=1)
         t = track_from((w.get("tracks") or [{}])[0]) or {}

@@ -1,5 +1,5 @@
 """Quick self-check of the logic that is easy to break and hard to notice: the same-site guard, fair
-turns, rewriting the play log, Top 30 and the house's setup. Plain asserts, no test framework.
+turns, rewriting the play log, Top 30, the house's setup and the lyrics cache. Plain asserts, no test framework.
 
     .venv\\Scripts\\python dev\\check.py      (or: .venv/bin/python dev/check.py)
 
@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import HTTPException  # noqa: E402
 
-from tunebox import house, plays  # noqa: E402
+from tunebox import house, lyrics, plays  # noqa: E402
 from tunebox.api import stats  # noqa: E402
 from tunebox.api.house import HouseBody, change  # noqa: E402
 from tunebox.player import Player  # noqa: E402
@@ -71,11 +71,27 @@ def check_house_change():
     assert house.house["name"] == "Elsewhere" and house.house["quiet"] == {"hours": "22:00-07:00", "max": 25}
 
 
+async def check_lyrics_cache():
+    """A "none" from a network failure is asked again; a sure one is kept, per title (a renamed song asks again)."""
+    asked, answers = [], [({"none": True}, False), ({"plain": "la", "source": "LRCLIB"}, True)]
+    real, lyrics.fetch_lyrics = lyrics.fetch_lyrics, lambda *a: (asked.append(a[1]), answers[min(len(asked), 2) - 1])[1]
+    try:
+        assert (await lyrics.lyrics_for("local:0123456789abcdef", "Untitled", "", "", ""))["none"]
+        assert (await lyrics.lyrics_for("local:0123456789abcdef", "Untitled", "", "", ""))["plain"] == "la"
+        await lyrics.lyrics_for("local:0123456789abcdef", "Untitled", "", "", "")
+        assert asked == ["Untitled", "Untitled"], asked       # the sure answer was kept
+        await lyrics.lyrics_for("local:0123456789abcdef", "Real Title", "", "", "")
+        assert asked[-1] == "Real Title"
+    finally:
+        lyrics.fetch_lyrics = real
+
+
 async def main():
     check_host_ok()
     check_turns()
     check_rewrite_and_top()
     check_house_change()
+    await check_lyrics_cache()
     print("ok")
 
 

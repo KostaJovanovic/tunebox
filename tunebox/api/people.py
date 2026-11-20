@@ -113,6 +113,7 @@ async def add_person(body: PersonBody, request: Request, response: Response):
 
 @router.patch("/api/people/{pid}")
 async def edit_person(pid: str, body: PersonBody, request: Request, response: Response):
+    need_feature(request, "people")
     async with people_lock:
         if pid not in people:
             raise HTTPException(404, "No such person")
@@ -130,8 +131,9 @@ class PhraseBody(BaseModel):
 
 
 @router.post("/api/people/{pid}/unlock")
-async def unlock(pid: str, body: PhraseBody, response: Response):
+async def unlock(pid: str, body: PhraseBody, request: Request, response: Response):
     """This device knows the name's pass phrase: it may use the name from now on."""
+    need_feature(request, "people")
     if pid not in people:
         raise HTTPException(404, "No such person")
     async with guessing.setdefault(pid, asyncio.Lock()):   # many guesses at once would wait their second side by side

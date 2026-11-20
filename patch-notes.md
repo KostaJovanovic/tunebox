@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## Honest Count
-version: 0.70
+version: 0.70 - 0.71
 date: 20 November 2026
 
 - **Top 30 counts what the house really listened to.** A song skipped at once
@@ -165,6 +165,14 @@ date: 20 November 2026
   whole, instead of half loading and stopping the volume during quiet hours.
 - [fix] **`Here now`** in the admin's People tab shows each device's real
   address.
+- [fix] **Lyrics** come back by themselves after a moment without internet,
+  instead of staying away from that song until Tunebox restarts.
+- [fix] **A local song you rename** looks for its lyrics again under its new
+  title.
+- [fix] **The alarm in quiet hours** starts no louder than they allow, instead
+  of dropping in volume a few minutes after it rings.
+- [fix] **With names switched off,** a name can no longer be changed or
+  unlocked.
 
 ## Show Room
 version: 0.65 - 0.68

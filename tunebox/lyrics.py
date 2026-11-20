@@ -9,7 +9,7 @@ import urllib.request
 
 from . import youtube
 
-lyrics_cache: dict[str, dict] = {}
+lyrics_cache: dict[tuple, dict] = {}         # (videoId, title, artist): a renamed local song is looked up again
 LRC_LINE = re.compile(r"\[(\d+):(\d+(?:\.\d+)?)\](.*)")
 
 
@@ -49,10 +49,11 @@ def parse_lrc(text: str) -> list:
     return out
 
 
-def fetch_lyrics(vid: str, title: str, artist: str, album: str, duration: str) -> dict:
+def fetch_lyrics(vid: str, title: str, artist: str, album: str, duration: str) -> tuple[dict, bool]:
+    """(the lyrics, sure): sure is False when a source couldn't be asked (the network), so "none" may be wrong."""
     artist1 = (artist or "").split(",")[0].strip()
     dur = secs(duration)
-    hit = None
+    hit, sure = None, True
     try:
         hit = lrclib("get", {"track_name": title, "artist_name": artist1, "album_name": album, "duration": dur})
         if not hit or not (hit.get("syncedLyrics") or hit.get("plainLyrics")):
@@ -61,30 +62,34 @@ def fetch_lyrics(vid: str, title: str, artist: str, album: str, duration: str) -
             found.sort(key=lambda f: (not f.get("syncedLyrics"), abs((f.get("duration") or 0) - dur) if dur else 0))
             hit = found[0] if found and (not dur or abs((found[0].get("duration") or 0) - dur) < 15) else None
     except Exception:
-        hit = None
+        hit, sure = None, False
     if hit and hit.get("instrumental"):
-        return {"instrumental": True, "source": "LRCLIB"}
+        return {"instrumental": True, "source": "LRCLIB"}, True
     if hit:
         synced = parse_lrc(hit.get("syncedLyrics") or "")
-        return {"synced": synced or None, "plain": hit.get("plainLyrics") or "", "source": "LRCLIB"}
+        return {"synced": synced or None, "plain": hit.get("plainLyrics") or "", "source": "LRCLIB"}, True
     if vid.startswith("local:"):
-        return {"none": True}
+        return {"none": True}, sure
     try:
         w = youtube.yt.get_watch_playlist(vid, limit=1)
         if w.get("lyrics"):
             l = youtube.yt.get_lyrics(w["lyrics"])
             if l and l.get("lyrics"):
-                return {"synced": None, "plain": l["lyrics"], "source": l.get("source") or "YouTube Music"}
+                return {"synced": None, "plain": l["lyrics"], "source": l.get("source") or "YouTube Music"}, True
     except Exception:
-        pass
-    return {"none": True}
+        sure = False
+    return {"none": True}, sure
 
 
 async def lyrics_for(vid: str, title: str, artist: str, album: str, duration: str) -> dict:
-    """Cached per song: the drawer, the canvas and the wall all ask for the same one."""
-    if vid not in lyrics_cache:
-        res = await asyncio.to_thread(fetch_lyrics, vid, title, artist, album, duration)
+    """Cached per song: the drawer, the canvas and the wall all ask for the same one. A "none" that may
+    only mean the network was down isn't kept: the next ask tries again."""
+    key = (vid, title, artist)
+    if key not in lyrics_cache:
+        res, sure = await asyncio.to_thread(fetch_lyrics, vid, title, artist, album, duration)
+        if not sure:
+            return res
         if len(lyrics_cache) > 300:
             lyrics_cache.clear()
-        lyrics_cache[vid] = res
-    return lyrics_cache[vid]
+        lyrics_cache[key] = res
+    return lyrics_cache[key]

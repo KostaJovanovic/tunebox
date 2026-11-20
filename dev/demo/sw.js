@@ -403,7 +403,8 @@ function alarmCheck() {
 function fireAlarm(rampS) {
   const a = S.settings.alarm, p = P();
   p.sleep = null;
-  S.settings.volume = a.level || S.settings.volume;
+  const cap = quietCap();
+  S.settings.volume = Math.min(a.level || S.settings.volume, cap ?? 100);
   p.ramp = [now(), rampS || Math.max(0.2, +a.ramp || 0) * 60];
   const tracks = S.playlists[a.list || ""]?.tracks;
   if (tracks?.length) replace(tracks, 0, "", "Alarm");
@@ -934,6 +935,7 @@ route("POST", "api/people", async c => {
   return { ...personPublic(p), mine: true };
 });
 route("PATCH", "api/people/{pid}", async c => {
+  needFeature("people");
   const p = S.people[c.params.pid] || fail(404, "No such person");
   if (!holdsKey(p.id)) fail(403, "Only they can change it: that name has a pass phrase");
   personFields(p, c.body, mayCreate());
@@ -942,6 +944,7 @@ route("PATCH", "api/people/{pid}", async c => {
   return { ...personPublic(p), mine: true };
 });
 route("POST", "api/people/{pid}/unlock", async c => {
+  needFeature("people");
   const p = S.people[c.params.pid] || fail(404, "No such person");
   if (!await matches(c.body.phrase, p.phrase)) fail(403, "Wrong pass phrase");
   giveKey(p.id);

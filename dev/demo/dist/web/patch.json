@@ -1,11 +1,11 @@
 {
  "app": "Tunebox",
- "version": "0.70",
+ "version": "0.71",
  "page": "patch",
  "releases": [
   {
    "name": "Honest Count",
-   "version": "0.70",
+   "version": "0.70 - 0.71",
    "date": "20 November 2026",
    "items": [
     {
@@ -31,6 +31,22 @@
     {
      "tag": "fix",
      "html": "<strong><code>Here now</code></strong> in the admin&rsquo;s People tab shows each device&rsquo;s real address."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Lyrics</strong> come back by themselves after a moment without internet, instead of staying away from that song until Tunebox restarts."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A local song you rename</strong> looks for its lyrics again under its new title."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The alarm in quiet hours</strong> starts no louder than they allow, instead of dropping in volume a few minutes after it rings."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>With names switched off,</strong> a name can no longer be changed or unlocked."
     }
    ]
   },

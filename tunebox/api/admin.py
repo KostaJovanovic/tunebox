@@ -313,7 +313,7 @@ async def unlike(pid: str, body: UnlikeBody, request: Request):
 @router.get("/api/admin/plays", dependencies=ADMIN)
 async def get_plays(who: str = "", before: float = 0, limit: int = 100):
     """Newest first; who: a person's id, or "" for everything that played."""
-    ps = [p for p in plays.read(0, before or None) if not who or p["by"] == who]
+    ps = [p for p in plays.read(0, before if before > 0 else None) if not who or p["by"] == who]
     return ps[::-1][:max(1, min(limit, 500))]
 
 
@@ -325,7 +325,7 @@ async def delete_plays(body: PlaysBody, request: Request):
         n = plays.rewrite(lambda p: None if p["by"] == body.who else p)
         audit.log("plays.delete", f"Removed all {n} plays of {name_of(body.who)}", request)
     else:
-        gone = {(int(x.get("t", 0)), str(x.get("v", ""))) for x in body.plays or []}
+        gone = {(x["t"], str(x.get("v", ""))) for x in body.plays or [] if isinstance(x.get("t"), int)}
         n = plays.rewrite(lambda p: None if (p["t"], p["v"]) in gone else p)
         if n:
             audit.log("plays.delete", f"Removed {n} play{'s' if n != 1 else ''} from the log", request)
