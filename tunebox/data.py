@@ -1,13 +1,12 @@
-"""What the house shares: play history, playlists, people and play counts, each in its own JSON file.
+"""What the house shares: play history, playlists, people and groups, each in its own JSON file.
 
 The containers are changed in place and never replaced, so other modules can import them. The
 revision numbers are replaced, so read them as data.lists_rev / data.people_rev."""
 import re
-import sys
 import time
 
 from .config import (HISTORY_FILE, HISTORY_MAX, LIKED_ID, LISTS_FILE, PEOPLE_FILE, SEMINAR_COLORS, SEMINARS,
-                     SEMINARS_FILE, STATS_DAYS, STATS_FILE)
+                     SEMINARS_FILE)
 from . import local
 from .files import read_json, write_json
 
@@ -32,7 +31,6 @@ history: list[dict] = read_json(HISTORY_FILE, [])
 def add_history(track: dict | None):
     if not track or (history and history[0]["videoId"] == track["videoId"]):
         return
-    count_play(track)
     history.insert(0, {**track, "playedAt": int(time.time())})
     del history[HISTORY_MAX:]
     try:
@@ -126,52 +124,3 @@ def add_seminar(name: str) -> dict:
 
 def seminars_of(pid: str) -> list[str]:
     return list((people.get(pid) or {}).get("seminars") or [])
-
-
-# ---------- play counts for "Most played", last STATS_DAYS days ----------
-stats: dict[str, dict] = read_json(STATS_FILE, {})   # {videoId: {"track": {...}, "plays": [ts, ...]}}
-_stats_dirty = False
-
-
-def count_play(track: dict, when: float | None = None):
-    """Remembers when a song played; saved with the session every minute (spares the SD card)."""
-    global _stats_dirty
-    s = stats.setdefault(track["videoId"], {"plays": []})
-    s["track"] = clean_track(track)
-    s["plays"].append(int(when or time.time()))
-    _stats_dirty = True
-
-
-def most_played(n: int) -> list[tuple[int, dict]]:
-    """The n songs played most in the last STATS_DAYS days, as (plays, track); on a tie, the one played last first."""
-    now = time.time()
-    counts = []
-    for s in stats.values():
-        recent = [t for t in s["plays"] if now - t < STATS_DAYS * 86400]
-        if recent and s.get("track"):
-            counts.append((len(recent), max(recent), s["track"]))
-    counts.sort(key=lambda c: (-c[0], -c[1]))
-    return [(c[0], c[2]) for c in counts[:n]]
-
-
-def save_stats(force: bool = False):
-    global _stats_dirty
-    if not (_stats_dirty or force):
-        return
-    cutoff = time.time() - STATS_DAYS * 86400
-    for vid in list(stats):
-        stats[vid]["plays"] = [t for t in stats[vid]["plays"] if t > cutoff][-500:]
-        if not stats[vid]["plays"]:
-            del stats[vid]
-    try:
-        write_json(STATS_FILE, stats)
-        _stats_dirty = False
-    except OSError as exc:
-        print(f"tunebox: cannot save stats: {exc}", file=sys.stderr)
-
-
-if not STATS_FILE.exists():                   # first start: begin with what the history already knows
-    for h in reversed(history):
-        if h.get("videoId") and time.time() - h.get("playedAt", 0) < STATS_DAYS * 86400:
-            count_play(h, h["playedAt"])
-

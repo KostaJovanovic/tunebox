@@ -8,7 +8,7 @@ import urllib.parse
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import admin, blocklist, data, house, local, youtube
-from .stats import on_this_day
+from .stats import most_played, on_this_day
 from ..config import LIKED_ID, STATS_DAYS
 from ..web import feature
 from ..youtube import album_card, cached, radio_for, thumb_of, track_from, yt_get
@@ -209,7 +209,7 @@ async def mood(params: str):
 # ---------- for you: shelves from what the house plays and likes ----------
 @router.get("/api/forme", dependencies=[feature("browse")])
 async def for_me(request: Request):
-    most = [t for _, t in data.most_played(24)]
+    most = [t for _, t in most_played(24)]
     likes = [{**{k: t.get(k, "") for k in data.TRACK_KEYS}, "likedBy": t.get("likedBy") or []}
              for t in data.playlists[LIKED_ID]["tracks"]]
     random.shuffle(likes)

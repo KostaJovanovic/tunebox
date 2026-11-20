@@ -31,11 +31,6 @@ class PlayBody(BaseModel):
     wall: bool = False                        # added on the wall screen: nobody's song, counted for the house
 
 
-class QueueBody(BaseModel):                   # older pages; new ones use /api/play with a mode
-    track: dict
-    next: bool = False
-
-
 class ControlBody(BaseModel):
     action: str
     value: float | None = None
@@ -108,20 +103,6 @@ def local_allowed(request: Request, tracks: list[dict]):
 
 def left_out(n: int) -> str:
     return f" · {n} blocked song{'s' if n != 1 else ''} left out" if n else ""
-
-
-@router.post("/api/queue")
-async def enqueue(body: QueueBody, request: Request):
-    by = need_who(request)
-    track = clean_track(body.track)
-    if not track:
-        raise HTTPException(400, "not a track")
-    local_allowed(request, [track])
-    if blocklist.blocked(track):
-        raise HTTPException(403, "That song is blocked here")
-    may_add(by, 1)
-    pos = await player.add([track], by, "next" if body.next else "add")
-    return {"ok": True, "position": pos}
 
 
 # ---------- not for the radio: anyone's say, the radio stops picking a song (it can still be added) ----------

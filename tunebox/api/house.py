@@ -1,6 +1,7 @@
 """The house's setup (house.py): what every page reads, and the admin's routes to change it: name,
 accent and time zone, the feature switches and their presets, groups, the wall screen, the blocklist.
 Also the first-time card (setup.js), which only the server's own browser sees on a fresh install."""
+import copy
 import ipaddress
 import json
 import re
@@ -8,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import ValidationError
 
 from .. import admin, audit, auth, blocklist, data, house
 from ..data import clean_track, people, save_people
@@ -89,7 +91,12 @@ def word(v, fallback: str) -> str:
 
 @router.patch("/api/admin/house", dependencies=ADMIN)
 async def set_house(body: HouseBody, request: Request):
-    h, what = house.house, []
+    return saved(request, "house", "House: " + ", ".join(change(body) or ["nothing"]))
+
+
+def change(body: HouseBody) -> list[str]:
+    """Checks every value and applies them all, or refuses with nothing changed; what changed, in words."""
+    h, what = copy.deepcopy(house.house), []
     if body.name is not None:
         h["name"] = word(body.name, "Tunebox")
         what.append(f'name "{h["name"]}"')
@@ -143,9 +150,13 @@ async def set_house(body: HouseBody, request: Request):
                 raise HTTPException(400, "Quiet hours look like 22:00-08:00")
             q["hours"] = str(hours)
         if body.quiet.get("max") is not None:
-            q["max"] = max(0, min(100, int(body.quiet["max"])))
+            try:
+                q["max"] = max(0, min(100, int(body.quiet["max"])))
+            except (TypeError, ValueError):
+                raise HTTPException(400, "The quiet hours' volume is a number from 0 to 100")
         what.append(f'quiet hours {q["hours"]} at most {q["max"]}' if q["hours"] else "no quiet hours")
-    return saved(request, "house", "House: " + ", ".join(what or ["nothing"]))
+    house.house.update(h)
+    return what
 
 
 # ---------- features ----------
@@ -193,12 +204,13 @@ async def import_setup(body: SetupBody, request: Request):
     s = body.setup
     if s.get("tunebox_setup") != 1:
         raise HTTPException(400, "That isn't a Tunebox setup file")
-    new = house.merged({k: s[k] for k in ("name", "accent", "features", "groups", "wall", "signups", "quiet") if k in s})
-    new["features"] = {k: bool(new["features"].get(k, True)) for k in house.FEATURES}
-    if new["accent"] not in house.ACCENTS or new["signups"] not in ("open", "closed"):
+    features = s.get("features") if isinstance(s.get("features"), dict) else {}
+    try:                                      # the same checks as the admin's form: a hand-edited file can't break the house
+        body = HouseBody(**{k: s[k] for k in ("name", "accent", "groups", "wall", "signups", "quiet") if k in s})
+    except ValidationError:
         raise HTTPException(400, "That setup file has a value this Tunebox doesn't know")
-    for k in ("name", "accent", "features", "groups", "wall", "signups", "quiet"):
-        house.house[k] = new[k]
+    change(body)
+    house.house["features"].update({k: bool(features.get(k, True)) for k in house.FEATURES})
     return saved(request, "features", "Loaded a setup file")
 
 

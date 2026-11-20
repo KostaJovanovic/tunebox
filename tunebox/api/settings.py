@@ -98,7 +98,6 @@ class AlarmBody(BaseModel):
     playlist: str | None = Field(None, alias="list")   # "list" in the JSON; as a field name it hides list[] (Python 3.14)
     level: int = 45
     ramp: float = 5
-    tz: str | None = None                     # older pages send their own; the alarm goes by the house's time zone
     test: bool = False
 
 

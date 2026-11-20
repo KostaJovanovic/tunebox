@@ -12,6 +12,7 @@ from ..web import BaseModel, need_feature
 
 router = APIRouter()
 people_lock = asyncio.Lock()
+guessing: dict[str, asyncio.Lock] = {}        # one pass phrase guess at a time per name: a wrong one costs a second
 COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
 
 
@@ -133,8 +134,9 @@ async def unlock(pid: str, body: PhraseBody, response: Response):
     """This device knows the name's pass phrase: it may use the name from now on."""
     if pid not in people:
         raise HTTPException(404, "No such person")
-    if not await auth.matches(body.phrase, people[pid].get("phrase")):
-        raise HTTPException(403, "Wrong pass phrase")
+    async with guessing.setdefault(pid, asyncio.Lock()):   # many guesses at once would wait their second side by side
+        if pid not in people or not await auth.matches(body.phrase, people[pid].get("phrase")):
+            raise HTTPException(403, "Wrong pass phrase")
     auth.give_key(response, pid)
     return {"ok": True}
 

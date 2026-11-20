@@ -3,6 +3,8 @@ second, the terminal interface too), for the admin's People tab. Kept in memory 
 import hashlib
 import time
 
+from . import audit
+
 seen: dict[str, dict] = {}                     # a device (its address and browser) -> what it was last seen as
 
 
@@ -19,7 +21,7 @@ def device_of(ua: str) -> str:
 
 def saw(request, who: str):
     ua = request.headers.get("user-agent", "")
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+    ip = audit.asker(request)[0]              # the proxy's X-Forwarded-For, never a device's own claim
     key = hashlib.sha1(f"{ip}|{ua}".encode()).hexdigest()[:12]
     seen[key] = {"ip": ip, "device": device_of(ua), "who": who, "wall": "/wall" in request.headers.get("referer", ""), "at": time.time()}
     if len(seen) > 300:                       # forget the ones gone longest

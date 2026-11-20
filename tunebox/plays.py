@@ -17,7 +17,8 @@ import time
 from pathlib import Path
 
 from . import data
-from .config import PLAYS_DIR
+from .config import PLAYS_DIR, STATS_FILE
+from .files import read_json
 
 _open: dict | None = None                      # the play going on now
 _parsed: dict[str, tuple[float, list[dict]]] = {}   # month file -> (mtime, its plays): read each file once
@@ -176,7 +177,7 @@ def seed():
                           "al": h.get("album", ""), "th": h.get("thumb", ""), "ai": h.get("artistId", ""),
                           "d": secs(h.get("duration")), "s": secs(h.get("duration")), "by": h.get("by") or "",
                           "sem": data.seminars_of(h.get("by") or ""), "src": h.get("src") or "user"})
-    for vid, st in data.stats.items():
+    for vid, st in read_json(STATS_FILE, {}).items():   # play counts kept before there was a play log
         t = st.get("track") or {}
         for ts in st.get("plays", []):
             if (vid, ts // 10) not in seen:

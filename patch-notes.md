@@ -147,6 +147,25 @@ back to the player.
 
 ## Releases
 
+## Honest Count
+version: 0.70
+date: 20 November 2026
+
+- **Top 30 counts what the house really listened to.** A song skipped at once
+  no longer climbs it.
+
+- [fix] **Top 30 and `Most played`** count a song once it was heard for 30
+  seconds, or half of a short one, the same as Stats does.
+- [fix] **Merging or removing a name** no longer strands the songs they
+  uploaded: they go to the name they were merged into, or to the house, and can
+  still be renamed and given a cover.
+- [fix] **A name's pass phrase** can no longer be guessed by trying many at
+  once: each try waits its turn.
+- [fix] **Loading a setup file** with a value Tunebox does not know is refused
+  whole, instead of half loading and stopping the volume during quiet hours.
+- [fix] **`Here now`** in the admin's People tab shows each device's real
+  address.
+
 ## Show Room
 version: 0.65 - 0.68
 date: 5 November 2026

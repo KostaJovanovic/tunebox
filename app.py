@@ -6,7 +6,7 @@ mpv plays it through ALSA and is driven over its JSON IPC socket.
 
 This file only puts the app together (systemd runs `uvicorn app:app`). The code lives in tunebox/:
   config.py    paths and tuning numbers         settings.py  settings.json (volume, EQ, alarm...)
-  files.py     safe JSON reads and writes       data.py      history, playlists, people, play counts
+  files.py     safe JSON reads and writes       data.py      history, playlists, people, groups
   audio.py     volume curve and EQ filters      youtube.py   ytmusicapi, yt-dlp, the stream resolver
   mpv.py       the mpv IPC client               player.py    the queue, gapless play, fades, sleep, alarm
   lyrics.py    LRCLIB + YouTube lyrics          web.py       same-site guard, errors, who's asking
@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # tunebox/ sits next 
 
 from fastapi import FastAPI  # noqa: E402
 
-from tunebox import audit, data, local as local_songs, plays, web  # noqa: E402
+from tunebox import audit, local as local_songs, plays, web  # noqa: E402
 from tunebox.api import admin, backup, browse, house, lists, local, lyrics, pages, people, queue, settings, stats  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
@@ -44,7 +44,6 @@ async def lifespan(_app):
     yield
     nightly.cancel()
     player.save_session()
-    data.save_stats()
     plays.finish()
     plays.flush()
     flush_settings()

@@ -1,0 +1,82 @@
+"""Quick self-check of the logic that is easy to break and hard to notice: the same-site guard, fair
+turns, rewriting the play log, Top 30 and the house's setup. Plain asserts, no test framework.
+
+    .venv\\Scripts\\python dev\\check.py      (or: .venv/bin/python dev/check.py)
+
+It runs on an empty data folder of its own (TUNEBOX_DATA), never on the real one."""
+import asyncio
+import json
+import os
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+os.environ["TUNEBOX_DATA"] = tempfile.mkdtemp(prefix="tunebox-check-")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from fastapi import HTTPException  # noqa: E402
+
+from tunebox import house, plays  # noqa: E402
+from tunebox.api import stats  # noqa: E402
+from tunebox.api.house import HouseBody, change  # noqa: E402
+from tunebox.player import Player  # noqa: E402
+from tunebox.web import host_ok  # noqa: E402
+
+
+def check_host_ok():
+    for h in ("localhost:8888", "127.0.0.1", "192.168.1.5:8888", "10.0.0.2", "[::1]:8888", "100.64.0.1", "ele.local", "pi.tail1.ts.net"):
+        assert host_ok(h), h
+    for h in ("evil.com", "evil.com:8888", "8.8.8.8", "[2001:4860::8888]:80", "", None, "localhost.evil.com"):
+        assert not host_ok(h), h
+
+
+def check_turns():
+    """A adds 3, then B 2, then C 1: they take turns, A B C A B A."""
+    p = Player()
+    p.queue, p.index = [{"videoId": "cur", "by": "", "src": "user"}], 0
+    for by in "AAABBC":
+        p.queue.insert(p.turn_slot(by), {"videoId": by, "by": by, "src": "user"})
+    assert [t["by"] for t in p.queue[1:]] == list("ABCABA"), [t["by"] for t in p.queue]
+
+
+def play(t, v, by="", s=200):
+    return {"t": t, "v": v, "ti": v, "ar": "", "al": "", "th": "", "ai": "", "d": 200, "s": s, "by": by, "sem": [], "src": "user", "a": 0}
+
+
+def check_rewrite_and_top():
+    now = int(time.time())
+    plays.PLAYS_DIR.mkdir(parents=True, exist_ok=True)
+    log = [play(now - 300, "aaaaaaaaaaa", "x"), play(now - 200, "bbbbbbbbbbb", "y"), play(now - 100, "bbbbbbbbbbb", "y"),
+           play(now - 50, "ccccccccccc", "y", s=3)]     # c: skipped after 3 s, no play
+    plays.month_file(now).write_text("".join(json.dumps(p) + "\n" for p in log), encoding="utf-8")
+    top = stats.most_played(30)
+    assert [(n, t["videoId"]) for n, t in top] == [(2, "bbbbbbbbbbb"), (1, "aaaaaaaaaaa")], top
+    assert plays.rewrite(lambda p: None if p["by"] == "x" else p) == 1
+    assert [p["v"] for p in plays.read(0)] == ["bbbbbbbbbbb", "bbbbbbbbbbb", "ccccccccccc"]
+    assert plays.rewrite(lambda p: {**p, "by": "z"} if p["by"] == "y" else p) == 3
+    assert {p["by"] for p in plays.read(0)} == {"z"}
+
+
+def check_house_change():
+    """A refused value changes nothing, not even the good ones sent with it."""
+    name = house.house["name"]
+    try:
+        change(HouseBody(name="Elsewhere", quiet={"max": "loud"}))
+        raise AssertionError("a volume that isn't a number was taken")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+    assert house.house["name"] == name
+    change(HouseBody(name="Elsewhere", quiet={"hours": "22:00-07:00", "max": "25"}))
+    assert house.house["name"] == "Elsewhere" and house.house["quiet"] == {"hours": "22:00-07:00", "max": 25}
+
+
+async def main():
+    check_host_ok()
+    check_turns()
+    check_rewrite_and_top()
+    check_house_change()
+    print("ok")
+
+
+asyncio.run(main())

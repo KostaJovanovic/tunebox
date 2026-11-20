@@ -15,6 +15,7 @@ from ..player import player
 from ..settings import save_settings, settings
 from .. import house
 from ..web import BaseModel, feature, need_feature, who
+from .stats import most_played
 
 router = APIRouter()
 lists_lock = asyncio.Lock()
@@ -41,7 +42,7 @@ def top_list() -> dict:
     """Top 30: the house's most played songs of the last STATS_DAYS days, made fresh on every read.
     Each track carries its play count; nobody edits it."""
     now = int(time.time())
-    tracks = [{**t, "plays": n} for n, t in data.most_played(TOP_SIZE * 2) if not blocklist.blocked(t)][:TOP_SIZE]
+    tracks = [{**t, "plays": n} for n, t in most_played(TOP_SIZE * 2) if not blocklist.blocked(t)][:TOP_SIZE]
     return {"id": TOP_ID, "name": f"Top {TOP_SIZE}", "tracks": tracks, "created": now, "updated": now, "owner": "",
             "auto": True, "days": STATS_DAYS}
 

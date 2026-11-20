@@ -96,7 +96,6 @@ class Player:
         last = None
         while True:
             await asyncio.sleep(SESSION_EVERY)
-            data.save_stats()
             plays.flush()
             try:
                 self.trim_played()

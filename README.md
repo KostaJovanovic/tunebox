@@ -166,8 +166,8 @@ Everything lives in the app folder (or `TUNEBOX_DATA`). Git ignores all of it.
 | `history.json` | the last 300 songs played |
 | `playlists.json` | playlists (with who made each) and likes |
 | `people.json`, `seminars.json` | names and groups |
-| `plays/` | the play log behind Stats and the recap, one file per month |
-| `stats.json` | the last 30 days of plays, for *Most played* |
+| `plays/` | the play log behind Stats, the recap, Top 30 and *Most played*, one file per month |
+| `stats.json` | old installs only: play counts from before the play log, read once to begin it; safe to delete |
 | `keys.json` | the admin password (hashed) and the device-key secret |
 | `house.json` | what the admin set for the house: name, accent, time zone, feature switches, group rules, wall options |
 | `blocklist.json` | the songs and artists the admin blocked |

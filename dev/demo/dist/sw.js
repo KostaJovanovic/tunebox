@@ -295,7 +295,7 @@ const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { cons
 
 function mostPlayed(n) {
   const cut = now() - STATS_DAYS * DAY, c = new Map();
-  for (const p of allPlays()) if (p.t > cut) { const x = c.get(p.v) || { n: 0, last: 0, p }; x.n++; x.last = Math.max(x.last, p.t); x.p = p; c.set(p.v, x); }
+  for (const p of allPlays()) if (p.t > cut && counted(p)) { const x = c.get(p.v) || { n: 0, last: 0, p }; x.n++; x.last = Math.max(x.last, p.t); x.p = p; c.set(p.v, x); }
   return [...c.values()].sort((a, b) => b.n - a.n || b.last - a.last).slice(0, n).map(x => [x.n, trackFor(x.p.v, x.p)]);
 }
 const allPlays = () => S.open ? [...S.plays, { ...S.open, s: Math.round(Math.max(0, position() - S.open.p0)) }] : S.plays;
@@ -612,13 +612,6 @@ route("POST", "api/play", c => {
   if (mode !== "replace") fail(400, "unknown mode");
   replace(tracks, start, by, lbl ? `Played "${lbl}"` : "");
   return { ok: true, message: (lbl ? `Playing "${lbl}"` : "Playing") + leftOut(skipped) };
-});
-route("POST", "api/queue", c => {
-  const by = needWho(c), t = cleanTrack(c.body.track) || fail(400, "not a track");
-  localAllowed([t]);
-  if (blocked(t)) fail(403, "That song is blocked here");
-  mayAdd(by, 1);
-  return { ok: true, position: add([t], by, c.body.next ? "next" : "add") };
 });
 route("GET", "api/radio/skips", () => Object.entries(S.blocks.radio).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).map(([k, v]) => ({ videoId: k, ...v })));
 route("POST", "api/radio/skips", c => {

@@ -1,5 +1,5 @@
 """Backup and restore: everything the house made (people, groups, pass phrases, playlists and likes,
-history, play counts, the play log, settings, the house setup, the blocklist, the list of local songs) in one
+history, the play log, settings, the house setup, the blocklist, the list of local songs) in one
 JSON file. The YouTube sign-in (browser.json) and the audit log are never in it. The local songs' audio is
 only in the admin's full backup, a zip with that JSON file and the local folder; putting the audio
 back is unzipping the local folder into Tunebox's data folder. A restore first saves what it replaces in backups/,
@@ -19,7 +19,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from .. import admin, audit, auth, blocklist, data, house, local, plays, wall
 from ..config import (BLOCK_FILE, DATA, HISTORY_FILE, HOUSE_FILE, KEYS_FILE, LISTS_FILE, LOCAL_DIR, LOCAL_FILE, PEOPLE_FILE,
-                      PLAYS_DIR, SEMINARS_FILE, SETTINGS_FILE, STATS_FILE, WALL_FILE)
+                      PLAYS_DIR, SEMINARS_FILE, SETTINGS_FILE, WALL_FILE)
 from ..files import read_json, write_json
 from ..player import player
 from ..settings import load_settings, settings
@@ -28,15 +28,14 @@ from ..web import BaseModel
 router = APIRouter()
 BACKUPS = DATA / "backups"
 FILES = {"settings": SETTINGS_FILE, "history": HISTORY_FILE, "playlists": LISTS_FILE, "people": PEOPLE_FILE,
-         "seminars": SEMINARS_FILE, "stats": STATS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE,
+         "seminars": SEMINARS_FILE, "keys": KEYS_FILE, "house": HOUSE_FILE,
          "blocklist": BLOCK_FILE, "local": LOCAL_FILE, "wall": WALL_FILE}
 
 
 def snapshot(secrets: bool = True) -> dict:
-    """What a backup holds, as it is on disk now (unsaved plays and counts are written first).
+    """What a backup holds, as it is on disk now (unsaved plays are written first).
     Without secrets: no keys.json and no pass phrase hashes, and the backup says so ("stripped")."""
     plays.flush()
-    data.save_stats(force=True)
     out = {"tunebox": 1, "made": int(time.time()), "files": {k: read_json(p, None) for k, p in FILES.items()}, "plays": {}}
     if PLAYS_DIR.exists():
         out["plays"] = {f.name: f.read_text(encoding="utf-8") for f in sorted(PLAYS_DIR.glob("*.jsonl"))}
@@ -160,7 +159,6 @@ async def put_back(files: dict, logs: dict):
     data.ensure_liked()
     replace_in_place(data.people, read_json(PEOPLE_FILE, {}))
     replace_in_place(data.seminars, data.load_seminars())
-    replace_in_place(data.stats, read_json(STATS_FILE, {}))
     replace_in_place(auth.keys, read_json(KEYS_FILE, {}))
     auth.ensure_secret()
     replace_in_place(settings, load_settings())

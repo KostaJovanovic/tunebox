@@ -155,8 +155,6 @@ def refresh(s: dict):
     everywhere(t["videoId"], put)
     if player.seed and player.seed.get("videoId") == t["videoId"]:
         player.seed.update({k: t[k] for k in ("title", "artist", "thumb")})
-    if t["videoId"] in data.stats:
-        data.stats[t["videoId"]]["track"] = t
     saved_everywhere()
 
 
@@ -210,7 +208,6 @@ async def delete(sid: str, request: Request):
             else:
                 await player.stop()
         everywhere(vid, drop)
-        data.stats.pop(vid, None)
         await player.sync_armed()
         local.remove(sid)
         saved_everywhere()

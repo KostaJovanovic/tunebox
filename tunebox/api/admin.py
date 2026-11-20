@@ -5,7 +5,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from .. import admin, audit, auth, data, here, plays, ytdlp
+from .. import admin, audit, auth, data, here, local, plays, ytdlp
 from ..config import HISTORY_FILE, LIKED_ID
 from ..data import list_summary, people, playlists, save_lists, save_people
 from ..files import write_json
@@ -180,6 +180,7 @@ async def merge(body: MergeBody, request: Request):
             if l.get("owner") == a:
                 l["owner"] = b
         pb["seminars"] = pb.get("seminars", []) + [s for s in pa.get("seminars", []) if s not in pb.get("seminars", [])]
+        give_uploads(a, b)
         del people[a]
         save_lists()
         save_people()
@@ -232,6 +233,15 @@ def rename(pid: str, to: str):
     player.save_session()
 
 
+def give_uploads(pid: str, to: str):
+    """The local songs `pid` uploaded become `to`'s ("": the house's), so someone can still change them."""
+    mine = [s for s in local.songs.values() if s.get("by") == pid]
+    for s in mine:
+        s["by"] = to
+    if mine:
+        local.save()
+
+
 def drop_list(list_id: str):
     del playlists[list_id]
     if settings["alarm"].get("list") == list_id:
@@ -262,6 +272,7 @@ async def remove_person(pid: str, request: Request, mode: str = "keep"):
             for l in playlists.values():
                 if l.get("owner") == pid:
                     l["owner"] = ""
+        give_uploads(pid, "")
         del people[pid]
         save_lists()
         save_people()

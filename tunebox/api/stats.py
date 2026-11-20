@@ -9,7 +9,8 @@ from collections import Counter, defaultdict
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
-from .. import admin, data, house, plays, wall
+from .. import admin, data, house, local, plays, wall
+from ..config import STATS_DAYS
 from ..plays import counted
 from ..web import feature, need_feature
 
@@ -184,6 +185,24 @@ def counted_log() -> list[dict]:
     if time.time() - _log["at"] > 30:
         _log.update(at=time.time(), plays=[p for p in plays.read(0) if counted(p)])
     return _log["plays"]
+
+
+def most_played(n: int) -> list[tuple[int, dict]]:
+    """Top 30 and "Most played": the n songs played most in the last STATS_DAYS days, by the same rule
+    as Stats (a skip in the first seconds is no play), as (plays, track); on a tie, the one played last
+    first. A local song is named by the server's own index, and one that was removed drops out."""
+    cut, c = time.time() - STATS_DAYS * 86400, {}
+    for p in counted_log():
+        if p["t"] > cut:
+            c[p["v"]] = (c.get(p["v"], (0,))[0] + 1, p)   # the log is oldest first: p ends as the last play
+    out = []
+    for plays_n, p in sorted(c.values(), key=lambda x: (-x[0], -x[1]["t"])):
+        t = data.clean_track({**track_of(p), "duration": local.clock(p["d"]), "albumId": ""})
+        if t:
+            out.append((plays_n, t))
+            if len(out) == n:
+                break
+    return out
 
 
 @router.get("/api/stats/song/{video_id}")

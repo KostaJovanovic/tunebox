@@ -1,8 +1,39 @@
 {
  "app": "Tunebox",
- "version": "0.69",
+ "version": "0.70",
  "page": "patch",
  "releases": [
+  {
+   "name": "Honest Count",
+   "version": "0.70",
+   "date": "20 November 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>Top 30 counts what the house really listened to.</strong> A song skipped at once no longer climbs it."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Top 30 and <code>Most played</code></strong> count a song once it was heard for 30 seconds, or half of a short one, the same as Stats does."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Merging or removing a name</strong> no longer strands the songs they uploaded: they go to the name they were merged into, or to the house, and can still be renamed and given a cover."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A name&rsquo;s pass phrase</strong> can no longer be guessed by trying many at once: each try waits its turn."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Loading a setup file</strong> with a value Tunebox does not know is refused whole, instead of half loading and stopping the volume during quiet hours."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong><code>Here now</code></strong> in the admin&rsquo;s People tab shows each device&rsquo;s real address."
+    }
+   ]
+  },
   {
    "name": "Show Room",
    "version": "0.65 - 0.68",
