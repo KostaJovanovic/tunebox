@@ -18,6 +18,7 @@ let typedNow = null;                           /* the name whose pass phrase was
 let justTyped = null;                          /* ...and opened for editing: its Phrase button needn't ask again */
 let query = "", group = "";                    /* what's typed in Find your name, and the group chip picked ("": all) */
 const FIND_FROM = 2;                           /* this many names or more: the field and the group chips */
+const MANY = 13;                               /* this many or more: rows, a wider and taller pop-up (people.css, #who.many) */
 
 export function paintMe() {
   const p = me();
@@ -75,11 +76,12 @@ const fold = s => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();   /* 
 export function renderWho() {
   const cur = me(), all = sortedPeople(), q = fold(query.trim());
   $("#whoFind").hidden = all.length < FIND_FROM;
+  $("#who").classList.toggle("many", all.length >= MANY);   /* by every name, not the ones shown: no jumping while typing */
   /* the chips: the groups that have names, only when there are two or more to tell apart */
   const used = feat("groups") ? Object.values(seminars).filter(x => all.some(p => p.seminars?.includes(x.id))) : [];
   if (!used.some(x => x.id === group)) group = "";
   $("#whoGroups").hidden = all.length < FIND_FROM || used.length < 2;
-  $("#whoGroups").innerHTML = `<button type="button" class="${group ? "" : "on"}" aria-pressed="${!group}" data-act="who-group" data-s="">All</button>`
+  $("#whoGroups").innerHTML = `<button type="button" class="${group ? "" : "on"}" aria-pressed="${!group}" data-act="who-group" data-s="">Everyone</button>`
     + used.map(x => `<button type="button" class="${group === x.id ? "on" : ""}" style="--c:${esc(x.color)}" aria-pressed="${group === x.id}" data-act="who-group" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("");
   const hit = p => (!group || p.seminars?.includes(group))
     && (!q || fold(p.name).includes(q) || (feat("groups") && (p.seminars || []).some(s => seminars[s] && fold(seminars[s].name).includes(q))));

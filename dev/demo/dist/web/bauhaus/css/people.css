@@ -78,7 +78,7 @@
 .whofind[hidden] { display: none; }
 .whofind svg { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .whofind .field { width: 100%; padding-left: 36px; }
-.whogroups { display: flex; gap: 6px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+.whogroups { display: flex; flex: none; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
 .whofind:not([hidden]):has(+ .whogroups:not([hidden])) { border-bottom: 0; }
 .whogroups[hidden] { display: none; }
 .whogroups button { flex: none; height: 30px; padding: 0 12px; border: 2px solid var(--c, var(--line-2)); font: 700 12px var(--display);
@@ -105,3 +105,14 @@
 .wtile.add .av svg { width: 40%; height: 40%; }
 .wtile.add .t { color: var(--muted); }
 .wnone { grid-column: 1 / -1; padding: 16px 16px 4px; color: var(--muted); }
+/* many names: rows (a small avatar beside the name and groups) in a wider, taller pop-up, so far more fit at once */
+@media (min-width: 761px) { #who.many:not(.form) { width: min(760px, calc(100% - 32px)); max-height: min(860px, calc(100% - 64px)); } }
+#who.many .wgrid { grid-template-columns: repeat(auto-fill, minmax(min(200px, 45%), 1fr)); }   /* a phone fits two */
+#who.many .wtile { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; align-items: center; justify-items: start;
+  padding: 8px 12px; text-align: left; }
+#who.many .wav { grid-row: 1 / 3; margin: 0; }
+#who.many .wtile .av { width: 36px; height: 36px; font-size: 16px; }
+#who.many .wtile.on .av { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--yellow); }
+#who.many .wlock { width: 18px; height: 18px; right: -5px; bottom: -3px; }
+#who.many .wlock .lockic { width: 9px; height: 9px; }
+#who.many .wtile .s .sem.sm { margin: 0 4px 0 0; }

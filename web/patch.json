@@ -1,11 +1,11 @@
 {
  "app": "Tunebox",
- "version": "0.71",
+ "version": "0.72",
  "page": "patch",
  "releases": [
   {
    "name": "Honest Count",
-   "version": "0.70 - 0.71",
+   "version": "0.70 - 0.72",
    "date": "20 November 2026",
    "items": [
     {
@@ -47,6 +47,10 @@
     {
      "tag": "fix",
      "html": "<strong>With names switched off,</strong> a name can no longer be changed or unlocked."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong><code>Who's listening?</code> with a lot of names</strong> shows them as rows in a bigger window, three across on a computer and two on a phone, so far more fit before you scroll. The group buttons are no longer cut in half, and the one that shows every name says <code>Everyone</code>, so a group called All can&rsquo;t be mistaken for it."
     }
    ]
   },

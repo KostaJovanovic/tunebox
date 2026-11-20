@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## Honest Count
-version: 0.70 - 0.71
+version: 0.70 - 0.72
 date: 20 November 2026
 
 - **Top 30 counts what the house really listened to.** A song skipped at once
@@ -173,6 +173,11 @@ date: 20 November 2026
   of dropping in volume a few minutes after it rings.
 - [fix] **With names switched off,** a name can no longer be changed or
   unlocked.
+- [fix] **`Who's listening?` with a lot of names** shows them as rows in a
+  bigger window, three across on a computer and two on a phone, so far more fit
+  before you scroll. The group buttons are no longer cut in half, and the one
+  that shows every name says `Everyone`, so a group called All can't be
+  mistaken for it.
 
 ## Show Room
 version: 0.65 - 0.68
