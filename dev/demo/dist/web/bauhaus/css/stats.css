@@ -2,6 +2,8 @@
 .statbar { padding: 0 16px 6px; display: grid; gap: 8px; }
 .statbar .likers { margin: 0; }
 .statbar small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.statbar .statwho { max-width: 360px; }
+.boardmore { margin: 0 16px 14px; color: var(--red); font: 600 11px var(--display); letter-spacing: .14em; text-transform: uppercase; }
 .daterange { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .daterange .field { width: auto; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

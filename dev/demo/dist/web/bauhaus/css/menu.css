@@ -10,7 +10,7 @@
   transition: opacity .12s var(--ease), transform .2s var(--ease-out), visibility 0s; }
 .ctx button { display: flex; align-items: baseline; gap: 16px; width: 100%; padding: 8px 14px; text-align: left; font-weight: 500; }
 .ctx button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctx button em { font: 600 11px var(--display); letter-spacing: .06em; color: var(--muted); font-style: normal;
+.ctx button em { font: 600 11px var(--ui); letter-spacing: .06em; color: var(--muted); font-style: normal;
   max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx button:focus-visible { background: var(--s2); outline: none; }
 @media (hover: hover) { .ctx button:hover { background: var(--s2); outline: none; } }
@@ -40,3 +40,7 @@
 
 /* a song's own numbers (menu.js songInfo) */
 .ctx .cinfo { padding: 8px 14px; font: 500 12px var(--ui); color: var(--muted); border-bottom: 1px solid var(--line); }
+/* artist · album under the title: each part shortens itself, so a long album doesn't hide behind "…" */
+#pSub, #cSub { display: flex; white-space: pre; }
+#pSub .artlink, #cSub .artlink { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#pSub .artlink:first-child, #cSub .artlink:first-child { flex: none; max-width: 70%; }

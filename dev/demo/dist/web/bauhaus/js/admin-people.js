@@ -1,6 +1,6 @@
 /* The admin panel's People tab: everyone with what they played, then one person at a time: their
    details, pass phrase and devices, limits, playlists, likes and plays, and merging or removing them. */
-import { $, esc, fmt, plural } from "../../shared/dom.js";
+import { $, $$, esc, fmt, plural, fold } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { COLORS, EMOJIS, seminars, avatar, semTags } from "../../shared/people.js";
 import { iconFor, LOCK } from "../../shared/avatars.js";
@@ -13,6 +13,7 @@ import { ask, askText } from "../../shared/dialog.js";
 let el = null;                                 /* the tab's body */
 let all = [];
 let hereNow = [];                              /* the devices with Tunebox open right now (api/admin/here) */
+let find = "";                                 /* what's typed in the list's find field */
 let open = null;                               /* the person on screen (id), or null for the list */
 let detail = null, plays = [];                 /* theirs */
 let pick = { color: "", emoji: "", sems: new Set() };   /* the details form, before it is saved */
@@ -57,6 +58,8 @@ const marks = p => (p.locked ? `<span class="lock" title="Has a pass phrase">${L
 const hereRows = () => hereNow.map(d => `<div class="arow"><div class="min0"><div class="t">${d.name ? esc(d.name) : "<i>No name picked</i>"}${d.wall ? ' <i class="mark">wall</i>' : ""}</div>
   <div class="s">${esc(d.device)} · ${esc(d.ip)} · ${Math.max(0, Math.round(Date.now() / 1000 - d.at))} s ago</div></div></div>`).join("");
 
+const hidden = name => find.trim() && !fold(name).includes(fold(find.trim())) ? " hidden" : "";
+
 function renderList() {
   el.innerHTML = `<div class="sec"><h2>Here now</h2><span class="aside">${plural(hereNow.length, "device")}</span></div>
     <div class="body"><p>Every device with Tunebox open in the last minute, and the name it picked.</p>${hereRows() || "<p>Nobody.</p>"}</div>
@@ -65,11 +68,16 @@ function renderList() {
       <form class="aform" id="admNew"><input class="field" placeholder="A new person's name" maxlength="24" autocomplete="off">
         <select class="field" aria-label="${esc(G().one)}">${needGroup() ? "" : `<option value="">No ${esc(G().a)}</option>`}${Object.values(seminars).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select>
         <button class="btn">Add</button></form>
-      ${all.map(p => `<button class="aperson" data-act="adm-person" data-id="${esc(p.id)}">${avatar(p)}
+      ${all.length >= 13 ? `<input class="field afind" id="admFind" type="search" placeholder="Find a name" autocomplete="off" aria-label="Find a name" value="${esc(find)}">` : ""}
+      ${all.map(p => `<button class="aperson" data-act="adm-person" data-id="${esc(p.id)}" data-name="${esc(fold(p.name))}"${hidden(p.name)}>${avatar(p)}
         <div class="min0"><div class="t">${esc(p.name)} ${semTags(p, "sm")}${marks(p)}</div>
         <div class="s">${plural(p.plays, "play")} · ${p.minutes} min${p.last ? " · last on " + day(p.last) : ""}</div></div><span class="go">›</span></button>`).join("")
         || "<p>No names yet.</p>"}
     </div>`;
+  $("#admFind")?.addEventListener("input", e => {
+    find = e.target.value;
+    $$(".aperson").forEach(b => { b.hidden = !b.dataset.name.includes(fold(find.trim())); });
+  });
   $("#admNew").addEventListener("submit", e => {
     e.preventDefault();
     const name = $("#admNew input").value.trim();

@@ -1,6 +1,6 @@
 /* "Who's listening?": pick, add or edit the name this device adds songs as (top-bar badge), and the
    People list in Settings. It also opens by itself the first time someone adds a song without a name. */
-import { $, esc } from "../../shared/dom.js";
+import { $, esc, fold } from "../../shared/dom.js";
 import { api, errText, setNameAsker } from "../../shared/api.js";
 import { COLORS, EMOJIS, people, seminars, myId, me, sortedPeople, setMe, savePerson, removePerson, unlockPerson, avatar, semTag, semTags } from "../../shared/people.js";
 import { iconFor, LOCK } from "../../shared/avatars.js";
@@ -69,7 +69,6 @@ async function choose(id) {
 }
 
 const mayAddName = () => house.signups === "open" || admin;   /* the admin may have closed sign-ups: then only the admin adds names */
-const fold = s => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();   /* "zeljko" finds "Željko" */
 
 /* The names as tiles, this device's first; a name with a pass phrase this device hasn't typed wears a lock.
    With many names a field finds yours (by name or group), and the last tile adds a new one. */
@@ -194,12 +193,16 @@ export function checkSeminar() {
 }
 
 /* ---------- Settings → People ---------- */
+let peopleQuery = "";                         /* what's typed in Settings → People's find field */
 export function renderPeople() {
-  const cur = myId();
-  $("#peopleList").innerHTML = sortedPeople().map(p => `<div class="prow">${avatar(p)}<div class="t">${esc(p.name)} ${semTags(p, "sm")}${p.locked ? `<span class="lock" title="Has a pass phrase">${LOCK}</span>` : ""}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>
+  const cur = myId(), all = sortedPeople(), q = fold(peopleQuery.trim());
+  $("#peopleFind").hidden = all.length < MANY;
+  $("#peopleList").innerHTML = all.map(p => `<div class="prow"${q && !fold(p.name).includes(q) ? " hidden" : ""}>${avatar(p)}<div class="min0"><div class="t">${esc(p.name)}${p.locked ? `<span class="lock" title="Has a pass phrase">${LOCK}</span>` : ""}${p.id === cur ? ' <span class="me-tag">· this device</span>' : ""}</div>${p.seminars?.length && feat("groups") ? `<div class="s">${semTags(p, "sm")}</div>` : ""}</div>
     <div class="acts"><button data-act="person-phrase" data-id="${esc(p.id)}" title="${p.locked ? "Change or remove the pass phrase" : "Add a pass phrase"}">Phrase</button><button data-act="person-edit" data-id="${esc(p.id)}">Edit</button><button data-act="person-remove" data-id="${esc(p.id)}">Remove</button></div></div>`).join("")
     || '<p class="hint tight">No names yet.</p>';
 }
+
+$("#peopleFind").addEventListener("input", e => { peopleQuery = e.target.value; renderPeople(); });
 
 async function remove(id) {
   if (!(await ask(`Remove ${people[id].name}? Their songs stay in the queue.`, { ok: "Remove", danger: true }))) return;

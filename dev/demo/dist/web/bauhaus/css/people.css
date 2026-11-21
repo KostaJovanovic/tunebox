@@ -18,6 +18,9 @@
 .emojis button.on { background: var(--s2); border-color: var(--text); }
 .prow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .prow .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .s { margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow[hidden] { display: none; }
+.pfind { width: 100%; margin-bottom: 4px; }
 .prow .acts button { width: auto; padding: 0 10px; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
 .av.radio { background: var(--line-2); }
 .prow .me-tag { color: var(--muted); font-weight: 500; }
@@ -116,3 +119,7 @@
 #who.many .wlock { width: 18px; height: 18px; right: -5px; bottom: -3px; }
 #who.many .wlock .lockic { width: 9px; height: 9px; }
 #who.many .wtile .s .sem.sm { margin: 0 4px 0 0; }
+/* a phone: the group chips are one row that scrolls sideways, so the names stay in view */
+@media (max-width: 760px) { .whogroups { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } }
+/* a long group name ends in "…" instead of being cut mid-word */
+.sem { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }

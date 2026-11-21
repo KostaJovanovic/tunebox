@@ -1,8 +1,51 @@
 {
  "app": "Tunebox",
- "version": "0.72",
+ "version": "0.73",
  "page": "patch",
  "releases": [
+  {
+   "name": "Full House",
+   "version": "0.73",
+   "date": "21 November 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>Tunebox stays tidy with a crowd.</strong> A house with dozens of names and groups now fits on the screen."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Stats</strong> with many names picks a person or a group from one list instead of a wall of buttons, and the boards show the top 10 with <code>Show all</code> for the rest."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Up next</strong> on a computer has room for a song&rsquo;s title and the name of whoever added it."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Settings, People</strong> and <strong>the admin&rsquo;s People tab</strong> have a <code>Find a name</code> field when the list is long, and a name&rsquo;s groups sit on their own line."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Who&rsquo;s listening</strong> on a phone keeps its groups in one row you can swipe, so far more names show at once. A long group name ends in \"...\" instead of being cut mid-word."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The arrow keys</strong> in <code>Shortcuts</code> and the right-click menu show again; they were blank."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The artist and album</strong> under a song&rsquo;s title share the line, so a long album no longer hides the rest."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The admin on a phone:</strong> the new-name field and the group list are full width, and the Edit and Remove buttons no longer spill past the edge."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>A data file with letters like Ж or ễ</strong> is read properly on a Windows server, instead of being set aside as broken and the names going missing."
+    }
+   ]
+  },
   {
    "name": "Honest Count",
    "version": "0.70 - 0.72",

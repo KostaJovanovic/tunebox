@@ -13,6 +13,9 @@ const PERIODS = [["30d", "Last 30 days"], ["month", "This month"], ["lastmonth",
   ["lastyear", "Last year"], ["all", "All time"], ["custom", "Custom"]];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 let period = "30d", who = "", from = "", to = "";
+let all = false;                               /* the boards show every name, not just the top ones */
+const TOP = 10;                                /* names on a board before "Show all" */
+const MANY = 12;                               /* this many names and groups or more: a list to pick from instead of chips */
 
 /* since/until (Unix seconds) and a name for a period */
 export function range(p = period, a = from, b = to) {
@@ -56,7 +59,11 @@ function filters(d) {
     ${csvLink()}
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
-    ${ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
+    ${ps.length + gs.length >= MANY ? `<select class="field statwho" id="stWho" aria-label="Whose stats">
+      <option value="">Everyone</option>
+      ${ps.length ? `<optgroup label="People">${ps.map(p => `<option value="${esc(p.id)}"${p.id === who ? " selected" : ""}>${esc(p.name)}${p.id === me ? " (you)" : ""}</option>`).join("")}</optgroup>` : ""}
+      ${gs.length ? `<optgroup label="${esc(G().many)}">${gs.map(x => `<option value="sem:${esc(x.id)}"${"sem:" + x.id === who ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</optgroup>` : ""}
+    </select>` : ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
       ${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>` : ""}
   </div>`;
 }
@@ -76,11 +83,15 @@ function bars(values, labels, every = 1) {
 
 /* people or groups, longest listeners first: each bar in its own colour, the name and minutes beside it */
 function board(rows, look) {
+  rows = rows.filter(r => look(r.id));
   const max = Math.max(1, ...rows.map(r => r.minutes));
-  return `<div class="board">${rows.map(r => { const l = look(r.id); if (!l) return "";
+  return `<div class="board">${top(rows).map(r => { const l = look(r.id);
     return `<div class="brow"><div class="who">${l.badge}<span>${esc(l.name)}</span></div>
-      <div class="track"><i style="width:${(r.minutes / max * 100).toFixed(1)}%;background:${esc(l.color)}"></i></div><b>${hm(r.minutes)}</b></div>`; }).join("")}</div>`;
+      <div class="track"><i style="width:${(r.minutes / max * 100).toFixed(1)}%;background:${esc(l.color)}"></i></div><b>${hm(r.minutes)}</b></div>`; }).join("")}</div>${more(rows)}`;
 }
+/* a long board shows its first TOP rows, then a button for the rest */
+const top = rows => all ? rows : rows.slice(0, TOP);
+const more = rows => rows.length > TOP ? `<button class="link boardmore" data-act="stats-all">${all ? "Show the top " + TOP : `Show all ${rows.length}`}</button>` : "";
 
 /* Fun stats: awards and who did what for the house or a group, a person's own numbers for one person */
 function fun(f, next) {
@@ -104,10 +115,10 @@ function fun(f, next) {
     <b>${esc(pl(a.n, a.unit))}</b><span>${esc(a.what)}${a.track ? `: <i>${esc(a.track.title)}</i>` : ""}</span></div>`).join("")}</div>`;
   const rows = f.people.filter(r => people[r.id]);
   if (rows.length > 1) html += `<div class="funtable"><table><thead><tr><th></th><th>Added</th><th>Same song</th><th>Skips</th>
-    <th>Play now</th><th>Skipped by others</th></tr></thead><tbody>${rows.map(r => `<tr>
+    <th>Play now</th><th>Skipped by others</th></tr></thead><tbody>${top(rows).map(r => `<tr>
     <th>${avatar(people[r.id], "sm")}${esc(people[r.id].name)}</th><td>${num(r.added)}</td>
     <td title="${r.againTrack ? esc(r.againTrack.title) : ""}">${r.again ? r.again + "×" : "–"}</td>
-    <td>${num(r.skips)}</td><td>${num(r.cuts)}</td><td>${num(r.skipped)}</td></tr>`).join("")}</tbody></table></div>`;
+    <td>${num(r.skips)}</td><td>${num(r.cuts)}</td><td>${num(r.skipped)}</td></tr>`).join("")}</tbody></table></div>${more(rows)}`;
   return html;
 }
 
@@ -146,5 +157,7 @@ function render(d, r) {
 
 on("stats-period", el => { period = el.dataset.v; showStats(); });
 on("stats-who", el => { who = el.dataset.v; showStats(); });
+on("stats-all", () => { all = !all; showStats(); });
+document.addEventListener("change", e => { if (e.target.id === "stWho") { who = e.target.value; showStats(); } });
 on("stats-custom", () => { from = $("#stFrom").value; to = $("#stTo").value; if (from && to) showStats(); });
 export const statsView = () => ({ period, who, from, to });

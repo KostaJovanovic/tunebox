@@ -32,3 +32,9 @@
 #queue .row.dragging { transition: scale .2s var(--ease-out), box-shadow .2s; z-index: 3; background: var(--s2); box-shadow: 0 8px 24px #0006; scale: 1.02; cursor: grabbing; }
 #queue .row.dragging.dropping { transition: transform .2s var(--ease-out), scale .2s var(--ease-out), box-shadow .2s; box-shadow: none; scale: 1; }
 #queue .closing { transition: transform .25s var(--ease-out); }   /* what is under a removed row moves up */
+/* the drawer is narrow: no row numbers and, with a mouse, slimmer buttons, so a title and who added it stay readable */
+#queue .row { grid-template-columns: 44px minmax(0, 1fr) auto auto; gap: 10px; }
+#queue .row .n { display: none; }
+@media (hover: hover) { #queue .acts button, #queue .grip { width: 32px; } }
+.qhead h3 { flex: none; }
+.qhead span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }   /* the count shortens, not the heading */

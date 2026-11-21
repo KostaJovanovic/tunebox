@@ -147,6 +147,32 @@ back to the player.
 
 ## Releases
 
+## Full House
+version: 0.73
+date: 21 November 2026
+
+- **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
+  now fits on the screen.
+
+- [fix] **Stats** with many names picks a person or a group from one list
+  instead of a wall of buttons, and the boards show the top 10 with
+  `Show all` for the rest.
+- [fix] **Up next** on a computer has room for a song's title and the name of
+  whoever added it.
+- [fix] **Settings, People** and **the admin's People tab** have a `Find a name`
+  field when the list is long, and a name's groups sit on their own line.
+- [fix] **Who's listening** on a phone keeps its groups in one row you can
+  swipe, so far more names show at once. A long group name ends in "..."
+  instead of being cut mid-word.
+- [fix] **The arrow keys** in `Shortcuts` and the right-click menu show again;
+  they were blank.
+- [fix] **The artist and album** under a song's title share the line, so a long
+  album no longer hides the rest.
+- [fix] **The admin on a phone:** the new-name field and the group list are
+  full width, and the Edit and Remove buttons no longer spill past the edge.
+- [fix] **A data file with letters like Ж or ễ** is read properly on a Windows
+  server, instead of being set aside as broken and the names going missing.
+
 ## Honest Count
 version: 0.70 - 0.72
 date: 20 November 2026

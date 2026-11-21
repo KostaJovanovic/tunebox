@@ -5,6 +5,7 @@
   .brand span { display: none; }
   .brand { padding: 0 12px; }
   .top .home.kb { display: none; }
+  .top .adminbadge { padding: 0 8px; letter-spacing: .06em; }
   .nav button { padding: 0 14px; }
   .nav button b { display: none; }
   /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
