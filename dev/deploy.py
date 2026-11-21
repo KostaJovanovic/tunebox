@@ -154,17 +154,20 @@ def missing_packages(srv: Server, t) -> list[str]:
     in another version is left alone: on ele that Python belongs to other apps too."""
     lines = [line.split("#")[0].strip() for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()]
     reqs = [r for r in lines if r and not r.startswith("-")]
-    names = [re.split(r"[<>=!~\[; ]", r, maxsplit=1)[0] for r in reqs]
-    code = ("import importlib.metadata as m, sys\n"
-            "for n in sys.argv[1:]:\n"
-            "    try: m.version(n)\n"
-            "    except m.PackageNotFoundError: print(n)")
-    rc, o, e = srv.run(f"{shlex.quote(t['python'])} -c {shlex.quote(code)} {quoted(names)}", check=False)
+    # the server's Python judges each line's marker (`; sys_platform == "win32"`), then prints the ones it lacks by number
+    code = ("import importlib.metadata as m, re, sys\n"
+            "try: from packaging.markers import Marker\n"
+            "except ImportError: from pip._vendor.packaging.markers import Marker\n"
+            "for i, r in enumerate(sys.argv[1:]):\n"
+            "    spec, _, mark = r.partition(';')\n"
+            "    if mark.strip() and not Marker(mark.strip()).evaluate(): continue\n"
+            "    try: m.version(re.split(r'[<>=!~\\[ ]', spec.strip(), maxsplit=1)[0])\n"
+            "    except m.PackageNotFoundError: print(i)")
+    rc, o, e = srv.run(f"{shlex.quote(t['python'])} -c {shlex.quote(code)} {quoted(reqs)}", check=False)
     if rc != 0:
         say("warn", f"couldn't ask the server's Python which packages it has: {(e or o).strip()[:200]}")
         return []
-    gone = set(o.split())
-    return [r for r, n in zip(reqs, names) if n in gone]
+    return [reqs[int(i)] for i in o.split()]
 
 
 def install_packages(srv: Server, t, reqs: list[str]) -> bool:
