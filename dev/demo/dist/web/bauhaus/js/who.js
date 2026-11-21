@@ -16,6 +16,7 @@ let fromList = false;                          /* the form was opened from the l
 let finishing = false;                         /* editing only because the name has no group yet: saving picks it */
 let typedNow = null;                           /* the name whose pass phrase was just typed to unlock it */
 let justTyped = null;                          /* ...and opened for editing: its Phrase button needn't ask again */
+let picking = null;                            /* {current, done}: the pop-up picks a name for something else (Stats), not this device's */
 let query = "", group = "";                    /* what's typed in Find your name, and the group chip picked ("": all) */
 const FIND_FROM = 2;                           /* this many names or more: the field and the group chips */
 const MANY = 13;                               /* this many or more: rows, a wider and taller pop-up (people.css, #who.many) */
@@ -28,9 +29,14 @@ export function paintMe() {
 
 /* opens on the list of names, or straight on the form when there are none yet */
 function openWho() {
-  query = ""; group = ""; $("#whoSearch").value = "";
+  query = ""; group = ""; $("#whoSearch").value = ""; $("#whoSearch").placeholder = "Find your name";
   resetForm(); renderWho(); showForm(!sortedPeople().length);
   $("#who").classList.add("open"); $("#scrim").classList.add("open");
+}
+/* the same pop-up, picking any name for Stats: done(id) gets the one tapped */
+export function pickName(title, current, done) {
+  openWho(); picking = { current, done };
+  showForm(false); $("#whoTitle").textContent = title; $("#whoSearch").placeholder = "Find a name"; renderWho();
 }
 /* does this name still have to pick a group? (the house may not ask for one) */
 const needsGroup = p => isOn("groups") && house.groups.required && !p.seminars?.length;
@@ -44,10 +50,10 @@ function showForm(on) {
 }
 function closeWho(chosen = false) {
   $("#who").classList.remove("open"); syncScrim();
-  justTyped = null;
+  justTyped = null; picking = null;
   if (waiting) { waiting(chosen); waiting = null; }
 }
-onCloseAll(() => { if (waiting) { waiting(false); waiting = null; } });
+onCloseAll(() => { picking = null; if (waiting) { waiting(false); waiting = null; } });
 setNameAsker(() => new Promise(r => { waiting = r; openWho(); }));   /* waiting first: the strip says why it asks */
 
 /* a name with a pass phrase: this device types it once */
@@ -73,7 +79,7 @@ const mayAddName = () => house.signups === "open" || admin;   /* the admin may h
 /* The names as tiles, this device's first; a name with a pass phrase this device hasn't typed wears a lock.
    With many names a field finds yours (by name or group), and the last tile adds a new one. */
 export function renderWho() {
-  const cur = me(), all = sortedPeople(), q = fold(query.trim());
+  const cur = picking ? people[picking.current] : me(), all = sortedPeople(), q = fold(query.trim());
   $("#whoFind").hidden = all.length < FIND_FROM;
   $("#who").classList.toggle("many", all.length >= MANY);   /* by every name, not the ones shown: no jumping while typing */
   /* the chips: the groups that have names, only when there are two or more to tell apart */
@@ -87,9 +93,9 @@ export function renderWho() {
   const ps = (cur ? [cur, ...all.filter(p => p !== cur)] : all).filter(hit);
   const tile = p => `<button class="wtile${p === cur ? " on" : ""}" data-act="who-set" data-id="${esc(p.id)}">
     <span class="wav">${avatar(p)}${p.locked && !p.mine ? `<span class="wlock" title="Has a pass phrase">${LOCK}</span>` : ""}</span>
-    <span class="t">${esc(p.name)}</span><span class="s">${p === cur ? "This device" : semTags(p, "sm")}</span></button>`;
+    <span class="t">${esc(p.name)}</span><span class="s">${p === cur && !picking ? "This device" : semTags(p, "sm")}</span></button>`;
   const typed = query.trim();
-  const add = mayAddName() ? `<button class="wtile add" data-act="who-new"><span class="wav"><i class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg></i></span>
+  const add = mayAddName() && !picking ? `<button class="wtile add" data-act="who-new"><span class="wav"><i class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg></i></span>
     <span class="t">${q ? `Add ${esc(typed)}` : "Add a name"}</span><span class="s">${q ? "as a new name" : "New here?"}</span></button>` : "";
   const none = ps.length ? "" : q ? `<p class="wnone">No name matches “${esc(typed)}”${group ? ` in ${esc(seminars[group].name)}` : ""}.</p>`
     : group ? `<p class="wnone">No names in ${esc(seminars[group].name)}.</p>` : "";
@@ -97,7 +103,7 @@ export function renderWho() {
   $("#whoNow").innerHTML = cur
     ? `${avatar(cur, "sm")}<span class="min0">Listening as <b>${esc(cur.name)}</b></span><button type="button" class="link" data-act="who-edit-me">Edit</button>`
     : waiting ? "<span>Pick your name first.</span>" : "";
-  $("#whoNow").hidden = !cur && !waiting;
+  $("#whoNow").hidden = picking || (!cur && !waiting);
 }
 
 $("#whoSearch").addEventListener("input", () => { query = $("#whoSearch").value; renderWho(); });
@@ -265,7 +271,7 @@ function paintPhraseBtn(p) {
 /* ---------- wiring ---------- */
 on("who-open", openWho);
 on("who-close", () => closeWho());
-on("who-set", el => choose(el.dataset.id));
+on("who-set", el => { if (!picking) return choose(el.dataset.id); const done = picking.done; closeWho(); done(el.dataset.id); });
 on("who-color", el => { pickColor = el.dataset.c; paintForm(); });
 on("who-emoji", el => { pickEmoji = el.dataset.e; paintForm(); });
 on("who-sem", el => { const s = el.dataset.s; pickSems.has(s) ? pickSems.delete(s) : pickSems.add(s); paintForm(); });

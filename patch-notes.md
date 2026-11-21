@@ -148,15 +148,16 @@ back to the player.
 ## Releases
 
 ## Full House
-version: 0.73 - 0.76
+version: 0.73 - 0.77
 date: 21 November 2026
 
 - **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
   now fits on the screen.
 
-- [fix] **Stats** with many names keeps them in a short box of their own:
-  type in `Find a name` and they narrow as you type, pick a group and only
-  its people show. The boards show the top 10 with `Show all` for the rest.
+- [fix] **Stats** with many names shows the five who added the most, then a
+  button that opens the names list, with its find field and groups, to pick
+  anyone else. The boards show the top 10 with `Show all` for the rest, and
+  `Download as CSV` no longer stretches across the page.
 - [fix] **Up next** on a computer has room for a song's title and the name of
   whoever added it.
 - [fix] **Settings, People** and **the admin's People tab** have a `Find a name`

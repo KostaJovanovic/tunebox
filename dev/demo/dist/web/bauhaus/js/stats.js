@@ -1,12 +1,13 @@
 /* Stats: what the house (or one person, or one group) played in a period, from the play log.
    The recap (recap.js) tells the same numbers as a story. */
-import { $, esc, fold } from "../../shared/dom.js";
+import { $, esc } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { people, seminars, avatar, semTag, myId } from "../../shared/people.js";
 import { feat, G } from "../../shared/house.js";
 import { on } from "../../shared/actions.js";
 import { seq, setNav } from "./nav.js";
+import { pickName } from "./who.js";
 import { main, loading, note, section, songRow } from "./ui.js";
 
 const PERIODS = [["30d", "Last 30 days"], ["month", "This month"], ["lastmonth", "Last month"], ["year", "This year"],
@@ -15,9 +16,9 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 let period = "30d", who = "", from = "", to = "";
 let all = false;                               /* the boards show every name, not just the top ones */
 const TOP = 10;                                /* names on a board before "Show all" */
-const MANY = 12;                               /* this many names and groups or more: a find field, and the names in a box of their own */
-let find = "";                                 /* what's typed in Find a name */
-let inGroup = "";                              /* the group last picked: its people are the names shown */
+const MANY = 12;                               /* this many names and groups or more: the top few names, and a button for everyone */
+const FEW = 5;                                 /* names shown as chips then */
+let topIds = [];                               /* their ids: who added the most for the house, or for the group picked */
 
 /* since/until (Unix seconds) and a name for a period */
 export function range(p = period, a = from, b = to) {
@@ -49,17 +50,20 @@ export async function showStats() {
   try { d = await fetchStats(r, who); } catch (e) { if (my === seq) main(note(`Could not load the stats: ${esc(errText(e))}`)); return; }
   if (my !== seq) return;
   render(d, r);
-  $("#stPeople .on")?.scrollIntoView({ block: "nearest" });   /* the picked name stays in view in its box */
 }
 
 const chip = (act, v, cur, html) => `<button class="${v === cur ? "on" : ""}" aria-pressed="${v === cur}" data-act="${act}" data-v="${esc(v)}">${html}</button>`;
 const sortedNames = () => feat("people") ? Object.values(people).sort((a, b) => a.name.localeCompare(b.name)) : [];
 const personChip = p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === myId() ? " <small>(you)</small>" : ""));
-/* many names: every one, narrowed live by what's typed and by the group picked */
-function matches() {
-  const q = fold(find.trim());
-  const hit = sortedNames().filter(p => (!q || fold(p.name).includes(q)) && (!inGroup || p.seminars?.includes(inGroup)));
-  return hit.map(personChip).join("") || '<span class="statmore">No name like that</span>';
+/* the top FEW names (the house's, or the group's), and whoever is picked */
+function topChips(d) {
+  if (!people[who] || !topIds.length) {             /* a person picked keeps the list it was picked from */
+    const g = who.startsWith("sem:") ? who.slice(4) : "";
+    topIds = d.people.filter(x => people[x.id] && (!g || people[x.id].seminars?.includes(g))).slice(0, FEW).map(x => x.id);
+    if (!topIds.length && myId()) topIds = [myId()];
+  }
+  const ids = people[who] && !topIds.includes(who) ? [...topIds, who] : topIds;
+  return ids.filter(id => people[id]).map(id => personChip(people[id])).join("");
 }
 
 function filters(d) {
@@ -72,9 +76,7 @@ function filters(d) {
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
     ${ps.length + gs.length >= MANY ? `<div class="likers statgroups">${chip("stats-who", "", who, "Everyone")}${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>
-      ${ps.length ? `<label class="whofind statfind"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-        <input class="field" id="stFind" type="search" placeholder="Find a name" autocomplete="off" aria-label="Find a name" value="${esc(find)}"></label>
-      <div class="likers" id="stPeople">${matches()}</div>` : ""}` : ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(personChip).join("")}
+      ${ps.length ? `<div class="likers">${topChips(d)}<button class="more" data-act="stats-pick">All ${ps.length} names ›</button></div>` : ""}` : ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(personChip).join("")}
       ${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>` : ""}
   </div>`;
 }
@@ -167,12 +169,8 @@ function render(d, r) {
 }
 
 on("stats-period", el => { period = el.dataset.v; showStats(); });
-on("stats-who", el => {
-  who = el.dataset.v;
-  if (!who) inGroup = ""; else if (who.startsWith("sem:")) inGroup = who.slice(4);
-  showStats();
-});
+on("stats-who", el => { who = el.dataset.v; showStats(); });
+on("stats-pick", () => pickName("Whose stats?", who, id => { who = id; showStats(); }));
 on("stats-all", () => { all = !all; showStats(); });
-document.addEventListener("input", e => { if (e.target.id === "stFind") { find = e.target.value; $("#stPeople").innerHTML = matches(); } });
 on("stats-custom", () => { from = $("#stFrom").value; to = $("#stTo").value; if (from && to) showStats(); });
 export const statsView = () => ({ period, who, from, to });

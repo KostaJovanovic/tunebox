@@ -2,12 +2,8 @@
 .statbar { padding: 0 16px 6px; display: grid; gap: 8px; }
 .statbar .likers { margin: 0; }
 .statbar small { color: var(--muted); font-weight: 500; margin-left: 4px; }
-.statbar .statfind { padding: 0; border: 0; max-width: 420px; }
-.statbar .statfind svg { left: 12px; }
-.statbar #stPeople { max-height: 152px; overflow-y: auto; align-content: flex-start; }   /* four rows of names, the rest a scroll away */
-@media (max-width: 760px) { .statbar #stPeople { max-height: 114px; } }
-.statmore { align-self: center; color: var(--muted); font-size: 12.5px; padding: 0 4px; }
 @media (max-width: 760px) { .statbar .statgroups { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } }   /* one row to swipe */
+.statbar .likers .more { font-weight: 600; }
 .boardmore { margin: 0 16px 14px; color: var(--red); font: 600 11px var(--display); letter-spacing: .14em; text-transform: uppercase; }
 .daterange { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .daterange .field { width: auto; }
@@ -56,4 +52,4 @@ section + .bars, .sec + .bars { margin: 0 16px; }
   .brow { grid-template-columns: minmax(70px, 110px) minmax(0, 1fr) auto; }
 }
 
-.statbar .csv { float: right; height: 32px; padding: 0 12px; font-size: 12px; }
+.statbar .csv { justify-self: end; height: 32px; padding: 0 12px; font-size: 12px; }
