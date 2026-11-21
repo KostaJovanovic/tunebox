@@ -20,7 +20,7 @@
 .chead .k { position: absolute; left: 0; right: 0; pointer-events: none; text-align: center;   /* the screen's centre, whatever buttons are beside it */ font: 600 11px var(--display); letter-spacing: .16em; text-transform: uppercase; color: #EDEAE3a8; }
 .canvas .qbtn { color: #EDEAE3; }
 @media (hover: hover) { .canvas .qbtn:hover { background: #ffffff14; } }
-.canvas .qbtn.on { color: var(--yellow); }
+.canvas .qbtn.on { color: var(--yellow); }   /* the canvas is dark in either theme */
 .cbody { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center;
   gap: 5vw; padding: 0 5vw 4vh; }
 .canvas.lyr-on .cbody { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

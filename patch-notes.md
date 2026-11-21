@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## Full House
-version: 0.73 - 0.78
+version: 0.73 - 0.79
 date: 21 November 2026
 
 - **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
@@ -203,6 +203,13 @@ date: 21 November 2026
   of the cover on a phone, dimmer at night, and Up next says whose song is
   coming.
 - [fix] **The recap** says "1 play", not "1 plays".
+- [fix] **Every accent** reads clearly as text in both themes, yellow and
+  orange on the light theme included, and so does `Yours in` under the song
+  playing.
+- [fix] **Song rows on a phone** have bigger buttons. Play left the row: a tap
+  on the song already offers to play it now.
+- [fix] **The artist and album** under the song playing are easier to tap on a
+  tablet.
 
 ## Honest Count
 version: 0.70 - 0.72

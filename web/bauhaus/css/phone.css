@@ -47,7 +47,9 @@
   .clyr, .canvas.lyr-on .clyr { display: none; }
   .row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; }
   .row .n, .row .d { display: none; }
-  .acts button { width: 38px; }
+  /* a finger's 44px: Play leaves the row, since a tap on the song already offers to play it now (ask.js) */
+  .acts button { width: var(--hit); }
+  .row .acts [data-act="song"][data-mode="now"] { display: none; }
   /* a local song of yours also has Edit and Remove: Play next and Add to playlist stay in its menu (hold the row) */
   .row.own .acts .wide, .row.own .acts [data-act="pick"] { display: none; }
   .hero { grid-template-columns: 96px minmax(0, 1fr); align-items: start; }
@@ -74,4 +76,9 @@
 @media (hover: none) {
   .likers button { height: var(--hit); }
   .sec .aside .link { padding: 14px 0; margin: -14px 0; }
+  /* the artist and album under the player bar's title: 44px tall to a finger, reaching down over the time
+     line rather than up into the title (clip, unlike hidden, lets the taller tap area out of the line) */
+  .now .s { overflow-x: clip; overflow-y: visible; }
+  .now .artlink { position: relative; }
+  .now .artlink::after { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -20px; }
 }

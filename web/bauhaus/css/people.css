@@ -100,7 +100,7 @@
 .wtile .t { max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wtile .s { max-width: 100%; min-height: 16px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wtile .s .sem.sm { margin: 0 2px; }
-.wtile.on .s { color: var(--yellow); font: 700 10px/16px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.wtile.on .s { color: var(--yellow-text); font: 700 10px/16px var(--display); letter-spacing: .1em; text-transform: uppercase; }
 .wlock { position: absolute; right: -4px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   background: var(--s2); border: 2px solid var(--bg); }
 .wlock .lockic { width: 12px; height: 12px; color: var(--text); }

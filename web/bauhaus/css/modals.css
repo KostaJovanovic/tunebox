@@ -14,7 +14,7 @@
 .pick .mosaic, .pick .blank { width: 44px; height: 44px; background: var(--s2); }
 .pick .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pick .s { color: var(--muted); font-size: 12px; }
-.pick .ok { color: var(--yellow); font: 700 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.pick .ok { color: var(--yellow-text); font: 700 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
 /* "Something is playing": the tapped song, then Play now / Play next / Add to queue */
 .asksong { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid var(--line); background: var(--s1); }
 .asksong img { width: 44px; height: 44px; object-fit: cover; background: var(--s2); }
