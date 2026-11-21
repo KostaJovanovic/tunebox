@@ -1,6 +1,6 @@
 /* Stats: what the house (or one person, or one group) played in a period, from the play log.
    The recap (recap.js) tells the same numbers as a story. */
-import { $, esc } from "../../shared/dom.js";
+import { $, esc, fold } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { lists } from "../../shared/playback.js";
 import { people, seminars, avatar, semTag, myId } from "../../shared/people.js";
@@ -15,7 +15,9 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 let period = "30d", who = "", from = "", to = "";
 let all = false;                               /* the boards show every name, not just the top ones */
 const TOP = 10;                                /* names on a board before "Show all" */
-const MANY = 12;                               /* this many names and groups or more: a list to pick from instead of chips */
+const MANY = 12;                               /* this many names and groups or more: a find field, and the names in a box of their own */
+let find = "";                                 /* what's typed in Find a name */
+let inGroup = "";                              /* the group last picked: its people are the names shown */
 
 /* since/until (Unix seconds) and a name for a period */
 export function range(p = period, a = from, b = to) {
@@ -47,11 +49,21 @@ export async function showStats() {
   try { d = await fetchStats(r, who); } catch (e) { if (my === seq) main(note(`Could not load the stats: ${esc(errText(e))}`)); return; }
   if (my !== seq) return;
   render(d, r);
+  $("#stPeople .on")?.scrollIntoView({ block: "nearest" });   /* the picked name stays in view in its box */
+}
+
+const chip = (act, v, cur, html) => `<button class="${v === cur ? "on" : ""}" aria-pressed="${v === cur}" data-act="${act}" data-v="${esc(v)}">${html}</button>`;
+const sortedNames = () => feat("people") ? Object.values(people).sort((a, b) => a.name.localeCompare(b.name)) : [];
+const personChip = p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === myId() ? " <small>(you)</small>" : ""));
+/* many names: every one, narrowed live by what's typed and by the group picked */
+function matches() {
+  const q = fold(find.trim());
+  const hit = sortedNames().filter(p => (!q || fold(p.name).includes(q)) && (!inGroup || p.seminars?.includes(inGroup)));
+  return hit.map(personChip).join("") || '<span class="statmore">No name like that</span>';
 }
 
 function filters(d) {
-  const chip = (act, v, cur, html) => `<button class="${v === cur ? "on" : ""}" aria-pressed="${v === cur}" data-act="${act}" data-v="${esc(v)}">${html}</button>`;
-  const ps = feat("people") ? Object.values(people).sort((a, b) => a.name.localeCompare(b.name)) : [];
+  const ps = sortedNames();
   const gs = feat("groups") ? Object.values(seminars) : [];
   const me = myId();
   return `<div class="statbar">
@@ -59,11 +71,10 @@ function filters(d) {
     ${csvLink()}
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
-    ${ps.length + gs.length >= MANY ? `<select class="field statwho" id="stWho" aria-label="Whose stats">
-      <option value="">Everyone</option>
-      ${ps.length ? `<optgroup label="People">${ps.map(p => `<option value="${esc(p.id)}"${p.id === who ? " selected" : ""}>${esc(p.name)}${p.id === me ? " (you)" : ""}</option>`).join("")}</optgroup>` : ""}
-      ${gs.length ? `<optgroup label="${esc(G().many)}">${gs.map(x => `<option value="sem:${esc(x.id)}"${"sem:" + x.id === who ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</optgroup>` : ""}
-    </select>` : ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(p => chip("stats-who", p.id, who, avatar(p, "sm") + esc(p.name) + (p.id === me ? " <small>(you)</small>" : ""))).join("")}
+    ${ps.length + gs.length >= MANY ? `<div class="likers statgroups">${chip("stats-who", "", who, "Everyone")}${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>
+      ${ps.length ? `<label class="whofind statfind"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <input class="field" id="stFind" type="search" placeholder="Find a name" autocomplete="off" aria-label="Find a name" value="${esc(find)}"></label>
+      <div class="likers" id="stPeople">${matches()}</div>` : ""}` : ps.length || gs.length ? `<div class="likers">${chip("stats-who", "", who, "Everyone")}${ps.map(personChip).join("")}
       ${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>` : ""}
   </div>`;
 }
@@ -156,8 +167,12 @@ function render(d, r) {
 }
 
 on("stats-period", el => { period = el.dataset.v; showStats(); });
-on("stats-who", el => { who = el.dataset.v; showStats(); });
+on("stats-who", el => {
+  who = el.dataset.v;
+  if (!who) inGroup = ""; else if (who.startsWith("sem:")) inGroup = who.slice(4);
+  showStats();
+});
 on("stats-all", () => { all = !all; showStats(); });
-document.addEventListener("change", e => { if (e.target.id === "stWho") { who = e.target.value; showStats(); } });
+document.addEventListener("input", e => { if (e.target.id === "stFind") { find = e.target.value; $("#stPeople").innerHTML = matches(); } });
 on("stats-custom", () => { from = $("#stFrom").value; to = $("#stTo").value; if (from && to) showStats(); });
 export const statsView = () => ({ period, who, from, to });

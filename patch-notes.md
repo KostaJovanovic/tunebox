@@ -154,9 +154,9 @@ date: 21 November 2026
 - **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
   now fits on the screen.
 
-- [fix] **Stats** with many names picks a person or a group from one list
-  instead of a wall of buttons, and the boards show the top 10 with
-  `Show all` for the rest.
+- [fix] **Stats** with many names keeps them in a short box of their own:
+  type in `Find a name` and they narrow as you type, pick a group and only
+  its people show. The boards show the top 10 with `Show all` for the rest.
 - [fix] **Up next** on a computer has room for a song's title and the name of
   whoever added it.
 - [fix] **Settings, People** and **the admin's People tab** have a `Find a name`
