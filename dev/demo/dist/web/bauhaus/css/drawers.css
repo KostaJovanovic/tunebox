@@ -2,12 +2,18 @@
 /* ---------- drawers ---------- */
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--bg); z-index: 20; border-left: 1px solid var(--line);
   transform: translateX(100%); transition: transform var(--t-out) var(--ease-out), visibility 0s var(--t-out); display: flex; flex-direction: column; visibility: hidden; }
+/* Up next holds the most per row (who added it, when it plays, four buttons): it gets more room where there is some */
+@media (min-width: 700px) { #drawer { width: min(540px, 70vw); } }
 .drawer.open { transform: none; visibility: visible; transition: transform var(--t-in) var(--ease-out), visibility 0s; }
 .drawer.dragging { transition: none; visibility: visible; }   /* under a finger, or on a spring after it (ui.js) */
 .drawer, .drawer * { touch-action: pan-y; }   /* up and down scrolls; a drag to the right takes the drawer away */
 .dhead { display: flex; align-items: stretch; height: 56px; border-bottom: 1px solid var(--line); flex: none; }
 .dhead h2 { flex: 1; margin: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; font: 700 14px var(--display); letter-spacing: .16em; text-transform: uppercase; }
 .dhead h2 i { width: 12px; height: 12px; background: var(--yellow); }
+/* a title with a long name in it stays on one line in the fixed-height head */
+.dhead h2 { min-width: 0; }
+.dhead h2 > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dhead h2 i { flex: none; }
 .dhead button { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; }
 @media (hover: hover) { .dhead button:hover { background: var(--s1); } }
 .dhead a.gh { width: 56px; border-left: 1px solid var(--line); display: grid; place-items: center; color: inherit; }

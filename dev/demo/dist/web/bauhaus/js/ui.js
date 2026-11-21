@@ -69,6 +69,44 @@ export function openDrawer(id, open) {
   $("#" + id).classList.toggle("open", open); syncScrim();
 }
 
+/* ---------- the keyboard follows what is open ---------- */
+/* A panel that opens takes the focus (unless its own code already put it inside), Tab stays within the
+   newest one, and when it closes the focus goes back to where it was. Watched rather than called from
+   every opener, because some panels (the welcome card) are made on the fly. */
+const PANELS = ".drawer, .modal, #admin, #recap, #canvas";
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+const opened = [];   /* [{el, back}], oldest first */
+new MutationObserver(recs => {
+  for (const { target: el } of recs) {
+    if (!el.matches(PANELS)) continue;
+    const open = el.classList.contains("open"), i = opened.findIndex(o => o.el === el);
+    if (open && i < 0) {
+      opened.push({ el, back: document.activeElement });
+      setTimeout(() => {
+        if (!el.classList.contains("open") || el.contains(document.activeElement)) return;
+        if (!el.hasAttribute("tabindex")) el.tabIndex = -1;
+        el.focus({ preventScroll: true });
+      }, 60);
+    } else if (!open && i >= 0) {
+      const [o] = opened.splice(i, 1), a = document.activeElement;
+      if ((el.contains(a) || a === document.body) && o.back?.isConnected) o.back.focus({ preventScroll: true });
+    }
+  }
+}).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+addEventListener("pointerdown", () => document.documentElement.removeAttribute("data-kb"), true);
+addEventListener("keydown", e => {
+  if (e.key === "Tab") document.documentElement.setAttribute("data-kb", "");
+  if (e.key !== "Tab" || document.querySelector("dialog[open]")) return;   /* a <dialog> keeps its own */
+  const top = opened.findLast(o => o.el.classList.contains("open"))?.el;
+  if (!top) return;
+  const items = [...top.querySelectorAll(FOCUSABLE)].filter(x => x.getClientRects().length && !x.closest("[inert]"));
+  const first = items[0], last = items.at(-1), a = document.activeElement;
+  if (!first) { e.preventDefault(); return; }
+  if (!top.contains(a) || a === top) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+  else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+});
+
 /* ---------- dragging a panel away (touch) ---------- */
 /* A panel goes back out the way it came in: a drawer to the right (axis "x"), a phone's sheet down ("y").
    It follows the finger, and on release a flick counts as much as the distance. Past half way it presses

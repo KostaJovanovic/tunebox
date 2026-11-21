@@ -30,10 +30,10 @@ input[type=range].vr::-webkit-slider-runnable-track { height: 2px; background: v
 input[type=range].vr::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; background: var(--text); }
 input[type=range].vr::-moz-range-track { height: 2px; background: var(--line-2); }
 input[type=range].vr::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 0; background: var(--text); }
-.qbtn { width: var(--hit); height: var(--hit); display: grid; place-items: center; position: relative; color: var(--text); transition: background .12s, color .12s; }
+.qbtn { flex: none; width: var(--hit); height: var(--hit); display: grid; place-items: center; position: relative; color: var(--text); transition: background .12s, color .12s; }
 @media (hover: hover) { .qbtn:hover { background: var(--s2); } }
 .qbtn.on { color: var(--yellow); }
 .qbtn em { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 16px; padding: 0 4px; background: var(--yellow); color: var(--on-yellow);
   font: 700 10px/16px var(--display); font-style: normal; text-align: center; }
 /* playing at volume 0 (player.js): the speaker icons turn red */
-.silent .vol > svg, .silent .volbtn, .silent .cfoot .cvolicon { color: var(--red); }
+.silent .vol > svg, .silent .volbtn, .silent .cfoot .cvolicon { color: var(--red-text); }

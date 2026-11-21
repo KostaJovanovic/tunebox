@@ -60,7 +60,7 @@ setNameAsker(() => new Promise(r => { waiting = r; openWho(); }));   /* waiting 
 async function unlocked(id) {
   const p = people[id];
   if (!p.locked || p.mine) return true;
-  const ok = await askPhrase({ title: `${p.name}'s pass phrase`, hint: "This name has a pass phrase. Type it once on this device.",
+  const ok = await askPhrase({ title: "Pass phrase", hint: `${p.name} has a pass phrase. Type it once on this device.`,
     button: "Unlock", check: ph => unlockPerson(id, ph) }) !== null;
   if (ok) typedNow = id;
   return ok;

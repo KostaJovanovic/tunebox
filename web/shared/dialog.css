@@ -15,7 +15,7 @@
   font: 600 12px var(--display, sans-serif); letter-spacing: .12em; text-transform: uppercase; }
 .tbask .no { border-color: transparent; color: var(--muted, #8F8B83); }
 .tbask .ok { background: var(--text, #EDEAE3); border-color: var(--text, #EDEAE3); color: var(--bg, #111); }
-.tbask.danger .ok { background: var(--red, #E63B2E); border-color: var(--red, #E63B2E); color: var(--on-red, #fff); }
+.tbask.danger .ok { background: var(--red, #D9352A); border-color: var(--red, #D9352A); color: var(--on-red, #fff); }
 @media (hover: hover) { .tbask .no:hover { color: var(--text, #EDEAE3); } .tbask .ok:hover { filter: brightness(1.08); } }
 @media (max-width: 760px) {
   .tbask { width: calc(100% - 24px); margin: auto auto calc(12px + var(--kb, 0px) + env(safe-area-inset-bottom)); }

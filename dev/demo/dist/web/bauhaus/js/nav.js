@@ -17,6 +17,12 @@ export function setNav(v) {
   view = v; seq++; here = null; trail.length = 0;
   $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   if (v !== "search") $("#tabs").hidden = true;
+  $("#nav button.on")?.scrollIntoView({ block: "nearest", inline: "nearest" }); edge();
 }
+
+/* a phone fits five of the six pages: the bar fades at the right edge while there is more to swipe to */
+const edge = () => { const n = $("#nav"); n.classList.toggle("more", n.scrollLeft + n.clientWidth < n.scrollWidth - 2); };
+$("#nav").addEventListener("scroll", edge, { passive: true });
+addEventListener("resize", edge);
 export const bump = () => ++seq;
 export function setBack(fn) { back = fn; }

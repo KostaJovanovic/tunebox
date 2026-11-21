@@ -72,7 +72,6 @@ function filters(d) {
   const me = myId();
   return `<div class="statbar">
     <div class="likers">${PERIODS.map(([k, t]) => chip("stats-period", k, period, t)).join("")}</div>
-    ${csvLink()}
     ${period === "custom" ? `<div class="daterange"><input class="field" type="date" id="stFrom" value="${esc(from)}"><span>to</span>
       <input class="field" type="date" id="stTo" value="${esc(to)}"><button class="btn" data-act="stats-custom">Show</button></div>` : ""}
     ${ps.length + gs.length >= MANY ? `<div class="likers statgroups">${chip("stats-who", "", who, "Everyone")}${gs.map(x => chip("stats-who", "sem:" + x.id, who, semTag(x.id))).join("")}</div>
@@ -152,12 +151,12 @@ function render(d, r) {
   lists.stats = d.topSongs;
   html += section(++n, "Top songs", esc(title)) + `<div class="list">${d.topSongs.map((t, i) => songRow(t, "stats", i, { d: `${t.plays}×`, playing: false })).join("")}</div>`;
   html += section(++n, "Top artists") + `<div class="shelf">${d.topArtists.map((a, i) => `<button class="card" ${a.id ? `data-act="open" data-type="artist" data-id="${esc(a.id)}"` : "disabled"}>
-    <img loading="lazy" src="${esc(a.thumb)}" alt=""><div class="t">${i + 1}. ${esc(a.name)}</div><div class="s">${a.plays} plays · ${hm(a.minutes)}</div></button>`).join("")}</div>`;
+    <img loading="lazy" src="${esc(a.thumb)}" alt=""><div class="t">${i + 1}. ${esc(a.name)}</div><div class="s">${pl(a.plays, "play")} · ${hm(a.minutes)}</div></button>`).join("")}</div>`;
   if (feat("people") && (!who || who.startsWith("sem:"))) {
     const ps = d.people.filter(x => !who || people[x.id]?.seminars?.includes(who.slice(4)));
     if (ps.length) html += section(++n, "Who added the most", "minutes of their songs") + board(ps, id => people[id] && { name: people[id].name, color: people[id].color, badge: avatar(people[id], "sm") });
   }
-  if (!who && feat("groups") && d.seminars.length) html += section(++n, G().many, "minutes of their songs") + board(d.seminars, id => seminars[id] && { name: seminars[id].name, color: seminars[id].color, badge: semTag(id) });
+  if (!who && feat("groups") && d.seminars.length) html += section(++n, G().many, "minutes of their songs") + board(d.seminars, id => seminars[id] && { name: seminars[id].name, color: seminars[id].color, badge: `<i class="gdot" style="background:${esc(seminars[id].color)}"></i>` });
   if (feat("people")) html += fun(d.fun, () => ++n);
   html += section(++n, "When", d.busiestDay ? `busiest day: ${esc(new Date(d.busiestDay.date).toLocaleDateString([], { day: "numeric", month: "long" }))}, ${hm(d.busiestDay.minutes)}` : "")
     + `<div class="when"><div><h3>Time of day</h3>${bars(d.hours, d.hours.map((_, h) => `${h}:00`), 6)}</div>
@@ -165,6 +164,7 @@ function render(d, r) {
   if (d.months.length > 2) html += section(++n, "Month by month") + bars(d.months.map(m => m.minutes),
     d.months.map(m => new Date(m.month + "-01").toLocaleDateString([], { month: "short", year: "2-digit" })));
   html += `<p class="hint tight statnote">A play counts once 30 seconds were heard; Fun stats count skipped songs too. Next pressed in a song's last 10 seconds is no skip. Songs count for whoever added them; radio songs count for the house only. ${d.radioShare}% of these plays were radio.</p>`;
+  html += `<div class="statcsv">${csvLink()}</div>`;
   main(html);
 }
 

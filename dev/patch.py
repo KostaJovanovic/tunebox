@@ -200,12 +200,12 @@ PAGE_HEAD = """<!doctype html>
   .rel li strong { color: var(--text); font-weight: 600; }
   .rel li.lead { color: var(--text); font-size: 17px; padding: 14px 0; }
   .rel li.lead strong { font-weight: 700; }
-  .rel em { font-style: normal; color: var(--red); }
+  .rel em { font-style: normal; color: var(--red-text); }
   .rel code { font: 500 .9em ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--text);
     background: var(--s2); padding: 1px 5px; }
   .tag { display: inline-block; margin-right: 8px; padding: 1px 6px; border: 1px solid var(--line-2);
     font: 600 10px/1.5 var(--display); letter-spacing: .1em; text-transform: uppercase; vertical-align: 2px; color: var(--muted); }
-  .tag.is-new { border-color: var(--red); color: var(--red); }
+  .tag.is-new { border-color: var(--red); color: var(--red-text); }
   .tag.is-faster { border-color: var(--yellow); color: var(--text); }
   .foot { margin-top: 48px; color: var(--faint); font-size: 13px; }
 </style>

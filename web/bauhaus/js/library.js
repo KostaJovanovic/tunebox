@@ -164,7 +164,7 @@ export async function showHistory() {
   let html = section(1, "Recently played", `${h.length} songs · shared by everyone`) +
     `<div class="newform plain"><button class="btn red" data-act="play-all" data-list="history" data-label="History" ${off}>${icon.PLAYS}Play all</button>
      <button class="btn" data-act="play-all" data-mode="add" data-list="history" data-label="History" ${off}>${icon.ADD}Add all</button>
-     <button class="btn" data-f="playlists" data-act="save-as-list" data-list="history" data-label="From history" ${off}>${icon.ADD}Save<span class="hide-sm">&nbsp;as playlist</span></button>
+     <button class="btn" data-f="playlists" data-act="save-as-list" data-list="history" data-label="From history" ${off}>${icon.ADD}<span>Save<span class="hide-sm"> as playlist</span></span></button>
      <button class="btn ghost danger push" data-act="clear-history" ${off}>Clear</button></div>`;
   if (!h.length) html += note("Nothing played yet.");
   let day = "";

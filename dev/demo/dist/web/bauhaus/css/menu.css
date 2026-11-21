@@ -15,7 +15,7 @@
 .ctx button:focus-visible { background: var(--s2); outline: none; }
 @media (hover: hover) { .ctx button:hover { background: var(--s2); outline: none; } }
 .ctx button:focus:not(:focus-visible):not(:hover) { background: none; }
-.ctx button.danger { color: var(--red); }
+.ctx button.danger { color: var(--red-text); }
 .ctx hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
 .ctx .chead { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center; padding: 6px 16px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
 .ctx .chead img { width: 44px; height: 44px; object-fit: cover; background: var(--s2); }

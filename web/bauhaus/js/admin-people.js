@@ -66,8 +66,8 @@ function renderList() {
     <div class="sec"><h2>People</h2><span class="aside">${plural(all.length, "name")}</span></div>
     <div class="body">${house.signups === "open" ? "" : "<p>Sign-ups are closed (House tab): new names are added here.</p>"}
       <form class="aform" id="admNew"><input class="field" placeholder="A new person's name" maxlength="24" autocomplete="off">
-        <select class="field" aria-label="${esc(G().one)}">${needGroup() ? "" : `<option value="">No ${esc(G().a)}</option>`}${Object.values(seminars).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select>
-        <button class="btn">Add</button></form>
+        <button class="btn">Add</button>
+        <div class="sems" id="admNewSem" role="group" aria-label="${esc(G().one)}">${newSemChips()}</div></form>
       ${all.length >= 13 ? `<input class="field afind" id="admFind" type="search" placeholder="Find a name" autocomplete="off" aria-label="Find a name" value="${esc(find)}">` : ""}
       ${all.map(p => `<button class="aperson" data-act="adm-person" data-id="${esc(p.id)}" data-name="${esc(fold(p.name))}"${hidden(p.name)}>${avatar(p)}
         <div class="min0"><div class="t">${esc(p.name)} ${semTags(p, "sm")}${marks(p)}</div>
@@ -81,10 +81,32 @@ function renderList() {
   $("#admNew").addEventListener("submit", e => {
     e.preventDefault();
     const name = $("#admNew input").value.trim();
-    const sem = $("#admNew select").value;
+    const sem = newSem;
     if (name) act(() => call("api/admin/people", { name, seminars: sem ? [sem] : [] }), `Added ${name}`);
   });
 }
+
+/* the new name's group: one chip picked, or none when the house allows it */
+let newSem = "";
+function newSemChips() {
+  if (needGroup() && !seminars[newSem]) newSem = Object.keys(seminars)[0] || "";
+  const chip = (id, name, color) => `<button type="button" class="${newSem === id ? "on" : ""}"${color ? ` style="--c:${esc(color)}"` : ""} aria-pressed="${newSem === id}" data-act="adm-new-sem" data-s="${esc(id)}">${esc(name)}</button>`;
+  return (needGroup() ? "" : chip("", `No ${G().a}`, "")) + Object.values(seminars).map(x => chip(x.id, x.name, x.color)).join("");
+}
+on("adm-new-sem", b => { newSem = b.dataset.s; $("#admNewSem").innerHTML = newSemChips(); });
+
+/* Merge into: a find field over the other names, the matches as chips (a dozen at most), one picked */
+let into = "";
+function intoChips(others, q = "") {
+  const hits = others.filter(x => !q || fold(x.name).includes(fold(q)));
+  if (!hits.some(x => x.id === into)) into = "";
+  const shown = hits.slice(0, 12);
+  if (into && !shown.some(x => x.id === into)) shown.unshift(hits.find(x => x.id === into));
+  return shown.map(x => `<button type="button" class="${x.id === into ? "on" : ""}" aria-pressed="${x.id === into}" data-act="adm-into" data-s="${esc(x.id)}">${esc(x.name)}</button>`).join("")
+    + (hits.length > shown.length ? `<span class="more">and ${hits.length - shown.length} more: type to narrow</span>` : hits.length ? "" : '<span class="more">No name matches</span>');
+}
+const paintInto = () => { $("#admIntoList").innerHTML = intoChips(all.filter(x => x.id !== open), $("#admInto").value.trim()); $("#admMerge .btn").disabled = !into; };
+on("adm-into", b => { into = b.dataset.s; paintInto(); });
 
 /* ---------- one person ---------- */
 function renderPerson() {
@@ -137,7 +159,8 @@ function renderPerson() {
     <div class="sec"><h2>Merge or remove</h2></div>
     <div class="body">
       ${others.length ? `<form class="aform" id="admMerge"><label for="admInto">Made twice? Give everything of ${esc(p.name)}'s to</label>
-        <select class="field" id="admInto">${others.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select><button class="btn">Merge</button></form>` : ""}
+        <input class="field" id="admInto" type="search" placeholder="Find a name" autocomplete="off"><button class="btn" disabled>Merge</button>
+        <div class="sems" id="admIntoList" role="group" aria-label="Merge into">${(into = "", intoChips(others))}</div></form>` : ""}
       <div class="eqtools"><button class="btn danger" data-act="adm-remove" data-mode="keep">Remove the name</button>
         <button class="btn danger" data-act="adm-remove" data-mode="purge">Remove with plays, likes and playlists</button></div>
       <p class="hint">Remove the name: their songs and plays stay, with no name on them, and their playlists become the house's.</p></div>`;
@@ -155,12 +178,14 @@ function renderPerson() {
     const cap = Math.max(0, Math.floor(+$("#admCapN").value || 0));
     act(() => call(`api/admin/people/${p.id}`, { cap }, "PATCH"), cap ? `At most ${plural(cap, "song")} waiting` : "No limit");
   });
+  $("#admInto")?.addEventListener("input", paintInto);
   $("#admMerge")?.addEventListener("submit", async e => {
     e.preventDefault();
-    const into = all.find(x => x.id === $("#admInto").value);
-    if (!await ask(`Merge ${p.name} into ${into.name}? ${p.name}'s plays, likes and playlists become ${into.name}'s, and the name ${p.name} is removed. This can't be undone.`, { ok: "Merge", danger: true })) return;
-    open = into.id;
-    act(() => call("api/admin/people/merge", { source: p.id, into: into.id }), `Merged into ${into.name}`);
+    const to = all.find(x => x.id === into);
+    if (!to) return $("#admInto").focus();
+    if (!await ask(`Merge ${p.name} into ${to.name}? ${p.name}'s plays, likes and playlists become ${to.name}'s, and the name ${p.name} is removed. This can't be undone.`, { ok: "Merge", danger: true })) return;
+    open = to.id;
+    act(() => call("api/admin/people/merge", { source: p.id, into: to.id }), `Merged into ${to.name}`);
   });
 }
 
@@ -175,7 +200,7 @@ function paintPick() {
 
 async function setPhrase() {
   const p = person();
-  const nu = await askPhrase({ title: `A pass phrase for ${p.name}`, hint: "At least 4 characters. Every device will have to type it to use this name.", button: "Next", check: longEnough });
+  const nu = await askPhrase({ title: "New pass phrase", hint: `For ${p.name}. At least 4 characters. Every device will have to type it to use this name.`, button: "Next", check: longEnough });
   if (nu === null) return;
   if (await askPhrase({ title: "Type it again", button: "Save", check: async v => { if (v !== nu) throw new Error("That's not the same"); } }) === null) return;
   act(() => call(`api/admin/people/${p.id}`, { phrase: nu }, "PATCH"), `${p.name}'s pass phrase saved`);

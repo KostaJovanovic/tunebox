@@ -148,7 +148,7 @@ back to the player.
 ## Releases
 
 ## Full House
-version: 0.73 - 0.77
+version: 0.73 - 0.78
 date: 21 November 2026
 
 - **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
@@ -173,6 +173,36 @@ date: 21 November 2026
   full width, and the Edit and Remove buttons no longer spill past the edge.
 - [fix] **A data file with letters like Ж or ễ** is read properly on a Windows
   server, instead of being set aside as broken and the names going missing.
+
+### Easier to read and reach
+
+- [fix] **The grey and red text** is easier to read in both themes: song
+  numbers, times, counts, and red labels like `Play all`. Buttons in the
+  accent colour read better too.
+- [fix] **The keyboard** follows what is open: Up next, Settings, Lyrics,
+  `Shortcuts`, the admin and every pop-up take the focus, Tab stays inside
+  them, and closing one puts you back where you were. A tablet with a keyboard
+  shows where the focus is.
+- [fix] **No more dropdowns.** The alarm's `Ramp up` and `Play`, a playlist's
+  order, the new name's group, `Merge into` and the time zone are buttons now.
+  `Merge into` and the time zone have a find field, so a name or a city is a
+  few letters away.
+- [fix] **Stats on a phone:** the groups board shows each name whole, with its
+  colour beside it instead of the name twice; the numbers take less room; the
+  fun stats table keeps the names in view as it swipes. `Download as CSV`
+  moved to the end of the page.
+- [fix] **Up next** is wider on a tablet and a computer, so titles read in
+  full.
+- [fix] **On a phone:** the search field and the page tabs fit, with a fade
+  where the tabs go on; a long name no longer runs off the top of a pop-up;
+  small buttons are easier to hit.
+- [fix] **The pass phrase** pop-up dims the names list behind it, and its title
+  no longer repeats a long name.
+- [fix] **`Shortcuts`** fits on the screen in two columns.
+- [fix] **The wall:** square corners like the rest of Tunebox, the buttons clear
+  of the cover on a phone, dimmer at night, and Up next says whose song is
+  coming.
+- [fix] **The recap** says "1 play", not "1 plays".
 
 ## Honest Count
 version: 0.70 - 0.72

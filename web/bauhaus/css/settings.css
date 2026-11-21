@@ -19,6 +19,11 @@ input[type=range].big { width: 100%; }
 .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .presets.c3 { grid-template-columns: repeat(3, 1fr); }
 .presets.c7 { grid-template-columns: repeat(7, 1fr); }
+.presets.c5 { grid-template-columns: repeat(5, 1fr); }
+.presets.c2 { grid-template-columns: repeat(2, 1fr); }
+/* a pick among names (a playlist, a person, a time zone): as written, one line, cut with an ellipsis */
+.presets.picks button { align-items: flex-start; padding: 6px 12px; font: 500 13px var(--ui); letter-spacing: 0; text-transform: none; min-width: 0; }
+.presets.picks .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .presets button { min-height: 44px; background: var(--bg); font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 2px; transition: background .12s, color .12s; }
 @media (hover: hover) { .presets button:hover { color: var(--text); background: var(--s1); } }
@@ -65,11 +70,8 @@ input[type=range].big { width: 100%; }
 .tog i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--muted); transition: transform .15s var(--ease), background .15s; }
 .tog[aria-checked="true"] i { background: var(--red); border-color: var(--red); }
 .tog[aria-checked="true"] i::after { transform: translateX(20px); background: var(--on-red); }
-select.field, input.field[type=time] { width: 100%; font: 600 14px var(--ui); appearance: none; -webkit-appearance: none; }
-select.field { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(-45deg, transparent 50%, var(--muted) 50%);
-  background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+input.field[type=time] { width: 100%; font: 600 14px var(--ui); appearance: none; -webkit-appearance: none; }
 input.field[type=time] { font: 700 26px var(--display); height: 56px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .status { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); background: var(--s1); font-weight: 600; margin-top: 10px; }
 .status i { width: 10px; height: 10px; background: var(--faint); flex: none; }
 .status i.on { background: var(--yellow); }
@@ -90,7 +92,7 @@ textarea:focus { outline: 2px solid var(--yellow); outline-offset: -1px; }
 .seg2 button.on { background: var(--text); color: var(--bg); }
 .volbtn { display: none !important; }
 .msg { font-size: 12.5px; margin-top: 8px; min-height: 18px; color: var(--muted); }
-.msg.err { color: var(--red); }
+.msg.err { color: var(--red-text); }
 .volrow.level { grid-template-columns: 1fr 64px; }
 .eqplot .dbl.top { top: 6%; }
 .eqplot .dbl.mid { top: 50%; }

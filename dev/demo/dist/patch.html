@@ -44,12 +44,12 @@
   .rel li strong { color: var(--text); font-weight: 600; }
   .rel li.lead { color: var(--text); font-size: 17px; padding: 14px 0; }
   .rel li.lead strong { font-weight: 700; }
-  .rel em { font-style: normal; color: var(--red); }
+  .rel em { font-style: normal; color: var(--red-text); }
   .rel code { font: 500 .9em ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--text);
     background: var(--s2); padding: 1px 5px; }
   .tag { display: inline-block; margin-right: 8px; padding: 1px 6px; border: 1px solid var(--line-2);
     font: 600 10px/1.5 var(--display); letter-spacing: .1em; text-transform: uppercase; vertical-align: 2px; color: var(--muted); }
-  .tag.is-new { border-color: var(--red); color: var(--red); }
+  .tag.is-new { border-color: var(--red); color: var(--red-text); }
   .tag.is-faster { border-color: var(--yellow); color: var(--text); }
   .foot { margin-top: 48px; color: var(--faint); font-size: 13px; }
 </style>
@@ -59,9 +59,9 @@
 <nav class="back"><a href="./"><span class="mark"><i class="c"></i><i class="t"></i><i class="s"></i></span>Back to the player</a></nav>
 
 <header class="top"><h1>Patch notes</h1>
-<p>Version <b>0.77</b> &middot; 77 updates over 8 days, newest first.</p></header>
-<section class="rel" id="v0-77">
-  <header><h2>Full House</h2><p class="meta"><span>0.73 - 0.77</span><span>21 November 2026</span></p></header>
+<p>Version <b>0.78</b> &middot; 78 updates over 8 days, newest first.</p></header>
+<section class="rel" id="v0-78">
+  <header><h2>Full House</h2><p class="meta"><span>0.73 - 0.78</span><span>21 November 2026</span></p></header>
   <ul>
     <li class="lead"><strong>Tunebox stays tidy with a crowd.</strong> A house with dozens of names and groups now fits on the screen.</li>
     <li><span class="tag is-fix">Fix</span><strong>Stats</strong> with many names shows the five who added the most, then a button that opens the names list, with its find field and groups, to pick anyone else. The boards show the top 10 with <code>Show all</code> for the rest, and <code>Download as CSV</code> no longer stretches across the page.</li>
@@ -72,6 +72,19 @@
     <li><span class="tag is-fix">Fix</span><strong>The artist and album</strong> under a song&rsquo;s title share the line, so a long album no longer hides the rest.</li>
     <li><span class="tag is-fix">Fix</span><strong>The admin on a phone:</strong> the new-name field and the group list are full width, and the Edit and Remove buttons no longer spill past the edge.</li>
     <li><span class="tag is-fix">Fix</span><strong>A data file with letters like Ж or ễ</strong> is read properly on a Windows server, instead of being set aside as broken and the names going missing.</li>
+  </ul>
+  <h3><i></i>Easier to read and reach</h3>
+  <ul>
+    <li><span class="tag is-fix">Fix</span><strong>The grey and red text</strong> is easier to read in both themes: song numbers, times, counts, and red labels like <code>Play all</code>. Buttons in the accent colour read better too.</li>
+    <li><span class="tag is-fix">Fix</span><strong>The keyboard</strong> follows what is open: Up next, Settings, Lyrics, <code>Shortcuts</code>, the admin and every pop-up take the focus, Tab stays inside them, and closing one puts you back where you were. A tablet with a keyboard shows where the focus is.</li>
+    <li><span class="tag is-fix">Fix</span><strong>No more dropdowns.</strong> The alarm&rsquo;s <code>Ramp up</code> and <code>Play</code>, a playlist&rsquo;s order, the new name&rsquo;s group, <code>Merge into</code> and the time zone are buttons now. <code>Merge into</code> and the time zone have a find field, so a name or a city is a few letters away.</li>
+    <li><span class="tag is-fix">Fix</span><strong>Stats on a phone:</strong> the groups board shows each name whole, with its colour beside it instead of the name twice; the numbers take less room; the fun stats table keeps the names in view as it swipes. <code>Download as CSV</code> moved to the end of the page.</li>
+    <li><span class="tag is-fix">Fix</span><strong>Up next</strong> is wider on a tablet and a computer, so titles read in full.</li>
+    <li><span class="tag is-fix">Fix</span><strong>On a phone:</strong> the search field and the page tabs fit, with a fade where the tabs go on; a long name no longer runs off the top of a pop-up; small buttons are easier to hit.</li>
+    <li><span class="tag is-fix">Fix</span><strong>The pass phrase</strong> pop-up dims the names list behind it, and its title no longer repeats a long name.</li>
+    <li><span class="tag is-fix">Fix</span><strong><code>Shortcuts</code></strong> fits on the screen in two columns.</li>
+    <li><span class="tag is-fix">Fix</span><strong>The wall:</strong> square corners like the rest of Tunebox, the buttons clear of the cover on a phone, dimmer at night, and Up next says whose song is coming.</li>
+    <li><span class="tag is-fix">Fix</span><strong>The recap</strong> says "1 play", not "1 plays".</li>
   </ul>
 </section>
 <section class="rel" id="v0-72">
@@ -322,7 +335,7 @@
     <li><span class="tag is-fix">Fix</span><strong>A cover that fails to load</strong> shows an empty tile, not a broken image.</li>
   </ul>
 </section>
-<p class="foot">Tunebox 0.77</p>
+<p class="foot">Tunebox 0.78</p>
 </main>
 </body>
 </html>

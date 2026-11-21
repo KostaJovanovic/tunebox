@@ -51,9 +51,14 @@ const pageOn = v => ({ home: feat("browse"), explore: feat("browse"), stats: fea
 const go = v => { if (pageOn(v)) PAGES[v](); };
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); });
 
+/* the search field's hint: a phone's top bar has room for one word */
+const narrow = matchMedia("(max-width: 760px)");
+const hintQ = () => { $("#q").placeholder = feat("links") && !narrow.matches ? "Search, or paste a YouTube link" : "Search"; };
+narrow.addEventListener("change", hintQ);
+
 /* the house's setup changed (or the admin was unlocked or locked here): what depends on it follows */
 function houseChanged() {
-  $("#q").placeholder = feat("links") ? "Search, or paste a YouTube link" : "Search";
+  hintQ();
   paintMe(); renderPeople(); renderQueue(); renderDevice();
   if (!feat("lyrics") && isOpen("lyrics")) openDrawer("lyrics", false);
   if (!pageOn(view)) startPage();

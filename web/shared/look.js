@@ -10,10 +10,10 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
   const ACCENTS = {
-    red:     { name: "Red",     c: "#E63B2E", on: "#FFFFFF" },
+    red:     { name: "Red",     c: "#D9352A", on: "#FFFFFF" },
     orange:  { name: "Orange",  c: "#EE6A1F", on: "#111111" },
     yellow:  { name: "Yellow",  c: "#F2C230", on: "#111111" },
-    green:   { name: "Green",   c: "#1E8F5A", on: "#FFFFFF" },
+    green:   { name: "Green",   c: "#1C8654", on: "#FFFFFF" },
     blue:    { name: "Blue",    c: "#1F5FBF", on: "#FFFFFF" },
     magenta: { name: "Magenta", c: "#C8327A", on: "#FFFFFF" },
   };

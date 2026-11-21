@@ -1,11 +1,11 @@
 {
  "app": "Tunebox",
- "version": "0.77",
+ "version": "0.78",
  "page": "patch",
  "releases": [
   {
    "name": "Full House",
-   "version": "0.73 - 0.77",
+   "version": "0.73 - 0.78",
    "date": "21 November 2026",
    "items": [
     {
@@ -43,6 +43,49 @@
     {
      "tag": "fix",
      "html": "<strong>A data file with letters like Ж or ễ</strong> is read properly on a Windows server, instead of being set aside as broken and the names going missing."
+    },
+    {
+     "h": "Easier to read and reach"
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The grey and red text</strong> is easier to read in both themes: song numbers, times, counts, and red labels like <code>Play all</code>. Buttons in the accent colour read better too."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The keyboard</strong> follows what is open: Up next, Settings, Lyrics, <code>Shortcuts</code>, the admin and every pop-up take the focus, Tab stays inside them, and closing one puts you back where you were. A tablet with a keyboard shows where the focus is."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>No more dropdowns.</strong> The alarm&rsquo;s <code>Ramp up</code> and <code>Play</code>, a playlist&rsquo;s order, the new name&rsquo;s group, <code>Merge into</code> and the time zone are buttons now. <code>Merge into</code> and the time zone have a find field, so a name or a city is a few letters away."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Stats on a phone:</strong> the groups board shows each name whole, with its colour beside it instead of the name twice; the numbers take less room; the fun stats table keeps the names in view as it swipes. <code>Download as CSV</code> moved to the end of the page."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>Up next</strong> is wider on a tablet and a computer, so titles read in full."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>On a phone:</strong> the search field and the page tabs fit, with a fade where the tabs go on; a long name no longer runs off the top of a pop-up; small buttons are easier to hit."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The pass phrase</strong> pop-up dims the names list behind it, and its title no longer repeats a long name."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong><code>Shortcuts</code></strong> fits on the screen in two columns."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The wall:</strong> square corners like the rest of Tunebox, the buttons clear of the cover on a phone, dimmer at night, and Up next says whose song is coming."
+    },
+    {
+     "tag": "fix",
+     "html": "<strong>The recap</strong> says \"1 play\", not \"1 plays\"."
     }
    ]
   },

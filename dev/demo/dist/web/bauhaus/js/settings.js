@@ -1,6 +1,6 @@
 /* The Settings drawer: volume, equaliser, playback options, sleep timer, wake-up alarm, YouTube account
    and this device's look. The server keeps everything except "This device". */
-import { $, $$, esc, fmt } from "../../shared/dom.js";
+import { $, $$, esc, fmt, plural } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { state, poll, setVolume } from "../../shared/playback.js";
 import { store, ACCENTS, applyLook, clearLocal, weak } from "../../shared/device.js";
@@ -244,17 +244,24 @@ export function paintSleep() {
 /* ---------- wake-up alarm ---------- */
 $("#alDays").innerHTML = DAYS.map((d, i) => `<button data-d="${i}" aria-pressed="false">${d.slice(0, 2)}</button>`).join("");
 $("#alDays").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; b.classList.toggle("on"); saveAlarm(); });
-for (const id of ["#alTime", "#alRamp", "#alList", "#alLevel"]) $(id).addEventListener("change", () => saveAlarm());
+for (const id of ["#alTime", "#alLevel"]) $(id).addEventListener("change", () => saveAlarm());
+/* Ramp up and Play: one button of each is picked (.on); the value is on it as data-v */
+for (const id of ["#alRamp", "#alList"]) $(id).addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  $$(id + " button").forEach(x => x.classList.toggle("on", x === b)); saveAlarm();
+});
+const picked = id => $(id + " button.on")?.dataset.v ?? "";
 $("#alLevel").addEventListener("input", () => $("#alLevelN").innerHTML = volLabel(+$("#alLevel").value));
 
 function renderAlarm() {
   const a = cfg.alarm;
   $("#alOn").setAttribute("aria-checked", a.enabled);
-  $("#alTime").value = a.time; $("#alRamp").value = String(a.ramp);
-  if (!$("#alRamp").value) $("#alRamp").value = "5";
+  $("#alTime").value = a.time;
+  const ramp = $$("#alRamp button").some(b => b.dataset.v === String(a.ramp)) ? String(a.ramp) : "5";
+  $$("#alRamp button").forEach(b => b.classList.toggle("on", b.dataset.v === ramp));
   $$("#alDays button").forEach(b => { const on = a.days.includes(+b.dataset.d); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
-  $("#alList").innerHTML = `<option value="">Resume the queue</option>` + cfg.lists.map(p => `<option value="${esc(p.id)}">${esc(p.name)} · ${p.count} songs</option>`).join("");
-  $("#alList").value = a.list || "";
+  $("#alList").innerHTML = [["", "Resume the queue", ""], ...cfg.lists.map(p => [p.id, p.name, plural(p.count, "song")])]
+    .map(([v, name, n]) => `<button data-v="${esc(v)}" class="${v === (a.list || "") ? "on" : ""}"><span class="nm">${esc(name)}</span>${n ? `<small>${n}</small>` : ""}</button>`).join("");
   $("#alLevel").value = a.level; $("#alLevelN").innerHTML = volLabel(a.level);
   $("#alarmNext").textContent = a.enabled ? nextAlarm(a) : "Off";
 }
@@ -273,8 +280,8 @@ function nextAlarm(a) {
 async function saveAlarm(test = false) {
   const body = {
     enabled: $("#alOn").getAttribute("aria-checked") === "true", time: $("#alTime").value || "07:00",
-    days: $$("#alDays button.on").map(b => +b.dataset.d), list: $("#alList").value || null,
-    level: +$("#alLevel").value, ramp: +$("#alRamp").value,
+    days: $$("#alDays button.on").map(b => +b.dataset.d), list: picked("#alList") || null,
+    level: +$("#alLevel").value, ramp: +picked("#alRamp"),
     test,
   };
   try {

@@ -31,11 +31,12 @@
 .brand span::after { content: var(--house, "Tunebox"); }   /* the house's name (shared/look.js) */
 /* numbered by CSS, so a page that is switched off leaves no gap */
 .nav { counter-reset: nav; }
+.nav.more { -webkit-mask-image: linear-gradient(to left, transparent, #000 56px); mask-image: linear-gradient(to left, transparent, #000 56px); }
 .nav button { counter-increment: nav; }
 .nav button b::before { content: counter(nav, decimal-leading-zero); }
 .nav button b { font: 700 11px var(--display); color: var(--faint); letter-spacing: .06em; }
 .nav button.on, .tabs button.on { color: var(--text); }
-.nav button.on b { color: var(--red); }
+.nav button.on b { color: var(--red-text); }
 .nav button.on::after, .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--red);
   transform-origin: left; animation: underline .3s var(--ease-out); }
 @keyframes underline { from { transform: scaleX(0); } }
@@ -45,7 +46,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 
 /* ---------- section heads ---------- */
 .sec { display: flex; align-items: baseline; gap: 12px; padding: 18px 16px 10px; border-bottom: 1px solid var(--line); }
-.sec b { font: 700 12px var(--display); color: var(--red); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.sec b { font: 700 12px var(--display); color: var(--red-text); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 .sec h2 { margin: 0; font: 600 13px var(--display); letter-spacing: .14em; text-transform: uppercase; }
 .sec .aside { margin-left: auto; color: var(--muted); font-size: 12px; }
 
@@ -71,7 +72,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .mosaic.one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .blank { display: grid; place-items: center; color: var(--faint); position: relative; }
 .card.new .blank { border: 1px dashed var(--line-2); background: none; }
-.sec .aside .link { color: var(--red); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.sec .aside .link { color: var(--red-text); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 @media (hover: hover) { .sec .aside .link:hover { text-decoration: underline; } }
 .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); border-bottom: 1px solid var(--line); }
 /* The lines between tiles (cards, chips, stat tiles) are each tile's own right and bottom edge, drawn just outside it
@@ -86,7 +87,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .chips i.c0 { background: var(--red); border-radius: 50%; }
 .chips i.c1 { background: var(--yellow); }
 .chips i.c2 { background: var(--blue); }
-@media (hover: hover) { .card.new:hover .blank { border-color: var(--red); color: var(--red); } }
+@media (hover: hover) { .card.new:hover .blank { border-color: var(--red); color: var(--red-text); } }
 
 /* ---------- song rows ---------- */
 .list { display: flex; flex-direction: column; }
@@ -108,7 +109,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .acts button { width: var(--hit); height: var(--hit); display: grid; place-items: center; color: var(--muted); transition: color .12s, background .12s; }
 @media (hover: hover) { .acts button:hover { color: var(--text); background: var(--s2); } }
 .like svg path { fill: none; }
-.like.on { color: var(--red) !important; }
+.like.on { color: var(--red-text) !important; }
 .like.on svg path { fill: currentColor; }
 .ctrls .sq.like { display: none; }
 .acts button:disabled { opacity: .3; pointer-events: none; }
@@ -133,7 +134,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 @media (hover: hover) { .btn.red:hover { filter: brightness(1.08); } }
 .btn.ghost { border-color: transparent; color: var(--muted); }
 @media (hover: hover) { .btn.ghost:hover { color: var(--text); border-color: var(--line-2); } }
-@media (hover: hover) { .btn.danger:hover { border-color: var(--red); color: var(--red); } }
+@media (hover: hover) { .btn.danger:hover { border-color: var(--red); color: var(--red-text); } }
 .back { height: var(--hit); padding: 0 16px; display: flex; align-items: center; gap: 8px; color: var(--muted); border-bottom: 1px solid var(--line); width: 100%;
   font: 600 12px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 @media (hover: hover) { .back:hover { color: var(--text); } }
@@ -146,12 +147,14 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 @keyframes spin { 0% { transform: rotate(0); } 50% { transform: rotate(90deg); } 100% { transform: rotate(180deg); } }
 .newform.plain { background: none; }
 .hint.tight { margin: 0 0 8px; }
-.blank.heart { color: var(--red); }
+.blank.heart { color: var(--red-text); }
 /* Liked songs: whose likes to show */
 /* find and order inside a long playlist */
 .ltools { display: flex; gap: 8px; margin: 0 0 14px; }
 .ltools input { flex: 1; min-width: 0; }
-.ltools select { flex: none; width: auto; }
+.ltools .seg2 { flex: none; width: min(420px, 50%); }
+.ltools .seg2 button { padding: 0 6px; letter-spacing: .08em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .ltools { flex-wrap: wrap; } .ltools input, .ltools .seg2 { flex: 1 1 100%; width: auto; } }
 .likers { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
 .likers button { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--line-2);
   font: 600 12px var(--body, inherit); background: var(--bg); }
@@ -168,7 +171,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
 .uprow .upbar i { display: block; height: 100%; background: var(--yellow); transition: width .2s linear; }
 .uprow.wait .t { color: var(--muted); }
 .uprow.done .upbar i { background: var(--blue); }
-.uprow.bad .s { color: var(--red); grid-column: 1 / -1; text-align: left; white-space: normal; }
+.uprow.bad .s { color: var(--red-text); grid-column: 1 / -1; text-align: left; white-space: normal; }
 .uprow.bad .upbar { display: none; }
 #view.dropping { outline: 3px dashed var(--yellow); outline-offset: -6px; }
 .whoid.lecover { grid-template-columns: 96px minmax(0, 1fr); }

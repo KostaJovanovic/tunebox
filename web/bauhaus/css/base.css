@@ -1,8 +1,8 @@
 /* Colours, type and resets. Dark by default; light follows the device or the theme setting. */
 :root {
   --bg: #111111; --s1: #181818; --s2: #202020; --line: #2C2C2C; --line-2: #3A3A3A;
-  --text: #EDEAE3; --muted: #8F8B83; --faint: #5C5953;
-  --red: #E63B2E; --yellow: #F2C230; --blue: #1F5FBF; --blue-text: #6E9BE8;
+  --text: #EDEAE3; --muted: #8F8B83; --faint: #807C74;
+  --red: #D9352A; --yellow: #F2C230; --blue: #1F5FBF; --blue-text: #6E9BE8;
   --on-red: #FFFFFF; --on-yellow: #111111;
   --display: "Jost", "Futura", "Century Gothic", sans-serif;
   --ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -14,13 +14,22 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg: #EFEBE1; --s1: #F7F4EC; --s2: #E6E1D5; --line: #D6D0C2; --line-2: #BDB6A6;
-    --text: #111111; --muted: #5F5B53; --faint: #948E82; --blue-text: #1F5FBF; color-scheme: light;
+    --text: #111111; --muted: #5F5B53; --faint: #6E695F; --blue-text: #1F5FBF; color-scheme: light;
   }
 }
 :root[data-theme="light"] {
   --bg: #EFEBE1; --s1: #F7F4EC; --s2: #E6E1D5; --line: #D6D0C2; --line-2: #BDB6A6;
-  --text: #111111; --muted: #5F5B53; --faint: #948E82; --blue-text: #1F5FBF; color-scheme: light;
+  --text: #111111; --muted: #5F5B53; --faint: #6E695F; --blue-text: #1F5FBF; color-scheme: light;
 }
+/* the accent as text: lifted towards the text colour so it reads at 4.5:1 on every surface */
+:root { --red-text: var(--red); }
+@supports (color: color-mix(in srgb, red, red)) {
+  :root { --red-text: color-mix(in srgb, var(--red) 75%, #fff); }
+  :root[data-theme="light"] { --red-text: color-mix(in srgb, var(--red) 78%, #000); }
+}
+@media (prefers-color-scheme: light) { @supports (color: color-mix(in srgb, red, red)) {
+  :root:not([data-theme="dark"]) { --red-text: color-mix(in srgb, var(--red) 78%, #000); }
+} }
 * { box-sizing: border-box; border-radius: 0; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 var(--ui); }
@@ -30,7 +39,9 @@ body { -webkit-user-select: none; user-select: none; }
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
-@media (hover: none) { button:focus-visible { outline: none; } }   /* a touch screen: no outline left on the last button tapped */
+/* a touch screen: no outline left on the last button tapped, until a keyboard is used (html[data-kb], ui.js) */
+@media (hover: none) { html:not([data-kb]) button:focus-visible { outline: none; } }
+.drawer:focus, .modal:focus, #admin:focus, #recap:focus, #canvas:focus { outline: none; }
 img { display: block; }
 
 /* What the admin switched off (html[data-off], set by shared/look.js before the first paint): an element

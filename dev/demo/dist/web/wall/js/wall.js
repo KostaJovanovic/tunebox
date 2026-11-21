@@ -180,7 +180,9 @@ onState(s => {
   const by = !c || !now || !w.who || !feat("people") ? "" : now.src !== "user" ? "From the radio" : people[now.by] ? `Added by ${people[now.by].name}` : "";
   if (w.who) syncPeople(s.peopleRev);
   $("#by").textContent = by; $("#by").hidden = !by;
-  $("#next").innerHTML = "<b>Up next</b>" + next.map(t => `<span>${esc(t.title)} <i>${esc(t.artist)}</i></span>`).join(""); $("#next").hidden = !next.length;
+  /* whose turn is coming is what a crowd looks at the wall for: the name, when the "who" option is on */
+  const whose = t => !w.who || !feat("people") ? "" : t.src !== "user" ? " · radio" : people[t.by] ? ` · ${esc(people[t.by].name)}` : "";
+  $("#next").innerHTML = "<b>Up next</b>" + next.map(t => `<span>${esc(t.title)} <i>${esc(t.artist)}${whose(t)}</i></span>`).join(""); $("#next").hidden = !next.length;
   $("#playBtn").innerHTML = s.paused || !c ? ICON_PLAY : ICON_PAUSE;
   const dur = s.duration || secs(c?.duration);   /* restored paused after a restart: mpv has no length yet */
   $("#fill").style.transform = `scaleX(${dur ? Math.min(1, s.position / dur) : 0})`;

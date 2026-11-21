@@ -30,10 +30,10 @@ body.admin-open { overflow: hidden; }
 .aperson .go { color: var(--faint); font-size: 20px; padding-right: 4px; }
 .arow .acts { display: flex; }
 .arow .acts button { width: auto; height: var(--hit); padding: 0 10px; color: var(--muted); font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
-@media (hover: hover) { .arow .acts button:hover { color: var(--red); } }
+@media (hover: hover) { .arow .acts button:hover { color: var(--red-text); } }
 .arow .acts .n { color: var(--muted); font-size: 12px; }
-.arow.ev-fail .t, .arow.ev-lockout .t { color: var(--red); }
-.abody .mark { margin-left: 6px; padding: 1px 5px; border: 1px solid var(--red); color: var(--red); font: 600 10px/1.3 var(--display);
+.arow.ev-fail .t, .arow.ev-lockout .t { color: var(--red-text); }
+.abody .mark { margin-left: 6px; padding: 1px 5px; border: 1px solid var(--red); color: var(--red-text); font: 600 10px/1.3 var(--display);
   letter-spacing: .08em; text-transform: uppercase; font-style: normal; vertical-align: 1px; }
 .abody .lock { font-size: 11px; margin-left: 2px; }
 
@@ -47,12 +47,13 @@ body.admin-open { overflow: hidden; }
 .astats span { color: var(--muted); font: 600 10px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 .aform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
 .aform label { flex: 1 1 100%; color: var(--muted); font-size: 12.5px; }
-.aform select.field { flex: 0 1 240px; }
+.aform .sems { margin-top: 2px; }
+.aform .sems .more { align-self: center; color: var(--muted); font-size: 12.5px; }
+.aform .sems button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 600; }
 .aperson[hidden] { display: none; }
 .afind { width: 100%; margin: 0 0 4px; }
 @media (max-width: 600px) {
   .aform .field { flex: 1 1 100%; }
-  .aform select.field { flex: 1 1 0; }
   .atabs button { padding: 0 12px; }
 }
 .aform .field.num { flex: 0 0 96px; }
@@ -68,7 +69,7 @@ body.admin-open { overflow: hidden; }
 .meter .mine { background: var(--red); min-width: 2px; }
 
 /* the top bar says so while the admin is unlocked on this device */
-.top .adminbadge { display: none; padding: 0 14px; border-left: 1px solid var(--line); color: var(--red);
+.top .adminbadge { display: none; padding: 0 14px; border-left: 1px solid var(--line); color: var(--red-text);
   font: 700 10px var(--display); letter-spacing: .14em; text-transform: uppercase; }
 html[data-admin] .top .adminbadge { display: block; }
 @media (hover: hover) { .top .adminbadge:hover { background: var(--s1); } }
@@ -81,4 +82,4 @@ html[data-admin] .top .adminbadge { display: block; }
 #ytdlpBar button:disabled { opacity: .6; }
 #ytdlpBar button.x { border: 0; padding: 0 8px; font-size: 20px; letter-spacing: 0; }
 html[data-offline] #ytdlpBar { display: none; }
-.abody .body p.warn { color: var(--red); }
+.abody .body p.warn { color: var(--red-text); }

@@ -32,7 +32,7 @@ kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; 
 .toast.extra { bottom: calc(var(--player-h) + 68px); }   /* above an Undo still showing (ui.js) */
 .toast.open { opacity: 1; transform: translate(-50%, 0); }
 .toast.undo.open { pointer-events: auto; }
-.toast button { margin-left: 14px; padding: 0 2px; color: var(--red); font: 700 12px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.toast button { margin-left: 14px; padding: 0 2px; color: var(--red-text); font: 700 12px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 /* the first-time card (setup.js): a taller pop-up with the house's name, accent, preset and admin password */
 .modal.setup { width: min(520px, calc(100% - 32px)); max-height: calc(100% - 48px); }
 .setupform { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
@@ -40,6 +40,14 @@ kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; 
 .setupform .lbl { margin: 8px 0 0; }
 .setupform .hint { margin: 0; color: var(--muted); font-size: 13px; }
 .setupform .hint a { color: var(--text); text-decoration: underline; }
-.setupform .msg { color: var(--red); font-size: 13px; }
+.setupform .msg { color: var(--red-text); font-size: 13px; }
 .setupform .msg:empty { display: none; }
 .setupbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* the pass phrase opens on top of another pop-up (Who's listening): what is under it dims, so it doesn't read as part of it */
+body:has(:is(.modal, .drawer, #admin).open:not(#phrase)) #phrase.open { box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55); }
+/* Shortcuts: two columns of keys where there is room, so the whole list shows without scrolling */
+@media (min-width: 761px) {
+  #keys { width: min(640px, calc(100% - 32px)); }
+  .keys { grid-template-columns: auto 1fr auto 1fr; }
+}

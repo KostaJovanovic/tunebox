@@ -6,7 +6,7 @@
   .brand { padding: 0 12px; }
   .top .home.kb { display: none; }
   .top .adminbadge { padding: 0 8px; letter-spacing: .06em; }
-  .nav button { padding: 0 14px; }
+  .nav button { padding: 0 12px; }
   .nav button b { display: none; }
   /* the mini bar: cover and title (tap or swipe up for the canvas, swipe sideways to skip), like, volume, play */
   .player .in { grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; padding: 6px 8px 6px 6px; touch-action: none; }
@@ -69,3 +69,9 @@
 }
 @keyframes volpop { from { opacity: 0; transform: translateY(8px) scale(.96); } }
 @media (max-width: 600px) { #queue .row { min-height: 68px; } }
+/* a finger needs 44px: the chips (Stats periods, names) and the small text buttons in a section's head
+   (Play all, Play the recap) grow their tap area without moving what is around them */
+@media (hover: none) {
+  .likers button { height: var(--hit); }
+  .sec .aside .link { padding: 14px 0; margin: -14px 0; }
+}

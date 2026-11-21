@@ -122,8 +122,8 @@ function renderList(p, renaming = false) {
         ${isLiked || isTop || !mine(p) ? "" : `<button class="btn ghost" data-act="list-rename">Rename</button>
         <button class="btn ghost danger" data-act="list-delete">Delete</button>`}`;
   const tools = p.tracks.length > 8 ? `<div class="ltools"><input class="field" id="listFind" type="search" placeholder="Find in this playlist" value="${esc(listQuery)}" autocomplete="off">
-      <select class="field" id="listSort" aria-label="Order">${[["", isTop ? "Most played" : "Playlist order"], ["title", "Title"], ["artist", "Artist"]]
-        .map(([v, l]) => `<option value="${v}" ${v === listSort ? "selected" : ""}>${l}</option>`).join("")}</select></div>` : "";
+      <div class="seg2 c3" role="group" aria-label="Order">${[["", isTop ? "Most played" : "As saved"], ["title", "Title"], ["artist", "Artist"]]
+        .map(([v, l]) => `<button class="${v === listSort ? "on" : ""}" data-act="list-sort" data-v="${v}" aria-pressed="${v === listSort}">${l}</button>`).join("")}</div></div>` : "";
   main(`${backBtn("All playlists", 'data-act="nav" data-v="lists"')}
     <div class="hero">${mosaic(p.tracks.map(t => t.thumb))}<div>
       <div class="k">${isLiked ? "Liked songs" : isTop ? "Most played" : "Tunebox playlist"} · <span id="listCount">${countOf(p, shown)}</span></div>${title}
@@ -132,7 +132,6 @@ function renderList(p, renaming = false) {
     </div></div>${isLiked ? likers(p.tracks) : ""}${tools}
     <div class="list">${rowsOf(p, shown)}</div>`);
   $("#listFind")?.addEventListener("input", e => { listQuery = e.target.value; refreshRows(); });
-  $("#listSort")?.addEventListener("change", e => { listSort = e.target.value; renderList(lists.mineMeta); });
   if (renaming) {
     const r = $("#rename");
     r.addEventListener("keydown", e => { if (e.key === "Enter") doRename(); if (e.key === "Escape") renderList(lists.mineMeta); });
@@ -210,6 +209,7 @@ on("list-open", el => showList(el.dataset.id));
 on("list-move", el => moveTrack(+el.dataset.i, +el.dataset.d));
 on("list-shuffle", shuffleList);
 /* Select: pick songs in the playlist, then queue them, copy them to another playlist, or take them out */
+on("list-sort", b => { listSort = b.dataset.v; renderList(lists.mineMeta); });
 on("list-select", () => {
   const p = lists.mineMeta, of = ids => ids.map(v => lists.mine.find(t => t.videoId === v)).filter(Boolean);
   startSelect($("#view .list"), $("#view"), [

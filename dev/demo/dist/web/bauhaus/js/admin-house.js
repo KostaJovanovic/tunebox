@@ -1,7 +1,7 @@
 /* The admin panel's Features and House tabs. Features: a switch for everything Tunebox does, four
    presets that set them all at once, and the setup as a file for another Tunebox. House: its name and
    accent, the time zone, who may add a name, groups, the wall screen and the blocklist. */
-import { $, esc, plural } from "../../shared/dom.js";
+import { $, esc, plural, fold } from "../../shared/dom.js";
 import { api, errText } from "../../shared/api.js";
 import { house, setHouse, G } from "../../shared/house.js";
 import { COLORS, people } from "../../shared/people.js";
@@ -119,7 +119,8 @@ export async function showHouse(target) {
       <div class="presets c3">${accent("", "Each device's own")}${Object.entries(ACCENTS).map(([k, a]) => accent(k, a.name, a.c)).join("")}</div>
       <p class="hint">A device that picked its own accent in Settings keeps it.</p>
       <span class="lbl">Time zone</span>
-      <select class="field" id="admTz" aria-label="Time zone"><option value="">The server's own time</option>${zones.map(z => `<option${z === h.tz ? " selected" : ""}>${esc(z)}</option>`).join("")}</select>
+      <div class="aform"><input class="field" id="admTz" type="search" placeholder="Find a city or region" autocomplete="off" aria-label="Find a time zone">
+        <div class="sems" id="admTzList" role="group" aria-label="Time zone">${tzChips(zones, h.tz)}</div></div>
       <p class="hint">The alarm rings in this time, and Stats counts its hours and days in it.</p>
       <form class="aform" id="admNet"><label for="admNetName">The Wi-Fi to join: shown at the bottom of Settings, under the server's address</label>
         <input class="field" id="admNetName" value="${esc(h.network || "")}" placeholder="The Wi-Fi's name" maxlength="32" autocomplete="off"><button class="btn">Save</button></form>
@@ -191,7 +192,7 @@ export async function showHouse(target) {
   submit("#admNewGroup", name => name && save(() => call("api/admin/groups", { name }), `Added ${name}`));
   submit("#admGroup", name => name && save(() => call(`api/admin/groups/${editing}`, { name }, "PATCH"), "Renamed"));
   submit("#admBlock", name => name && block({ kind: "artist", name }));
-  $("#admTz").addEventListener("change", e => save(() => call("api/admin/house", { tz: e.target.value }, "PATCH"), e.target.value ? `${e.target.value} time` : "The server's own time"));
+  $("#admTz").addEventListener("input", e => { $("#admTzList").innerHTML = tzChips(zones, h.tz, e.target.value.trim()); });
 }
 
 /* Blocks a song or an artist (the admin's; asks for the password if need be) and says what left the queue */
@@ -230,3 +231,17 @@ on("adm-group-del", async b => {
   if (await ask(`Remove ${x.name}? Its people stay, without it.`, { ok: "Remove", danger: true })) save(() => call(`api/admin/groups/${x.id}`, undefined, "DELETE"), `Removed ${x.name}`);
 });
 on("adm-unblock", b => save(() => call(`api/admin/blocks/${b.dataset.kind}/${encodeURIComponent(b.dataset.key)}`, undefined, "DELETE"), b.dataset.kind === "radio" ? `Back on the radio: ${b.dataset.name}` : `Unblocked ${b.dataset.name}`));
+
+/* The time zone: the one in use, then what the find field matches (a dozen at most), as chips.
+   "Europe/Belgrade" also matches "belgrade" and "europe" */
+function tzChips(zones, cur, q = "") {
+  const hits = q ? zones.filter(z => fold(z.replace(/_/g, " ")).includes(fold(q))) : [];
+  const shown = [cur || "", ...hits.filter(z => z !== cur).slice(0, 12)];
+  const chip = z => `<button type="button" class="${z === (cur || "") ? "on" : ""}" aria-pressed="${z === (cur || "")}" data-act="adm-tz" data-z="${esc(z)}">${z ? esc(z.replace(/_/g, " ")) : "The server's own time"}</button>`;
+  return (cur ? chip("") : "") + shown.map(chip).join("")
+    + (hits.length > 12 ? `<span class="more">and ${hits.length - 12} more: type to narrow</span>` : q && !hits.length ? '<span class="more">No time zone matches</span>' : "");
+}
+on("adm-tz", b => {
+  const z = b.dataset.z;
+  save(() => call("api/admin/house", { tz: z }, "PATCH"), z ? `${z} time` : "The server's own time");
+});
