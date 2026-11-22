@@ -147,6 +147,13 @@ back to the player.
 
 ## Releases
 
+## Lights Out
+version: 0.81
+date: 22 November 2026
+
+- **The music goes to bed.** Whatever is still playing at 4:30 in the morning
+  fades out over half a minute and pauses.
+
 ## Full House
 version: 0.73 - 0.80
 date: 21 November 2026

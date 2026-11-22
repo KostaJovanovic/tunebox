@@ -66,7 +66,8 @@ SEMINAR_COLORS = ["#6A4BC4", "#EE6A1F", "#C8327A", "#F2C230", "#0E8C8C", "#8A5A2
 VOL_RANGE_DB = 50                           # the volume slider spans -50 dB .. 0 dB (0 = mute)
 PAUSE_FADE = 0.5                            # play/pause fades in or out over half a second
 SLEEP_FADE = 30                             # sleep timer fades out over the last 30 s
-TRACK_FADE = 8                              # "end of track" sleep fades over the last 8 s
+LIGHTS_OUT = "04:30"                        # music still playing then fades out and pauses (house time)
+TRACK_FADE = 8                             # "end of track" sleep fades over the last 8 s
 TEST_RAMP = 10                              # an alarm test ramps up over 10 s, not the alarm's minutes
 
 QUALITY = {                                 # yt-dlp format per audio quality setting

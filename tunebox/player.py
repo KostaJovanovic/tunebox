@@ -9,7 +9,7 @@ import time
 
 from . import blocklist, data, house, plays
 from .audio import level_to_mpv
-from .config import (FAIL_LIMIT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_ARTIST_GAP, RADIO_MIN, RADIO_RECENT,
+from .config import (FAIL_LIMIT, LIGHTS_OUT, PAUSE_FADE, PLAYED_KEEP, PRELOAD_AT, RADIO_ARTIST_GAP, RADIO_MIN, RADIO_RECENT,
                      RADIO_REFILL_AT, SESSION_EVERY, SESSION_FILE, SKIP_GRACE, SLEEP_FADE, TRACK_FADE, UNDO_KEEP,
                      UNDO_TRACKS, VOL_RANGE_DB)
 from .files import read_json, write_json
@@ -143,6 +143,7 @@ class Player:
         loop.create_task(self._volume_loop())
         house.watchers.append(self.clock.set)
         loop.create_task(self._alarm_loop())
+        loop.create_task(self._lights_out_loop())
         self.load_session()
         loop.create_task(self._session_loop())
 
@@ -687,6 +688,23 @@ class Player:
                     await self.fire_alarm()
             except Exception as exc:
                 self.error = f"Alarm failed: {exc}"[:200]
+
+    async def _lights_out_loop(self):
+        """At LIGHTS_OUT by the house's clock, music still playing fades out over SLEEP_FADE and pauses,
+        through the sleep timer. Checked every 20 s; nothing may end this loop."""
+        done = ""
+        while True:
+            await asyncio.sleep(20)
+            try:
+                now = datetime.datetime.now(house.tz())
+                day = now.strftime("%Y-%m-%d")
+                p = self.mpv.props
+                if (now.strftime("%H:%M") == LIGHTS_OUT and done != day
+                        and not (p.get("pause") or p.get("idle-active"))):
+                    done = day
+                    await self.set_sleep(SLEEP_FADE / 60)
+            except Exception:
+                pass
 
     async def fire_alarm(self, ramp_s: float | None = None):
         a = settings["alarm"]

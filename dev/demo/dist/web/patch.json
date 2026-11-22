@@ -1,8 +1,19 @@
 {
  "app": "Tunebox",
- "version": "0.80",
+ "version": "0.81",
  "page": "patch",
  "releases": [
+  {
+   "name": "Lights Out",
+   "version": "0.81",
+   "date": "22 November 2026",
+   "items": [
+    {
+     "tag": "lead",
+     "html": "<strong>The music goes to bed.</strong> Whatever is still playing at 4:30 in the morning fades out over half a minute and pauses."
+    }
+   ]
+  },
   {
    "name": "Full House",
    "version": "0.73 - 0.80",
