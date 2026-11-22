@@ -6,6 +6,7 @@
   tunebox next | prev | toggle | vol +5 | seek 1:30 | sleep 30 | undo
   tunebox queue                      up next; queue rm 2, queue mv 4 1, queue top 3, queue jump 2, queue clear
   tunebox search QUERY, album ID, artist ID, playlist ID, home, explore, lyrics --follow, stats
+  tunebox import FILE                an m3u, CSV or text playlist: finds every song (--into LIST, --all, --review)
   tunebox lists, like, history, people, groups, local upload FILE..., backup, restore FILE
   tunebox admin login, features off lyrics, house set name Studio, block add --artist NAME
   tunebox update-ytdlp               songs stop loading? update yt-dlp on the server (--check: the versions)
@@ -761,6 +762,55 @@ def cmd_lists(c, a):
     show(c.call("PATCH", f"api/lists/{p['id']}/tracks", {"op": "remove", "videoId": t["videoId"], "at": n - 1}), f'Took {song(t)} out of "{p["name"]}"')
 
 
+def cmd_import(c, a):
+    """The server finds every song (about one a second); then the sure ones are saved, and the rest printed
+    to add by hand. --review leaves it all for the page instead (Playlists, Import)."""
+    try:
+        raw = Path(a.file).read_bytes()
+    except OSError as exc:
+        raise Usage(f"Can't read {a.file}: {exc.strerror}")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1252", "replace")             # an old m3u
+    j = c.call("POST", "api/import", {"text": text, "name": a.name or Path(a.file).stem})
+    if a.review:
+        return show(j, f'Finding {plural(j["total"], "song")} for "{j["name"]}". Review and save it in the page: Playlists, Import')
+    try:
+        while j["status"] == "running":
+            if not JSON and sys.stderr.isatty():
+                print(f"\rFinding songs: {j['done']} of {j['total']}", end="", file=sys.stderr, flush=True)
+            time.sleep(2)
+            j = c.get(f"api/import/{j['id']}")
+    except KeyboardInterrupt:
+        print("\nIt keeps going on the server: review and save it in the page (Playlists, Import)", file=sys.stderr)
+        raise SystemExit(1)
+    if not JSON and sys.stderr.isatty():
+        print("\r" + " " * 40 + "\r", end="", file=sys.stderr)
+    take = ("sure", "unsure") if a.all else ("sure",)
+    rows = [r for r in j["rows"] if r["state"] in take and r["track"]]
+    if not rows:
+        c.call("DELETE", f"api/import/{j['id']}")
+        raise Refused(1, "None of the songs was found for sure (--all takes the best guesses too)")
+    saved = []
+    if a.into:
+        p = the_list(c, a.into)
+        r = c.call("POST", f"api/lists/{p['id']}/tracks", {"tracks": [r["track"] for r in rows]})
+        saved.append(f'Added {plural(r["added"], "song")} to "{p["name"]}"')
+    else:
+        groups = {n: [r for r in rows if r["playlist"] == n] for n in j["names"]} if len(j["names"]) > 1 and not a.name else {j["name"]: rows}
+        for name, rs in groups.items():
+            if rs:
+                p = c.call("POST", "api/lists", {"name": name, "tracks": [r["track"] for r in rs]})
+                saved.append(f'Saved "{p["name"]}" with {plural(len(p["tracks"]), "song")}')
+    c.call("DELETE", f"api/import/{j['id']}")
+    rest = [r for r in j["rows"] if r not in rows]
+    if rest:
+        saved.append(f"\nNot saved ({len(rest)}): add these by hand, or run again with --all to take the best guesses")
+        saved += [f"  {r['text']}" + (f"   (best guess: {song(r['track'])})" if r["track"] else "   (not found)") for r in rest]
+    show(j, "\n".join(saved))
+
+
 def cmd_like(c, a):
     t = state(c)["current"]
     if not t:
@@ -1278,6 +1328,10 @@ def build() -> argparse.ArgumentParser:
         arg("arg", nargs="*"), arg("--from-queue", action="store_true", help="new: with the songs in the queue"),
         arg("--shuffle", action="store_true", help="play: in a random order"), arg("--next", action="store_true", help="play: right after this song"),
         arg("--add", dest="append", action="store_true", help="play: at the end of the queue"))
+    cmd("import", cmd_import, "a playlist from an m3u, CSV (TuneMyMusic, Exportify...) or text file: finds every song and saves the sure ones",
+        arg("file"), arg("--name", help="the new playlist's name (a CSV with several playlists then becomes one)"),
+        arg("--into", help="add to this playlist instead"), arg("--all", action="store_true", help="also save the best guesses for songs it isn't sure of"),
+        arg("--review", action="store_true", help="save nothing: review it in the page (Playlists, Import)"))
     cmd("like", cmd_like, "like the song playing", arg("--off", action="store_true", help="unlike it"))
     cmd("history", cmd_history, "what played: history [HOW MANY], or history clear (the admin)", arg("n", nargs="?", default="20"))
     cmd("people", cmd_people, "names: ls, show NAME, add NAME, edit NAME, rm NAME, merge NAME INTO, signout NAME (all but ls and add: the admin)",

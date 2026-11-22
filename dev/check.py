@@ -1,5 +1,5 @@
 """Quick self-check of the logic that is easy to break and hard to notice: the same-site guard, fair
-turns, rewriting the play log, Top 30, the house's setup and the lyrics cache. Plain asserts, no test framework.
+turns, rewriting the play log, Top 30, the house's setup, the lyrics cache and reading imported playlists. Plain asserts, no test framework.
 
     .venv\\Scripts\\python dev\\check.py      (or: .venv/bin/python dev/check.py)
 
@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import HTTPException  # noqa: E402
 
-from tunebox import house, lyrics, plays  # noqa: E402
+from tunebox import house, importer, lyrics, plays  # noqa: E402
 from tunebox.api import stats  # noqa: E402
 from tunebox.api.house import HouseBody, change  # noqa: E402
 from tunebox.player import Player  # noqa: E402
@@ -38,6 +38,33 @@ def check_turns():
     for by in "AAABBC":
         p.queue.insert(p.turn_slot(by), {"videoId": by, "by": by, "src": "user"})
     assert [t["by"] for t in p.queue[1:]] == list("ABCABA"), [t["by"] for t in p.queue]
+
+
+def check_import():
+    """The three kinds of file, as TuneMyMusic, players and people write them."""
+    csv_ = ('﻿Track name,Artist name,Album,Playlist name,Type,ISRC,Spotify - id\n'
+            '"Call It Fate, Call It Karma","The Strokes","Comedown Machine","valjdaslike","Playlist","USRC11300085","3Y4r"\n'
+            '"Where This Flower Blooms (feat. Frank Ocean)","Tyler, The Creator","Flower Boy","Rektorat","Playlist","x","y"\n')
+    a, b = importer.parse(csv_)
+    assert (a["title"], a["artist"], a["isrc"], a["playlist"]) == ("Call It Fate, Call It Karma", "The Strokes", "USRC11300085", "valjdaslike"), a
+    assert (b["artist"], b["playlist"]) == ("Tyler, The Creator", "Rektorat"), b
+    txt = "﻿Blondie - Heart Of Glass - Single Version / Remastered\n\n01. Men I Trust - Show Me How 3:35\nJust A Title"
+    r = importer.parse(txt)
+    assert [(x["artist"], x["title"]) for x in r] == [("Blondie", "Heart Of Glass - Single Version / Remastered"),
+                                                      ("Men I Trust", "Show Me How"), ("", "Just A Title")], r
+    m3u = ("#EXTM3U\n#PLAYLIST:Car\n#EXTINF:213,Arctic Monkeys - Jet Skis On The Moat\nC:\\Music\\a.mp3\n"
+           "/music/Vansire%20-%20From%20the%20Subway%20Train.flac\nhttps://youtu.be/dQw4w9WgXcQ\n")
+    r = importer.parse(m3u)
+    assert [(x["artist"], x["title"], x["videoId"], x["playlist"]) for x in r] == [
+        ("Arctic Monkeys", "Jet Skis On The Moat", "", "Car"), ("Vansire", "From the Subway Train", "", "Car"),
+        ("", "", "dQw4w9WgXcQ", "Car")], r
+    assert importer.norm("Heart Of Glass - Single Version / Remastered") == importer.norm("Heart of Glass") == "heart of glass"
+    assert importer.norm("Woman - Remastered 2010") == "woman"
+    assert importer.norm("Snežana Savić Đavoli") == importer.norm("Snezana Savic Davoli")
+    assert importer.norm("Holding My Heart (Sped Up)") != importer.norm("Holding My Heart")
+    row = {"title": "Lady Brown (feat. Cise Starr from CYNE)", "artist": "Nujabes"}
+    assert importer.score(row, {"title": "Lady Brown", "artist": "Nujabes, Cise Starr"}) >= importer.SURE
+    assert importer.score(row, {"title": "Lady Brown", "artist": "Someone Else"}) < importer.SURE
 
 
 def play(t, v, by="", s=200):
@@ -89,6 +116,7 @@ async def check_lyrics_cache():
 async def main():
     check_host_ok()
     check_turns()
+    check_import()
     check_rewrite_and_top()
     check_house_change()
     await check_lyrics_cache()

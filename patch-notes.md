@@ -148,11 +148,22 @@ back to the player.
 ## Releases
 
 ## Full House
-version: 0.73 - 0.79
+version: 0.73 - 0.80
 date: 21 November 2026
 
 - **Tunebox stays tidy with a crowd.** A house with dozens of names and groups
-  now fits on the screen.
+  now fits on the screen, and playlists from elsewhere come in from a file.
+
+- [new] **Import a playlist.** `Import` on the Playlists page takes an m3u, a
+  CSV (TuneMyMusic, Exportify and the like) or plain text with one song per
+  line, picked, dropped on the page or pasted. Tunebox finds every song on
+  YouTube Music, about one a second, and keeps going if you leave the page.
+- [new] **Check before you save.** Songs it is unsure of and songs it could not
+  find come first. Tap one to hear it, pick another match, or leave it out. Then
+  save it as a new playlist or add it to one you have. A file with several
+  playlists asks whether to make one each or put them all in one.
+- [new] **On the command line,** `tunebox import FILE` saves the songs it is sure
+  of and lists the rest.
 
 - [fix] **Stats** with many names shows the five who added the most, then a
   button that opens the names list, with its find field and groups, to pick

@@ -24,6 +24,7 @@ import "./menu.js";
 import "./recap.js";
 import "./admin.js";
 import "./setup.js";
+import "./import.js";
 
 setToaster(toast);
 setupLikes(toast, likesChanged);

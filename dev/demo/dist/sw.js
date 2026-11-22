@@ -856,10 +856,16 @@ route("PATCH", "api/lists/{id}/tracks", c => {
   return p;
 });
 route("POST", "api/lists/{id}/tracks", c => {
-  const t = cleanTrack(c.body.track) || fail(400, "not a track"), p = getList(c.params.id), dup = p.tracks.some(x => x.videoId === t.videoId);
-  if (!dup) { p.tracks.splice(p.id === LIKED ? 0 : p.tracks.length, 0, t); p.updated = int(now()); saveLists(); }
-  return { ok: true, duplicate: dup, count: p.tracks.length };
+  const ts = (c.body.tracks || [c.body.track]).map(cleanTrack).filter(Boolean);
+  if (!ts.length) fail(400, "not a track");
+  const p = getList(c.params.id), have = new Set(p.tracks.map(x => x.videoId));
+  const fresh = ts.filter(t => !have.has(t.videoId) && have.add(t.videoId));
+  if (fresh.length) { p.tracks.splice(p.id === LIKED ? 0 : p.tracks.length, 0, ...fresh); p.updated = int(now()); saveLists(); }
+  return { ok: true, duplicate: !fresh.length, added: fresh.length, count: p.tracks.length };
 });
+/* importing searches YouTube Music for every song: the demo has only its recorded music */
+route("GET", "api/import", () => []);
+route("POST", "api/import", () => fail(400, "Importing needs a real Tunebox: the demo can't search YouTube Music"));
 route("POST", "api/like", c => {
   const t = cleanTrack(c.body.track) || fail(400, "not a track"), by = c.who, p = S.playlists[LIKED], have = p.tracks.find(x => x.videoId === t.videoId);
   if (c.body.liked && !have) p.tracks.unshift({ ...t, likedBy: by ? [by] : [] });

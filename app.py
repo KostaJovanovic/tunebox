@@ -16,6 +16,7 @@ This file only puts the app together (systemd runs `uvicorn app:app`). The code 
   local.py     uploaded songs: tags, converting, room
   network.py   the server's LAN address and Wi-Fi name, for the bottom of Settings
   here.py      who's here: the devices that asked for the state in the last minute (admin)
+  importer.py  importing a playlist from an m3u, CSV or text file: finding each song
   cli.py       the tunebox command: a client over HTTP, on its own (no other module here, no package)
   tui.py       tunebox tui: the same client as a full-screen terminal program (standard library only)
   api/         the HTTP routes, one file per area (pages, browse, queue, lists, people, admin, settings, lyrics...)
@@ -30,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # tunebox/ sits next 
 from fastapi import FastAPI  # noqa: E402
 
 from tunebox import audit, local as local_songs, plays, web  # noqa: E402
-from tunebox.api import admin, backup, browse, house, lists, local, lyrics, pages, people, queue, settings, stats  # noqa: E402
+from tunebox.api import admin, backup, browse, house, imports, lists, local, lyrics, pages, people, queue, settings, stats  # noqa: E402
 from tunebox.config import WEB_DIR  # noqa: E402
 from tunebox.player import player  # noqa: E402
 from tunebox.settings import flush_settings  # noqa: E402
@@ -53,6 +54,6 @@ async def lifespan(_app):
 
 app = FastAPI(title="Tunebox", lifespan=lifespan)
 web.install(app)
-for area in (pages, queue, browse, lists, people, admin, house, local, settings, lyrics, stats, backup):
+for area in (pages, queue, browse, lists, imports, people, admin, house, local, settings, lyrics, stats, backup):
     app.include_router(area.router)
 app.mount("/web", pages.NoCacheFiles(directory=WEB_DIR, check_dir=False), name="web")

@@ -22,10 +22,13 @@ export async function showLists() {
   setNav("lists"); $("#q").value = ""; openList = null;
   const my = seq;
   main(loading("Loading"));
-  const ls = await api("api/lists").catch(() => []);
+  const [ls, imps] = await Promise.all([api("api/lists").catch(() => []), feat("playlists") ? api("api/import").catch(() => []) : []]);
   if (my !== seq) return;
+  const waiting = imps.filter(j => j.status !== "running").length;
   main(section(1, "Tunebox playlists", "shared · anyone can add songs") +
-    `<div class="grid"><button class="card new" data-f="playlists" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>` +
+    `<div class="grid"><button class="card new" data-f="playlists" data-act="list-new"><div class="blank">${icon.ADD}</div><div class="t">New playlist</div><div class="s">Start empty</div></button>
+    <button class="card new" data-f="playlists" data-act="import"><div class="blank">${icon.LIST}</div><div class="t">Import</div>
+      <div class="s">${waiting ? `${waiting} ready to save` : imps.length ? "Finding songs" : "m3u, CSV or text"}</div></button>` +
     ls.map(p => `<button class="card" data-act="list-open" data-id="${esc(p.id)}">${p.liked && !p.thumbs.length ? `<div class="blank heart">${icon.HEART}</div>` : mosaic(p.thumbs)}<div class="t">${esc(p.name)}</div>
       <div class="s"><i class="kind ${p.liked ? "liked" : p.auto ? "top" : "mine"}"></i>${plural(p.count, "song")}${p.auto ? " · most played" : p.liked || !feat("people") ? "" : " · " + owner(p)}</div></button>`).join("") + "</div>");
 }
@@ -171,9 +174,11 @@ async function saveAsList(key, name) {
 }
 
 /* ---------- the "Add to playlist" pop-up ---------- */
-let pickTrack = null;                          /* one song, or several (picked with Select) */
-export async function pickFor(track) {
-  pickTrack = track;
+let pickTrack = null, pickDone = null;         /* one song, or several (picked with Select, or an import) */
+/* o.name fills in the new playlist's name; o.done runs once the songs are saved */
+export async function pickFor(track, o = {}) {
+  pickTrack = track; pickDone = o.done || null;
+  $("#pickName").value = o.name || "";
   $("#pickList").innerHTML = loading("Loading");
   $("#picker").classList.add("open"); syncScrim();     /* on top: the queue drawer may stay open under it */
   const ls = (await api("api/lists").catch(() => [])).filter(p => !p.auto);
@@ -186,12 +191,12 @@ function closePicker() { $("#picker").classList.remove("open"); syncScrim(); }
 
 async function pickAdd(btn) {
   const ts = [].concat(pickTrack);
-  let added = 0, r;
-  for (const track of ts) { r = await api(`api/lists/${btn.dataset.id}/tracks`, { track }); if (!r.duplicate) added++; }
+  const r = await api(`api/lists/${btn.dataset.id}/tracks`, ts.length === 1 ? { track: ts[0] } : { tracks: ts }), added = r.added;
   btn.querySelector(".ok").textContent = added ? "Added" : "Already in";
   toast(ts.length === 1 ? (added ? `Added · ${r.count} songs` : "Already in that playlist")
     : `Added ${plural(added, "song")}${added < ts.length ? ` · ${ts.length - added} already in` : ""}`);
   setTimeout(closePicker, 450);
+  pickDone?.();
 }
 
 $("#pickForm").addEventListener("submit", async e => {
@@ -200,6 +205,7 @@ $("#pickForm").addEventListener("submit", async e => {
   if (!name) return;
   const p = await api("api/lists", { name, tracks: [].concat(pickTrack) });
   $("#pickName").value = ""; toast(`Created "${p.name}"`); closePicker();
+  pickDone?.();
 });
 
 /* ---------- wiring ---------- */

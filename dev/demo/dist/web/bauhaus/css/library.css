@@ -187,3 +187,18 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 0 calc(var(--player-h) + 16
   background: var(--s2); border: 1px solid var(--line-2); box-shadow: 0 16px 40px #0008; }
 .selbar span { font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
 
+/* ---------- importing a playlist: the paste box, your imports, the review ---------- */
+.impform { padding: 0 16px; }
+.impform .newform { padding: 8px 0 12px; border: 0; }
+button.uprow.imp { width: 100%; text-align: left; }
+@media (hover: hover) { button.uprow.imp:hover { background: var(--s1); } }
+#view > .uprow { border: 0; padding-top: 0; }
+.improw .src { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px 0 52px; font-size: 12px; color: var(--muted); }
+.improw .src span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.improw .src b { flex: none; font: 600 11px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.improw.unsure .src b { color: var(--yellow-text); }
+.improw.none .src b, .improw.out .src b { color: var(--red-text); }
+.improw.out .row { opacity: .5; }
+.improw .alts { margin-left: 40px; border-left: 3px solid var(--yellow); background: var(--s1); }
+.newform > .seg2 { width: min(440px, 100%); }
+.newform > .seg2 button { padding: 0 10px; }

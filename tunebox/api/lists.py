@@ -64,7 +64,8 @@ class ListBody(BaseModel):
 
 
 class ListTrackBody(BaseModel):
-    track: dict
+    track: dict | None = None
+    tracks: list[dict] | None = None          # several at once (an import): those already in are left out
 
 
 class LikeBody(BaseModel):
@@ -152,17 +153,22 @@ async def edit_list_tracks(list_id: str, body: ListEditBody, request: Request):
 
 @router.post("/api/lists/{list_id}/tracks")
 async def add_to_list(list_id: str, body: ListTrackBody, request: Request):
-    t = clean_track(body.track)
-    if not t:
+    ts = [t for t in map(clean_track, body.tracks if body.tracks is not None else [body.track]) if t]
+    if not ts:
         raise HTTPException(400, "not a track")
     async with lists_lock:
         p = get_list(list_id, request)
-        dup = any(x["videoId"] == t["videoId"] for x in p["tracks"])
-        if not dup:
-            p["tracks"].insert(0 if list_id == LIKED_ID else len(p["tracks"]), t)   # newest like first
+        have, new = {x["videoId"] for x in p["tracks"]}, []
+        for t in ts:                          # also once each when the import has a song twice
+            if t["videoId"] not in have:
+                have.add(t["videoId"])
+                new.append(t)
+        if new:
+            at = 0 if list_id == LIKED_ID else len(p["tracks"])   # newest like first
+            p["tracks"][at:at] = new
             p["updated"] = int(time.time())
             save_lists()
-    return {"ok": True, "duplicate": dup, "count": len(p["tracks"])}
+    return {"ok": True, "duplicate": not new, "added": len(new), "count": len(p["tracks"])}
 
 
 @router.post("/api/like", dependencies=[feature("likes")])
